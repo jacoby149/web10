@@ -334,6 +334,10 @@ repaired; it is not retroactive native proof. Preserve raw PASS flags and qualif
 numbers, do not claim the paired gate passed, and do not start a new paid run
 without fresh admission. Audit/results:
 `research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md`.
+Jacob subsequently explicitly approved one fresh Intel coverage-repair lease;
+its host/window must be independently bound and its actual oracle-root coverage
+must pass before measurement. This does not retroactively close the first run's
+gap. Current admission/state: the existing engagement task block.
 
 **Costfn execution override — Jacob Hoffman,18 November2026:** for all future
 costfn experiment runs, including completion work, the governing policy is

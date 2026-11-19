@@ -1,5 +1,18 @@
 # Engagement reads: one segment per root document
 
+## Fresh coverage-repair admission — Jacob Hoffman,19 November2026
+
+After reviewing the omitted20-root paired precheck, Jacob explicitly selected
+**“Approve fresh lease”** for one new Intel run:26.10.4.207,32/28/22GiB,
+four hours/$2,600s/no row stop/native polling, agent~300s/self-kill/no guardian.
+Use the repaired independent-oracle target domain and prove every actual paired
+root is queried in each required main/follow-up service scope before measuring.
+Keep ordinary/fat/sample checks; measure only after all required gates pass.
+No baseline/B/D timings, view-event/aggregate seed, production or§8 work. Bind a
+new host/window before execution; do not reopen620898285 or relabel its raw
+PASS flags as acceptance. Its numerical observations and missing-domain audit
+remain preserved regardless of the new outcome. No automatic retries/extensions.
+
 **Tally lease CLOSED; full tally acceptance OPEN —19 November:**
 [`evidence/engagement-tally-20261119/RESULTS.md`](evidence/engagement-tally-20261119/RESULTS.md)
 retains exact ordinary response parity and thousand-row pure count reads. Uniform
