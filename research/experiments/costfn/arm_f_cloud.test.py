@@ -14,6 +14,31 @@ import arm_f_deploy as deploy
 
 
 class HostReadinessTests(unittest.TestCase):
+    def test_missing_legacy_regions_refuses_unavailable_SKU_without_spend(self):
+        shape=dict(slug='s-8vcpu-32gb-amd',memory=32768,vcpus=8,disk=400,price_hourly=.25,available=True)
+        with tempfile.TemporaryDirectory() as directory, patch.object(cloud,'api',side_effect=[
+                [{'uuid':'test'}],[shape],[{'slug':'nyc3','available':True,'sizes':['other']}]] ) as api:
+            with self.assertRaisesRegex(ValueError,'SKU unavailable'):
+                cloud.initialize(state=Path(directory)/'state.json')
+            self.assertFalse((Path(directory)/'state.json').exists())
+            self.assertEqual(api.call_count,3)
+
+    def test_explicit_tally_Intel_substitution_keeps_memory_budget_and_deadline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory)
+            (home/'.local/state/web10-research').mkdir(parents=True)
+            shape=dict(slug='s-8vcpu-32gb-640gb-intel',memory=32768,vcpus=8,disk=640,price_hourly=.28571,available=True,regions=['nyc3'])
+            state=home/'state.json'
+            with patch.object(cloud.Path,'home',return_value=home), patch.object(cloud,'api',side_effect=[[{'uuid':'test'}],[shape],[]]):
+                cloud.initialize(state=state,scope='F_GATES_ONLY',hardware_override=cloud.TALLY_INTEL)
+            lease=json.loads(Path(json.loads(state.read_bytes())['lease']).read_bytes())
+            cloud.validate(lease)
+            self.assertEqual(lease['deadline']-lease['created_epoch'],14400)
+            self.assertEqual(lease['max_usd'],2)
+            for key,value in (('hardware_directive','missing'),('hourly_usd',.4),('tally_wiring_admitted',False)):
+                with self.assertRaises(ValueError):
+                    cloud.validate({**lease,key:value})
+
     def test_initialize_never_starts_guardian_or_launchctl(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)

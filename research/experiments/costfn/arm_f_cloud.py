@@ -18,6 +18,7 @@ import traceback
 import uuid
 
 DOCTL = '/opt/homebrew/bin/doctl'
+TALLY_INTEL = 'Jacob Hoffman 2026-11-18 tally Intel32GiB640GiB at0.28571 per hour'
 
 
 def api(*args):
@@ -40,10 +41,13 @@ def save(path, value):
 
 
 def validate(lease):
+    hardware = (lease.get('size') == 's-8vcpu-32gb-amd' and lease.get('hourly_usd') == .25) or (
+        lease.get('size') == 's-8vcpu-32gb-640gb-intel' and lease.get('hourly_usd') == .28571
+        and lease.get('hardware_directive') == TALLY_INTEL and lease.get('tally_wiring_admitted') is True)
     if (not re.fullmatch(r'web10-fanout-f-[a-f0-9]{12}', lease.get('name', ''))
             or lease.get('tag') != lease['name'] or lease.get('configuration') != 'F'
-            or lease.get('region') != 'nyc3' or lease.get('size') != 's-8vcpu-32gb-amd'
-            or lease.get('max_usd') != 2 or lease.get('hourly_usd') != .25
+            or lease.get('region') != 'nyc3' or not hardware
+            or lease.get('max_usd') != 2
             or lease.get('deadline', 0) - lease.get('created_epoch', 0) != 14400
             or not lease.get('account_uuid')):
         raise ValueError('exact granted Config F four-hour/$2 lease required')
@@ -168,17 +172,24 @@ def watchdog_program(script, lease, *, executable=None):
     return [str(python), '-I', '-S', str(script), 'tick', '--lease', str(lease)]
 
 
-def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None):
+def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None, hardware_override=None):
     state = Path(state)
     if scope not in (None, 'F_DEPLOY_REHEARSAL', 'F_GATES_ONLY'):
         raise ValueError('unknown F admission scope')
     if state.exists():
         raise FileExistsError('existing F run; no adoption/extension')
+    if hardware_override not in (None, TALLY_INTEL):
+        raise ValueError('explicit exact hardware substitution approval required')
     rows = api('account', 'get')
     account_row = rows[0] if isinstance(rows, list) else rows
-    shape = next(row for row in api('compute', 'size', 'list') if row['slug'] == 's-8vcpu-32gb-amd')
+    sku = 's-8vcpu-32gb-640gb-intel' if hardware_override else 's-8vcpu-32gb-amd'
+    shape = next(row for row in api('compute', 'size', 'list') if row['slug'] == sku)
+    regions = shape.get('regions')
+    if regions is None:
+        regions = [r['slug'] for r in api('compute','region','list') if r.get('available') and sku in r.get('sizes',[])]
     if (shape['memory'] != 32768 or shape['vcpus'] != 8 or shape['disk'] < 400
-            or shape['price_hourly'] != .25 or not shape['available'] or 'nyc3' not in shape['regions']):
+            or shape['price_hourly'] != (.28571 if hardware_override else .25)
+            or (hardware_override and shape['disk'] != 640) or not shape['available'] or 'nyc3' not in regions):
         raise ValueError('approved exact SKU unavailable; no replacement')
     if api('compute', 'droplet', 'list'):
         raise ValueError('another host exists; isolation preflight required')
@@ -187,9 +198,11 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
     root.mkdir(mode=0o700)
     created = int(time.time())
     lease = dict(name=name, tag=name, configuration='F', size=shape['slug'], region='nyc3',
-                 account_uuid=account_row['uuid'], max_usd=2, hourly_usd=.25, created_epoch=created,
+                 account_uuid=account_row['uuid'], max_usd=2, hourly_usd=shape['price_hourly'], created_epoch=created,
                   deadline=created + 14400, approved_by='Jacob', cancelled=False,
-                  cleanup_model='agent-supervised-self-kill', guardian_required=False)
+                   cleanup_model='agent-supervised-self-kill', guardian_required=False)
+    if hardware_override:
+        lease.update(hardware_directive=hardware_override,tally_wiring_admitted=True)
     if scope:
         lease['scope'] = scope
     if ssh_source_cidr:

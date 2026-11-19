@@ -7,6 +7,14 @@ composition. Bind host/deadline first;26.10.4.207,32/28/22GiB, existing per-leas
 discipline, no row stop,600s statements/native polling and agent~300s/self-kill/no
 guardian. No baseline/B/D remeasurement, aggregate seed, production or§8 work.
 
+**Explicit hardware substitution approved by Jacob in this session:** the old
+AMD32GiB/400GiB SKU is no longer listed innyc3 and lacks regions metadata; the
+snapshot isnyc3-only. Use `s-8vcpu-32gb-640gb-intel`,8vCPU/32GiB/640GiB at
+$0.28571/hour (~$1.143/four hours, still below$2). Receipt the CPU/disk/rate
+difference; keep32/28/22GiB and the original four-hour/$2 discipline. The failed
+catalog preflight created no lease/resource. This exception does not admit other
+SKUs or relax historical AMD leases.
+
 Build generic scope-qualified `counting_numbers_tally` from canonical current
 rows, all roots in each built scope—not merely the feed page. Every engagement
 tallies its root and any distinct finer body target. Kind names preserve the
