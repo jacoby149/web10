@@ -25,6 +25,8 @@ def value_rows(kind, rows):
             identities[row_id] = identity
         else:
             payload = row['value']
+            if kind in ('objects','arrays'):
+                payload = model.Container(payload, metadata(row['children_digest']))
             if kind == 'nulls':
                 if type(payload) is not int or payload != 0:
                     raise ValueError('invalid typed null sentinel')
@@ -93,8 +95,12 @@ class Store:
             previous, _ = value_rows(kind, self.query(sql.values(kind, values)))
             added = [value for row_id, value in values.items() if (kind, row_id) not in previous]
             if added:
-                self.insert('row_' + kind, [(v.row_id, 0 if kind == 'nulls' else v.value) for v in added],
-                    ['value_row_id', 'value'])
+                if kind in ('objects','arrays'):
+                    self.insert('row_' + kind, [(v.row_id, v.value.count, v.value.children_digest) for v in added],
+                        ['value_row_id', 'value', 'children_digest'])
+                else:
+                    self.insert('row_' + kind, [(v.row_id, 0 if kind == 'nulls' else v.value) for v in added],
+                        ['value_row_id', 'value'])
         # Stage the entire exact-version pointer batch before publishing a skinny
         # commit header. Missing/corrupt value rows or partial writes refuse it.
         staged = [p for batch in batches for p in batch.pointers]

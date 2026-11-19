@@ -313,7 +313,7 @@ class RowModelTests(unittest.TestCase):
         def source(statement):
             queries.append(statement)
             if statement.startswith('SELECT DISTINCT'):
-                return [] if 'WHERE (author_key,doc_id)>' in statement else [dict(author_key='a', doc_id='p')]
+                return [] if '(author_key,doc_id)>' in statement else [dict(author_key='a', doc_id='p')]
             return [row, {**row, 'body':'{"text":"new"}', 'updated_at':'2026-11-19T00:00:00Z'}]
         builder = build.Builder(source, store, checkpoints.append, source_tables=['engagement_documents'], quiescent_verified=True)
         result = builder.run()
@@ -358,6 +358,25 @@ class RowModelTests(unittest.TestCase):
         payload = {('body',):('arrays', 2**63)}
         with self.assertRaisesRegex(ValueError, 'incomplete array'):
             model.materialize(payload, {}, ('body',))
+
+    def test_container_value_identity_binds_contents_not_merely_number_of_children(self):
+        def body_id(body):
+            batch = model.decompose(dict(author_key='a', doc_id='p', body=body), 1)
+            return next(p.value_row_id for p in batch.pointers if model.decode_path(p.key) == ('body',))
+        self.assertNotEqual(body_id({'x':1}), body_id({'x':2}))
+        self.assertNotEqual(body_id({'x':1}), body_id({'y':1}))
+        self.assertNotEqual(body_id([1,2]), body_id([2,1]))
+        self.assertEqual(body_id({'x':1, 'y':[2]}), body_id({'y':[2], 'x':1}))
+
+    def test_container_cannot_keep_its_identity_while_a_child_value_is_swapped(self):
+        first = model.decompose(dict(author_key='a', doc_id='p', body={'x':1}), 1)
+        second = model.decompose(dict(author_key='a', doc_id='p', body={'x':2}), 1)
+        other = next(p for p in second.pointers if model.decode_path(p.key) == ('body','x'))
+        pointers = tuple(other if model.decode_path(p.key) == ('body','x') else p for p in first.pointers)
+        node = replace(first.node, pointer_digest=model.pointer_digest(pointers))
+        values = {(v.type,v.row_id):v for v in (*first.values,*second.values)}
+        with self.assertRaisesRegex(ValueError, 'container children changed'):
+            model.assemble(node, pointers, values, {})
 
 
 if __name__ == '__main__':

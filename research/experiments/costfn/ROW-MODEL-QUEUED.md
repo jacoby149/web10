@@ -32,8 +32,13 @@ Source modules now implement:
   or ambiguous legacy targets refuse; edges never silently become text.
 - `row_model_fence.py` / `row_model_cell.py`: exact-domain/source/part fences,
   independent canonical key/type checks, all-fixes-banking barrier and separately
-  accounted canonical-versus-row assembly stages. These are source primitives;
-  the actual native action-provider/connected-cell integration is still OPEN.
+  accounted canonical-versus-row assembly stages.
+- `row_model_native.py`, `row_model_actions.py`, `row_model_worker.py` and
+  `row_model_run.py`: concrete typed-driver/owned-container wiring, full-family
+  setup, real canonical/typed controls, physical sharing and zero-pointer
+  verification, native query receipts and private comparison packets. Source
+  integration is implemented; actual native/data-scale acceptance remains OPEN.
+  Invocation/admission/cost scopes: [`ROW-MODEL-RUN.md`](ROW-MODEL-RUN.md).
 
 **Snapshot consistency choice:** each committed experimental version contains a
 complete pointer set, with explicit tombstones for removed keys. A skinny header
@@ -41,11 +46,16 @@ binds its count/digest. Never merge keys from different versions or publish a
 partial build. This is NOT a live-write concurrency/transaction claim. Selected
 key reads require whole-model parity and unchanged frozen native table parts;
 full reads also verify the complete pointer manifest and immutable value IDs.
+Container values additionally commit to child key/type/value IDs: equal arity
+alone is NOT value identity. Nested child pointers remain versioned document
+rows; container content changes cannot retain their previous immutable ID.
 
 The cell's typed layouts answer row-ID assembly seeks; do not infer numeric-
 range/text-prefix query-planner performance from that test. No new `documents`
-projection is introduced. Full-scale native type/driver/layout/assembly proof,
-connected harness integration and eventual JSON read-path retirement remain OPEN.
+projection is introduced. Full-scale native type/driver/layout/assembly proof
+and eventual production JSON read-path retirement remain OPEN. The connected
+action-provider/worker/host entry is now source-implemented and source-tested,
+not claimed natively accepted.
 
 ## The goal
 

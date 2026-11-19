@@ -23,9 +23,17 @@ def lake(tables):
 def identity_page(tables, after=None, size=256):
     if type(size) is not int or not 1 <= size <= 4096:
         raise ValueError('bounded complete-identity ingest page required')
-    predicate = '' if after is None else ' WHERE (author_key,doc_id)>(' + q(after[0]) + ',' + q(after[1]) + ')'
-    return ('SELECT DISTINCT author_key,doc_id FROM ' + lake(tables) + predicate
-        + ' ORDER BY author_key,doc_id LIMIT ' + str(size))
+    predicate = '' if after is None else ' AND (author_key,doc_id)>(' + q(after[0]) + ',' + q(after[1]) + ')'
+    # Exact top-K union: a globally first K distinct identity must be in the
+    # first K DISTINCT identities of at least one source. Push cursor/order/K
+    # into each physical PK lane rather than sorting the whole remaining lake
+    # for every ingest page. This is never a LIMIT over document history.
+    branches = ['SELECT DISTINCT author_key,doc_id FROM ' + identifier(table)
+        + " WHERE collection_name='posts'" + predicate + ' ORDER BY author_key,doc_id LIMIT ' + str(size) for table in tables]
+    if not branches:
+        raise ValueError('explicit canonical sources required')
+    return ('SELECT DISTINCT author_key,doc_id FROM (' + ' UNION ALL '.join('(' + branch + ')' for branch in branches)
+        + ') ORDER BY author_key,doc_id LIMIT ' + str(size))
 
 
 def histories(tables, identities):
@@ -33,8 +41,12 @@ def histories(tables, identities):
     if not keys:
         raise ValueError('explicit full document keys required')
     selected = ','.join('(' + q(author) + ',' + q(doc) + ')' for author, doc in keys)
-    return ('SELECT ' + ','.join(COLUMNS) + ' FROM ' + lake(tables)
-        + ' WHERE (author_key,doc_id) IN (' + selected + ') ORDER BY author_key,doc_id,updated_at,deleted')
+    branches = ['SELECT ' + ','.join(COLUMNS) + ' FROM ' + identifier(table)
+        + " WHERE collection_name='posts' AND (author_key,doc_id) IN (" + selected + ')' for table in tables]
+    if not branches:
+        raise ValueError('explicit canonical sources required')
+    return ('SELECT ' + ','.join(COLUMNS) + ' FROM (' + ' UNION ALL '.join(branches)
+        + ') ORDER BY author_key,doc_id,updated_at,deleted')
 
 
 def declared_edges(document):
@@ -65,26 +77,33 @@ def declared_edges(document):
 
 
 class Builder:
-    def __init__(self, query, store, checkpoint, *, source_tables, quiescent_verified=False):
+    def __init__(self, query, store, checkpoint, *, source_tables, quiescent_verified=False, identity_table=None):
         if quiescent_verified is not True:
             raise ValueError('frozen source and stopped experimental writers must be verified before build')
         self.query, self.store, self.checkpoint = query, store, checkpoint
         self.tables = tuple(source_tables)
+        self.identity_table = identifier(identity_table) if identity_table is not None else None
         lake(self.tables)  # Validate fixed source identifiers before any I/O.
 
     def reference_owners(self, names):
         if not names:
             return {}
         selected = ','.join(q(value) for value in sorted(names))
-        hints = self.query('SELECT author_key,doc_id FROM strings WHERE owner_key IN (' + selected
-            + ") AND startsWith(field_name,'document:') GROUP BY author_key,doc_id")
+        if self.identity_table is None:
+            hints = self.query('SELECT author_key,doc_id FROM strings WHERE owner_key IN (' + selected
+                + ") AND startsWith(field_name,'document:') GROUP BY author_key,doc_id")
+        else:
+            hints = self.query('SELECT author_key,doc_id FROM ' + self.identity_table
+                + ' WHERE doc_id IN (' + selected + ') GROUP BY author_key,doc_id')
         if not hints:
             raise ValueError('canonical legacy references have no indexed identity candidates')
         # Validate the entire full-key candidate set against actual canonical
         # history. A metadata hint never creates a document or grants its body.
         keys = ','.join('(' + q(row['author_key']) + ',' + q(row['doc_id']) + ')' for row in hints)
-        canonical = self.query('SELECT author_key,doc_id FROM documents WHERE (author_key,doc_id) IN ('
-            + keys + ') GROUP BY author_key,doc_id')
+        canonical_sources = ('documents',) if self.identity_table is None else tuple(dict.fromkeys(('documents', *self.tables)))
+        canonical = self.query('SELECT author_key,doc_id FROM (' + ' UNION ALL '.join(
+            'SELECT author_key,doc_id FROM ' + identifier(table) + ' WHERE (author_key,doc_id) IN (' + keys + ')'
+            for table in canonical_sources) + ') GROUP BY author_key,doc_id')
         owners = {}
         for row in canonical:
             identity = model.Identity(row['author_key'], row['doc_id'])
