@@ -106,16 +106,19 @@ class Session(arm_f_runtime.Session):
                 '--max_bytes_to_read_leaf=0', '--max_result_rows=0']
         started = time.perf_counter()
         try:
+            statement_kind = ('write' if sql.lstrip().upper().startswith(('ALTER ', 'OPTIMIZE ', 'INSERT ', 'CREATE '))
+                else 'read')
             command = ['exec', '-T', 'clickhouse', 'clickhouse-client',
                 '--user', 'web10', '--password', 'web10', '--database', 'web10', '--query_id', query_id,
                 '--max_execution_time', str(budget), '--receive_timeout', str(budget + 10),
-                *args, '--query', sql]
+                *args]
             if (current_policy or (not measured and self.operation.get('engagement_completion_admitted') is True
-                    and sql.lstrip().upper().startswith(('ALTER ', 'OPTIMIZE ', 'INSERT ', 'CREATE ')))):
+                    and statement_kind == 'write')):
                 from engagement_native import await_query
-                raw = await_query(self, [*self.compose, *command], query_id, budget)
+                raw = await_query(self, [*self.compose, *command], query_id, budget,
+                    sql=sql, statement_kind=statement_kind)
             else:
-                raw = restore.command(self.compose, self.env, *command, timeout=budget + 20)
+                raw = restore.command(self.compose, self.env, *command, data=sql.encode(), timeout=budget + 20)
             self.record(dict(phase='finish', label=label, query_id=query_id, success=True,
                 elapsed_seconds=time.perf_counter() - started))
             return raw.decode().strip(), query_id
@@ -125,11 +128,11 @@ class Session(arm_f_runtime.Session):
             value = json.loads(path.read_bytes())
             try:
                 restore.command(self.compose, self.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',
-                    '--user', 'web10', '--password', 'web10', '--query', 'SYSTEM FLUSH LOGS', timeout=5)
+                    '--user', 'web10', '--password', 'web10', data=b'SYSTEM FLUSH LOGS', timeout=5)
                 text = restore.command(self.compose, self.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',
-                    '--user', 'web10', '--password', 'web10', '--max_execution_time=2', '--query',
-                    "SELECT query_id,toString(type) AS type,exception_code,exception,query_duration_ms,read_rows,read_bytes "
-                    "FROM system.query_log WHERE query_id='" + query_id + "' AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing') FORMAT JSON", timeout=5)
+                    '--user', 'web10', '--password', 'web10', '--max_execution_time=2',
+                    data=("SELECT query_id,toString(type) AS type,exception_code,exception,query_duration_ms,read_rows,read_bytes "
+                    "FROM system.query_log WHERE query_id='" + query_id + "' AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing') FORMAT JSON").encode(), timeout=5)
                 rows = json.loads(text)['data']
                 value['native'] = dict(status='COLLECTED' if rows else 'NO_QUERY_LOG_ROWS', rows=rows)
             except Exception as diagnostic:

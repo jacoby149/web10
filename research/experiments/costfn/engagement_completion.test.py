@@ -149,8 +149,8 @@ class CompletionTests(unittest.TestCase):
                 session = SimpleNamespace(root=Path(directory), compose=['docker', 'compose'], env={})
                 with patch.object(native.subprocess, 'Popen', return_value=process) as spawn, \
                         patch.object(native.restore, 'command', side_effect=responses), patch.object(native.time, 'sleep'):
-                    native.await_query(session, ['client', '--query', 'ALTER TABLE documents MATERIALIZE PROJECTION ref_sorted'],
-                        'fanout-f-original', 1200)
+                    native.await_query(session, ['client'], 'fanout-f-original', 1200,
+                        sql='ALTER TABLE documents MATERIALIZE PROJECTION ref_sorted', statement_kind='write')
                 self.assertEqual(spawn.call_count, 1)
                 receipt = json.loads((Path(directory) / 'native-operations/fanout-f-original/receipt.json').read_bytes())
                 self.assertEqual(receipt['outcome'], 'NATIVE_FINISH')
@@ -165,7 +165,8 @@ class CompletionTests(unittest.TestCase):
             with patch.object(native.subprocess, 'Popen', return_value=process) as spawn, \
                     patch.object(native.restore, 'command', side_effect=[b'', json.dumps(terminal).encode()]):
                 with self.assertRaisesRegex(ValueError, 'stopped natively'):
-                    native.await_query(session, ['client', 'INSERT INTO copy SELECT 1'], 'fanout-f-failed', 1200)
+                    native.await_query(session, ['client'], 'fanout-f-failed', 1200,
+                        sql='INSERT INTO copy SELECT 1', statement_kind='write')
             self.assertEqual(spawn.call_count, 1)
 
     def test_projection_bytes_allow_physical_rename_but_deny_base_column_mutation(self):
