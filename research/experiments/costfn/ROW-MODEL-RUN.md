@@ -10,7 +10,16 @@ owns the target; the [directive index](README.md#directive-precedence-index)
 owns execution precedence. The present JSON implementation remains source/oracle
 and experimental fallback, not a permanent hybrid or the replacement target.
 
-## Latest attempt —19 November2026
+## Latest rerun —19 November2026
+
+The binding is regenerated on merged restore-fix source2749c1037 and verified
+before fresh DO621414125 restores. Restore/read setup/migration pass; billboard
+fixture transport stops before parity gates or composition banking. The row
+bridge refuses unbanked accounting, so no row worker/build/assembly runs. D117
+remains pending. Owned cleanup is verified and admission closed, snapshot
+retained; no automatic retry. [Exact binding/fix/new-attempt receipts](evidence/all-fixes-row-model-rerun-20261119/RESULTS.md).
+
+## First attempt —19 November2026
 
 The exact source binding passed on DO621405771 before the composed entry restored
 the store. Restore then stopped at an existing-input-path collision; all-fixes
