@@ -15,6 +15,15 @@ difference; keep32/28/22GiB and the original four-hour/$2 discipline. The failed
 catalog preflight created no lease/resource. This exception does not admit other
 SKUs or relax historical AMD leases.
 
+Execution binds **DO620898285**,19 November02:03:43→06:03:43UTC, the explicitly
+approved Intel SKU at$0.28571/hour/four-hour/$2 bound. Two provider-readiness
+timeouts remain preserved on the same host, no replacement. Source`c7c0012f5`
+verifies1,444 executing files/16 approved pins;11 tally controls pass on-host,
+both self-kill timers are active, no guardian. Full local suite is34/290 after
+the two hardware controls. Banked citation and initial native engine/count
+checks pass; restore/input verification is active, not a native tally result.
+First private checkpoint1,845,588 bytes/SHA`c09eab81…c6f0e` verifies off-host.
+
 Build generic scope-qualified `counting_numbers_tally` from canonical current
 rows, all roots in each built scope—not merely the feed page. Every engagement
 tallies its root and any distinct finer body target. Kind names preserve the
