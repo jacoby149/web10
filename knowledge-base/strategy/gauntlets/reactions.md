@@ -1,5 +1,9 @@
 # Reactions gauntlet — likes & dislikes, tortured
 
+**Current app/API test plan, not target storage.** D116 is DECIDED, D117 is
+DIRECTION (cell pending), and D118 is DECIDED; use the
+[design map](../../web10-v3/db/design-revolution.md) rather than inferring storage from API examples.
+
 [← back to the gauntlet doctrine](./README.md)
 
 The like button is the surface the operator actually touches, and it is the one

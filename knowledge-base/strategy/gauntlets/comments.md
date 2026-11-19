@@ -1,5 +1,9 @@
 # Comments gauntlet — the thread, tortured
 
+**Current app/API test plan, not target storage.** D116 is DECIDED, D117 is
+DIRECTION (cell pending), and D118 is DECIDED; JSON/ref examples do not override
+the [canonical design map](../../web10-v3/db/design-revolution.md).
+
 [← back to the gauntlet doctrine](./README.md)
 
 A comment is a `comments` doc with `ref_value` = the target post's `doc_id`. The

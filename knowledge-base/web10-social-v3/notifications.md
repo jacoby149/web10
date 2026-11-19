@@ -1,5 +1,9 @@
 # Notifications
 
+**Historical app-design/API examples, not target storage.** See current v3 in
+`../web10-v3/` and the [D116/D117/D118 design map](../web10-v3/db/design-revolution.md):
+DECIDED relationships, DIRECTION (cell pending) typed storage, DECIDED export/storage separation.
+
 Real-time alerts for reactions, comments, replies, DMs, follow requests, group
 activity. **D69:** derived events the social app owns — CRUD is the source of
 truth, the P2P data channel is the nudge. No server push, no node table, no

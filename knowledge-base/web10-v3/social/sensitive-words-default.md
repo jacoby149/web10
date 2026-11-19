@@ -2,7 +2,7 @@
 
 The shipped default for `node_config.sensitive_words`. These are **hate speech and slurs only** — not general profanity. The operator can add profanity or additional terms through the Node Config UI.
 
-**Matching rules:** case-insensitive, whole-word (word boundaries). No regex. No partial/substring matches.
+**Matching rules:** case-insensitive, whole-word (token start/end delimiters). No regex. No partial/substring matches.
 
 **Scope:** single tokens only. Multi-word phrases ("heil hitler", "slant eye") are not matched by the v0 whole-word engine. They are noted here for reference but are not in the default list.
 
@@ -181,9 +181,9 @@ These patterns exist in the wild but are **not** caught by a whole-word matcher.
 | Pattern | Example | Why it's not caught |
 |---|---|---|
 | Extended vowels | niiiigger, fagggooot | Not a whole-word match |
-| Interjected characters | n-i-g-g-e-r, f.a.g | Hyphens/dots break the word boundary |
+| Interjected characters | n-i-g-g-e-r, f.a.g | Hyphens/dots delimit separate word tokens |
 | Unicode lookalikes | ۷іgger (Cyrillic і) | Different codepoints |
-| Emojis / symbols | n***r, f🐔got | Symbols break the word boundary |
+| Emojis / symbols | n***r, f🐔got | Symbols delimit separate word tokens |
 | Reversed | reggin, toggaf | Not a dictionary word |
 | Audio / image | Slurs in voice notes or images | Not text |
 

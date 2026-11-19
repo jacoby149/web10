@@ -22,7 +22,7 @@ hardened telemetry stack without breaking the invariants that got us here.
 |---|---|---|---|
 | marketing-ui (landing, docs site) | copy, layout, CTA, page composition | client-side, assigned per anonymous session | 1 |
 | web10-social | onboarding, affordances, copy, user-visible defaults | client-side, assigned **per person after identify resolves** | 2 |
-| ui/ (authenticator) | — | excluded by default: trust boundary, separate security review | — |
+| ui/ (authenticator) | — | excluded by default: app -> authenticator credential/consent exchange requires separate review | — |
 | node-served data (feed order, ad density, sort defaults) | data treatments | none until the generic node flag seam (§ seam) | 3 |
 
 **Client-side-only rule (phases 1–2):** a variant must be fully realizable
@@ -41,8 +41,8 @@ identically — the D60 test). Candidate shapes:
 - an operator-managed flag set served via the existing `GET /telemetry`
   config — node-level, not per-user. That is a rollout mechanism, not an
   A/B; label it as such when used.
-Admission when wanted: its own task, a D-number, security review (the trust
-boundary expands — the node phones home for flag decisions), and operator
+Admission when wanted: its own task, a D-number, review of the new
+API -> PostHog service exchange for flag decisions, and operator
 admission. Until then the seam does not exist, and experiments stay
 presentation-layer.
 
@@ -146,12 +146,12 @@ routes, longer horizon) and say so plainly rather than fake significance.
 record, move on. Do not keep watching a finished experiment — that is
 peeking with better manners.
 
-## Boundaries / non-goals
+## Scope / non-goals
 
 - **No server-side flags until the seam lands** (phase 3: protocol decision
   + D-number + security review + operator admission).
 - **No experiments on consent/authority surfaces** (`auth-ui`) without a
-  separate security review — a trust boundary.
+  separate review of the app -> authenticator credential/consent exchange.
 - **No PostHog visual/web experiments** (`disable_web_experiments` stays
   true).
 - **No content in events** (D56/D41): flag properties are slugs; experiment
@@ -173,7 +173,7 @@ peeking with better manners.
   experiment events on the explicit EVENTS allowlist. Red/green controls
   for the off-state (zero flag properties, `flag()` null, control render).
   All telemetry + marketing suites. The wire-gate delta is reviewed as
-  trust-boundary work (SDK credential surface; AGENTS.md security protocol).
+  app -> API credential-handling work (SDK credential surface; AGENTS.md security protocol).
 - **AB-02 — Attribution proof.** Synthetic replay: anon landing with
   variant → CTA click with ticket → signup → `$identify` merge; assert the
   experiment report joins the signup to the arm. Connected e2e-node

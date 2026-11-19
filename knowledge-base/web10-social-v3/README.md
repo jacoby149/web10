@@ -1,5 +1,10 @@
 # web10 Social v3
 
+**Historical app-design notes, not the current node schema or replacement target.**
+Current implementation is documented in `../web10-v3/`. D116 is DECIDED, D117
+is DIRECTION (cell pending), and D118 is DECIDED; use the
+[design map](../web10-v3/db/design-revolution.md) for their definitions and proof status.
+
 The social app is the proof. If a full-featured social platform maps cleanly to the v3 protocol, the protocol is right.
 
 **The v3 primitives:**

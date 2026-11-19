@@ -26,7 +26,7 @@ that matters for orient:
   every read path goes through the gate. That is a **load-bearing assumption**: one
   read path that bypasses the gate is a total break, and there is **no
   defense-in-depth at the storage layer** (ClickHouse has no per-row ACL; the
-  enforcement is entirely at the query boundary). **Orient check:** is there a read
+  enforcement is at the API -> ClickHouse query boundary). **Orient check:** is there a read
   path that doesn't go through the gate?
  - **The invariants are C+I, not availability.** Unbounded query, unbounded fan-out,
    unbounded upload, ReDoS are *reliability / DoS* — a different discipline, **out of
@@ -228,7 +228,7 @@ diagnosis: retain exact query, native query IDs, executing fingerprints and scan
 evidence. These are bounded research-tool review lessons and offline controls,
 not connected/native verification or an independent L1–L4/model-diverse PASS.
 
-### 2026-11-13: Canonical identifiers are a shared boundary, not a lowercase display label
+### 2026-11-13: Canonical identifiers must agree across app -> API and API -> ClickHouse exchanges
 
 New service names use one server-side ASCII validator across request fields,
 permission-map keys, explicit storage/grant writers and query service references.
@@ -238,7 +238,7 @@ identifiers still need validation: quoting the CTE name does not alone make a
 service safe to embed as a collection-name value. Keep original query spelling
 for table/column bindings while filtering the canonical collection; never
 lowercase body text, SQL literals, aliases or operation codes. Existing SQL AST,
-parameterization and live-grant boundaries remain necessary.
+parameterization and live app -> API/API -> ClickHouse grant checks remain necessary.
 
 Production's complete schema-enumerated service inventory is already lowercase
 and alphabet-compliant, including retained grant history, with no collisions.
@@ -246,7 +246,7 @@ That observation simplifies this node's compatibility but is not a migration for
 other nodes or pending durable upload/deferred state. This is bounded naming
 hardening with denied malformed/colliding requests, not a whole-security PASS.
 
-Also reject database/catalog-qualified table references at the compiler boundary:
+At the API -> ClickHouse query boundary, also reject database/catalog-qualified table references:
 validating only `Table.name` leaves `other.posts` qualified and does not bind it to
 the generated local `posts` CTE. Column qualifiers and ordinary aliases remain
 valid; qualified physical-table reads are not service names. A failing-before
@@ -300,7 +300,7 @@ generation checks. This repairs source selection, not credential authority.
 
 Historical transcode recovery belongs in one-time ops tooling, not a public read hook, endpoint or perpetual sweep. The private dry-run plan binds expected node/storage and exact media/source; explicit apply revalidates canonical local ownership/deletion/status, runs sequentially and consumes private conditional claims. Scope canonical-read/status-save adapters to the separate script process and restore them on exit. Preserve non-body columns too: update_document defaults erase ref_value/tags/ad settings unless forwarded. Fresh prototype review catches this; actual-insert regressions retain the repair in `api/tests/test_heal_phone_videos.py`. Lost claims/crashes require manual review; concurrent manual transcodes and ClickHouse check/write are not atomic. Synthetic real ClickHouse/MinIO/FFmpeg plan/apply passes. The approved 5.28.1 production receipt then recovers all five exact-error media with preserved originals/metadata/claims and actual public post/Shorts advancing frames at desktop/375px, without API restart/deployment. Physical-phone/full-duration acceptance and model-diverse assurance remain OPEN; bounded operational success is not whole-security proof.
 
-### 2026-11-09: Visible-by-default replay needs explicit sensitive boundaries
+### 2026-11-09: Browser-page -> PostHog capture requires explicit sensitive-region rules
 
 D107 rejects the initial label/public-caption allowlist: normal UI and public
 content stay visible; mask sensitive regions instead. Mark private post records,
@@ -345,7 +345,7 @@ stylesheet declarations; actual network entries and private DOM text stay out.
 Class survival and snapshot delivery are not playback tests. Reconstruct sanitized
 wire events and check computed layout, alongside content/credential sentinels.
 This is bounded adapter evidence, not vendor-hosted playback or a complete
-CSS/content-boundary audit. Review and deployed/new-session verification stay open.
+browser-page -> PostHog CSS/content audit. Review and deployed/new-session verification stay open.
 
 ### 2026-11-08: Filter document windows without duplicating attachment windows
 
@@ -377,7 +377,7 @@ million-author concurrency gate is not closed. [Record](scans/2026-11/query-exac
 
 ### 2026-11-08: Prune complete history partitions, not denying versions
 
-The actual million-author preflight times out while the boundary ranks global
+The actual million-author preflight times out while the API-generated authorization CTE ranks global
 attachment history. Moving its trusted readable `group_id` filter before the
 window is safe because it is part of `(doc_id, group_id)`; all versions of each
 retained link still rank before deletion filtering. Do not push `deleted`, tags
@@ -588,8 +588,8 @@ bounded evidence; separate repair, real lifecycle/connected/diverse/L1 gates OPE
 ### 2026-11-07: Current membership and attachment do not establish creative visibility
 
 The [pinned-hidden evidence](scans/2026-11/h01-pinned-hidden-proof.md) executes
-the actual compiler boundary and pinned-loader SQL on the same synthetic snapshot.
-A current moderator hide excludes the creative from the boundary, yet registered
+the actual API -> ClickHouse compiler checks and pinned-loader SQL on the same synthetic snapshot.
+A current moderator hide excludes the creative from that authorized input set, yet registered
 read enrichment returns its body and an independently verified synthetic SigV4
 capability. Both personal and group authors reproduce; newer unhide and unrelated
 document/group hides retain permitted delivery. Six cases pass on SQLite and
@@ -626,7 +626,7 @@ density/overwrite/HLS behavior remain unverified intent gates.
 ### 2026-11-05: A people tag is a target, never read authority
 
 The social tag index belongs to the app's opaque post/comment body. It helps
-find candidates through the existing readable-service query boundary; it never
+find candidates through existing API -> ClickHouse readable-service authorization; it never
 adds a member or writes into the tagged person's group. New live tag nudges
 must re-read their source and derive actor/time from canonical fields, not the
 peer payload. Opening a row also re-reads the post under current permissions.
@@ -781,7 +781,7 @@ mutation. Raw object keys also need encoded S3 byte bounds. Final local evidence
 24 focused cases, 2,001 API tests plus eight subtests, one opt-in skip, and one
 fresh same-family dry review—not model-diverse convergence or production proof.
 
-### 2026-11-03: A resumable-upload UI is not a saved upload or an auth boundary
+### 2026-11-03: A resumable-upload UI is not saved storage or app -> API authorization
 
 The [upload lifecycle inventory](scans/2026-11/resumable-upload-lifecycle.md)
 distinguishes local draft intent, server/storage-confirmed parts and durable
@@ -941,7 +941,7 @@ controls are required before granting a delivery adapter storage credentials.
 
 Location-aware cache verification, Chromium synthetic HLS/range and deployed
 test-key rotation now pass, but performance/playback success does not discharge
-the separate storage-authority boundary. No security-completion claim.
+the separate API -> object-storage signing-authority checks. No security-completion claim.
 
 ### 2026-11-03: A warm-cache control must match the observed edge location
 
@@ -959,7 +959,7 @@ logging review and independent security sign-off still gate production issuance.
 
 The historical CDN research proposed path-keyed shared caching with origin-only
 authorization. That design cannot enforce expiry on a hit. The new opt-in
-[delivery boundary](../web10-v3/media-delivery.md) verifies a separate RS256
+[node capability-issuer -> CDN edge-verifier boundary](../web10-v3/media-delivery.md) verifies a separate RS256
 media-only exact-key capability before every cache access. Warm-cache probes
 reject missing/expired/tampered/wrong-scope capabilities without touching cache
 or origin. Public-key-only verification interops with actual Python issuance.
@@ -1010,7 +1010,7 @@ This is not L1–L4 or federation assurance.
 
 [Carrier repair](scans/2026-10/group-media-carrier-repair.md) aligns HLS with
 `posted_by or author_key`, current carrier/link history, actual service grants and
-the shared visibility boundary. Production public post reads succeeded while
+shared API -> ClickHouse visibility checks. Production public post reads succeeded while
 fresh streams 403'd; isolated repaired handlers serve all four existing videos.
 Eight carriers/eleven refs have intact metadata/namespaces; raw URLs all 206, so
 no ownership/publicness backfill is justified. Serving deployment/browser playback,
@@ -1126,7 +1126,7 @@ document isolation. Other direct attachment readers/writers remain separate scop
 
 [Attachment evidence](scans/2026-10/h01-pinned-attachment-proof.md) holds membership
 live while varying doc_groups history. The actual compiler's extracted attachment
-boundary excludes a removed link; the actual pinned loader still finds its old
+API -> ClickHouse authorization excludes a removed link; the actual pinned loader still finds its old
 live row, returns the creative through ASGI and issues verified synthetic SigV4.
 Four link histories reproduce on SQLite and ClickHouse-local Memory. This remains
 an OPEN finding: positive-disclosure tests must become denial in a separate repair.
@@ -1468,7 +1468,7 @@ capabilities do not exempt account credentials in query strings. Existing S7
 already owns the related transport repair. L1-G-01 reproduces caller SQL literals
 in INFO logging with separate request/stub-compiled assertions, not SQL injection
 or demonstrated credential theft. Actual compiler preservation, log access and
-retention remain unverified. F's unchecked helper boundaries remain L2 debt.
+retention remain unverified. F's unchecked helper caller -> callee exchanges remain L2 debt.
 
 ### 2026-10-27: agreed SQL diagnostic repair direction
 
@@ -1579,7 +1579,7 @@ does not forward. These are local composition controls, not proof of renderer
 escaping or actual public grants. Missing posts return generic cards/HTTP 200,
 contrary to ghost-404 intent; this is correctness debt, not demonstrated private
 content access. Preserve content-free private fallbacks while tracing real API,
-renderer and routing boundaries at L2. No new confirmed vulnerability or PASS.
+API -> renderer and renderer -> router exchanges at L2. No new confirmed vulnerability or PASS.
 
 ### 2026-10-18: D91 retires the unused marketing API
 
@@ -1616,7 +1616,7 @@ exploit. Generated/copied bundles are explicitly mapped, not security-certified.
 ### 2026-10-18: SDK v3 source receipts complete
 
 D/E/F finish all 1,683 logical lines of v3.ts, including unterminated EOF. No
-method body is cut at the E/F boundary, although both belong to one factory.
+method body is split between the E and F source slices, although both belong to one factory.
 F-01 and A-01 remain one response-integrity class in separate public consent
 implementations; repairs must test both, preserving configured-origin legitimate
 responses, unchanged return-run consent and gesture-driven group setup.
@@ -1912,10 +1912,11 @@ Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
   the invariants don't name. *(Standing note — mitigate with frozen lockfiles +
   dependabot + a dependency-integrity check; decide whether it warrants an
   invariant.)*
-- **No defense-in-depth at the storage layer.** I3 is enforced only at the query
-  boundary; ClickHouse has no per-row ACL. One boundary bug = total loss, no
-  backstop. *(Standing note — it's a strength (boundary on the input) and a risk
-  (no backstop); the query-engine gauntlet is the mitigation.)*
+- **No defense-in-depth at the storage layer.** I3 relies on API -> ClickHouse
+  query authorization rather than a per-reader database account. An omitted
+  check can expose unauthorized rows. Input authorization is the mechanism;
+  the query-engine gauntlet and recorded reviews are its verification, not a
+  claim that every implementation path has passed.
 - **The query engine is a triple-threat** (I3 + injection + DoS) and is the natural
   home for a dedicated gauntlet (`scans/late-stage/`). *(Standing note.)*
 

@@ -49,7 +49,7 @@ token-selected key URLs or unsigned fallback. Public verification keys are
 configured at the adapter; rotation retains old public keys until outstanding
 capabilities expire. Tokens and signed URLs must not enter diagnostic logs.
 
-## Provider Boundary
+## Node media-capability issuer -> CDN edge verifier boundary
 
 Provider-independent JavaScript verifies capabilities and owns the authorize ->
 cache -> private-origin sequence. Cloudflare-specific code implements cache and

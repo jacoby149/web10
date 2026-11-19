@@ -10,7 +10,7 @@ management key. Only group permission metadata may use `*` or `group`.
 Local implementation: one shared validator for API service fields,
 permission keys and query service references. Case-colliding permission keys
 are rejected, never merged. Query spelling/aliases remain intact while the
-boundary CTE filters the canonical lowercase collection. SQL literals, column
+API-generated access-filtered CTE selects the canonical lowercase collection. SQL literals, column
 names, body fields, role names, group IDs and permission operation codes are not
 lowercased. Existing auth checks, parameterization and AST restrictions remain.
 Database/catalog-qualified table references are rejected: `other.posts` must

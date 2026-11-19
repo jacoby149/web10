@@ -168,7 +168,7 @@ shippable — the message is durable in the group regardless of the nudge.
 - **No escalation** — the face (`kind: 'chat'`, name, avatar) is a content-
   limited doc in a service members can already read; reading it grants nothing
   the group membership did not.
-- **`kind` is not a security boundary** — it is a render hint (chat vs
+- **`kind` does not grant API -> ClickHouse read access** — it is a render hint (chat vs
   community). Access is decided by group membership + the D58 gate, never by
   the `kind` field.
 - **invite_only by construction** — a group chat is never `discoverable` (it is

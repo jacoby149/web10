@@ -1,5 +1,10 @@
 # Engagement (Comments + Reactions)
 
+**Historical app-design/API examples.** Current v3 lives in `../web10-v3/`.
+The single-ref examples are not the D116 (DECIDED)/D117 (DIRECTION, cell pending)
+storage target; D118 (DECIDED) separates API JSON from storage. See the
+[design map](../web10-v3/db/design-revolution.md).
+
 Comments and reactions are **documents** in the `comments` / `reactions`
 services — the same CRUD + groups + refs model as posts. No special tables,
 no special endpoints. (D62.)

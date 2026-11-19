@@ -7,12 +7,13 @@ work.” Prepare both source implementations before any spending. Preserve the
 measurement order rather than running an incomplete intermediate design.
 No row-model native execution or fresh lease has started.
 
-## Current implementation boundary — do not confuse legacy with the target
+## Current implementation versus target — do not confuse the two
 
 The destination is the maximal replacement: typed rows and pointers, NOT a
 permanent JSON-plus-index hybrid. Old production code and canonical research
-JSON remaining in this branch do not reverse that decision. D115–D120 and
-`knowledge-base/web10-v3/db/design-revolution.md` record the direction. Nothing
+JSON remaining in this branch do not reverse that decision. D117 is DIRECTION
+(cell pending); D115/D116/D118 are DECIDED, D119 is DIRECTION and D120 is PRINCIPLE.
+The [design map](../../../knowledge-base/web10-v3/db/design-revolution.md) links the canonical ledger. Nothing
 here claims that unmeasured source prototypes have completed a production cutover.
 
 Source modules now implement:
@@ -67,8 +68,13 @@ economics, not declare victory because a row happens to be skinny.
 
 ## Storage rules
 
+**Canonical design home:** [D117 (DIRECTION; cell pending)](../../../knowledge-base/strategy/decisions.md#d117--documents-become-versioned-pointers-to-immutable-typed-rows-direction-cell-pending)
+owns the storage rules. The checklist below applies that decision to this
+isolated proving contract; it is not a second source of implementation status.
+
 - Storage contains only skinny typed rows. **No JSON is stored.** JSON is the
-  API wire format: parse once at ingest; reassemble at the output boundary.
+  app -> API input format: parse once at ingest. At the API -> app/UI boundary,
+  assemble and serialize the response.
   Reads never parse JSON, extract paths or cast strings to use values.
 - A document is a set of pointers `(doc_id, key, type, value_row_id)`. `key`
   is its path, for example `post.text_in_post`; `type` names the value table.

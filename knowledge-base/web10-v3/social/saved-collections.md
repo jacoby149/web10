@@ -1,5 +1,10 @@
 # Saved collections — playlists on the profile, private by default
 
+**Current implementation/API examples.** The JSON/`ref_value` representation is
+not the replacement target: D116 is DECIDED, D117 is DIRECTION (cell pending),
+and D118 is DECIDED about API/export versus storage shape. Canonical definitions
+and proof status: [design map](../db/design-revolution.md).
+
 A **saved collection** is a named, ordered list of posts the user has saved —
 a "watch later" / "playlist" for the things they want to come back to. It
 lives on the user's **profile** as a **Saved** tab (the YouTube-channel
@@ -61,18 +66,18 @@ A **group collection** (a group's playlist, "Group collections" below) adds
 one field to the collection identity: **`owner_group: <group_id>`** — the
 group the collection belongs to. Its presence separates a group collection
 from a personal one (a personal collection has no `owner_group`); like `kind`,
-it is an **ownership/render hint only**, never a security boundary.
+it is an **ownership/render hint only**, never an API -> ClickHouse permission grant.
 
 **Classification is: read the identity, check `kind`.** A group with no
 identity, or an identity without `kind: 'saved'`, is not a collection
 (backward compatible — every pre-existing group has no `kind: 'saved'`). The
 `kind` field is a **render hint only** (collection vs chat vs community) — it
-is never a security boundary (access is decided by group membership + the D58
+never grants API -> ClickHouse read access (access is decided by group membership + the D58
 gate, below).
 
 ### Membership + the privacy model (the load-bearing part)
 
-The collection group's **membership is the privacy boundary**, and it uses the
+The collection group's **membership controls API -> ClickHouse read authorization**, using the
 exact D58 principal-class grant the app already uses to make a profile public
 or private (`groups/access.md`). There is **no separate "visibility" flag on
 the node** — publicness *is* a role grant to a principal class. The face's
@@ -200,7 +205,7 @@ doc's body:
 
 The order is a **render hint the owner controls** — it never changes access
 (a reordered collection is readable by exactly the same principals; the order
-is not a security boundary, the same as `kind`).
+does not grant API -> ClickHouse access, the same as `kind`).
 
 ### The group_id + the tag
 
@@ -376,7 +381,7 @@ is **who owns it**: a personal collection's owner member is a *user*
 **`owner_group: <group_id>`** — the single field that separates a group
 collection from a personal one (the same role `kind` plays for collection vs
 chat vs community). `owner_group` is an **ownership/render hint only**, never a
-security boundary (access is still group membership + the D58 gate).
+API -> ClickHouse permission grant (access is still group membership + the D58 gate).
 
 **Why the group is a member (the load-bearing part).** The node's `createGroup`
 always namespaces the group_id under the *acting* user and force-makes them
@@ -476,7 +481,7 @@ a public collection's link is shareable.
   public collection it is `anyone`-readable (the front door), for a private
   one it is owner-rendered. Reading the face grants nothing the membership did
   not.
-- **`kind` is not a security boundary** — it is a render hint (collection vs
+- **`kind` does not grant API -> ClickHouse access** — it is a render hint (collection vs
   chat vs community). Access is decided by group membership + the D58 gate,
   never by the `kind` field.
 - **`ref_value` is not a grant.** A `saved` doc pointing at a post does not

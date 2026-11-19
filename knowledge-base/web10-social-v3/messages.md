@@ -1,5 +1,10 @@
 # Your Messages
 
+**Historical app-design/API examples, not target storage.** See current v3 in
+`../web10-v3/` and the [design map](../web10-v3/db/design-revolution.md): D116
+DECIDED, D117 DIRECTION (cell pending), D118 DECIDED. JSON messages are not a
+physical-storage prescription.
+
 Inbox and sent mail. DMs and group messages. All the same model.
 
 ## What the Screen Shows

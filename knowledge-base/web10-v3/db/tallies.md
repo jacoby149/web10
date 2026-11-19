@@ -1,7 +1,9 @@
 # Tallies: fetch numbers, not the documents behind them
 
-**D114, Jacob Hoffman,18 November2026: platform design intent; isolated research
-implementation first.** A tally is a generic satellite in the fanout family.
+**D114: design DECIDED; full acceptance OPEN on the paired gate.** The
+[decision ledger](../../strategy/decisions.md#d114--tallying-is-a-generic-maintained-satellite-in-the-fanout-family-decided-research-first)
+owns the design; the [tally report/domain audit](../../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md)
+owns measured values and qualifications. A tally is a generic satellite in the fanout family.
 The platform is intended to maintain it; an app supplies the counter's meaning
 as data. This admission builds canonical setup tallies and verifies them. It
 does not implement production write maintenance, a new API or a protocol rollout.
@@ -42,9 +44,9 @@ its lookup uses `reactions:like:direct` (and the corresponding dislike/presence
 kinds). This does not change its oracle or mislabel comment likes as post likes.
 Comments/reposts retain the existing displayed-count aliases and meanings.
 
-The banked fat fixture therefore verifies50,000 comments,13,462 root-wide likes,
-6,731 direct post likes and6,731 likes distributed over the exact comment target
-map. Reconstructing its deterministic canonical document/link fixture is setup
+The banked fat fixture verifies the root/direct/finer target map recorded in the
+[canonical tally report](../../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md).
+Reconstructing its deterministic canonical document/link fixture is setup
 for tally verification, not a Stage D performance rerun. No view events or
 aggregate are seeded by that reconstruction.
 
@@ -56,22 +58,19 @@ not hundreds of millions. Report the whole response too, with raw views,
 unclassified and unchanged node-ad preparation named separately. Those remainders
 are neither a tally failure nor a feed PASS. No arithmetic Stage B substitution.
 
-The new task admits one fresh DO lease,26.10.4.207 and32/28/22GiB, bound before
-execution. No row stop;600s statements/native-completion polling; agent~300s and
-self-kill timers only, no guardian. Uniform K20 is required; old-semantics
-projection K20 is optional if the original clock allows. No baseline/B/D/§8 or
-production work. Live write maintenance, invalidation and rollout need separate
-protocol/production admission. Contract: the existing engagement task block.
+**Historical tally-only admission is consumed/cancelled, not a live grant.** The
+[directive index](../../../research/experiments/costfn/README.md#directive-precedence-index)
+identifies the operative all-fixes contract and execution policy. It carries
+tallies forward unchanged and supersedes old projection furniture; do not
+restart the former tally-only lease or optional projection cell from this page.
+Live write maintenance, invalidation and rollout still need separate admission.
 
 ## First run: ordinary cost measured; paired precheck incomplete
 
-The19 November run measures ordinary count-stage collapse with exact response
-parity: three isolated table reads each1,600 rows/107,200 bytes and two follow-ups
-total2,688 rows/353,839 bytes. Fat maps and60 sampled roots verify; whole responses
-retain their preparation/views/unclassified budget FAILs. However, the final
-audit finds all20 actual paired roots absent from five legacy-inventory-derived
-verification domains. Raw PASS flags are preserved but do not satisfy that
-gate. Full tally acceptance is OPEN. Source now builds verification targets from
-the independent oracle's actual IDs and refuses omitted roots even for all-zero
-counts. Cleanup is verified; native repair acceptance needs fresh admission.
-Receipts and limitations: `research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md`.
+The [first tally report and domain audit](../../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md)
+bank ordinary response/count observations with their original budget FAILs.
+The paired verification domain omitted the actual paired roots; its raw PASS
+flags do not close that gate. **D114 paired/full acceptance remains OPEN.**
+The source-domain repair is not native acceptance. The cancelled repair lease
+and current proving order are recorded in the operative directive index, not
+inferred from old admission text.

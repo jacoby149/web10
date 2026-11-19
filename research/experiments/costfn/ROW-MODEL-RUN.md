@@ -4,6 +4,12 @@ This is a runnable isolated research harness, not a production cutover. Finish
 source checks before spending. No command here creates a DigitalOcean resource.
 Do not run ClickHouse or Docker locally for this programme.
 
+**D117 is DIRECTION (cell pending), not native acceptance.** The
+[decision ledger](../../../knowledge-base/strategy/decisions.md#d117--documents-become-versioned-pointers-to-immutable-typed-rows-direction-cell-pending)
+owns the target; the [directive index](README.md#directive-precedence-index)
+owns execution precedence. The present JSON implementation remains source/oracle
+and experimental fallback, not a permanent hybrid or the replacement target.
+
 ## What is wired
 
 `row_model_run.py` is the host entry. It verifies the bound DO admission and live
@@ -86,7 +92,7 @@ extension, new host or cleanup guardian is added.
   separately identifiable, as with existing programme observers.
 - `row-model/private-comparisons/`: private synthetic-dataset expected/actual
   payload evidence, including timestamps and selected paths, saved0600 under a
-  private directory. Export serialization is allowed at this boundary; it is
+  private directory. The API -> app/UI boundary permits export serialization; it is
   never input to typed reads. Preserve off-host, do NOT copy into Git or logs.
   Public reports carry packet hashes/sizes and cost metadata, not bodies.
 

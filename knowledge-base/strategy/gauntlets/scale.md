@@ -1,5 +1,9 @@
 # Scale gauntlet — the social surface at N users
 
+**Current app/API verification plan.** JSON/ref examples are not the replacement
+schema. D116 is DECIDED, D117 is DIRECTION (cell pending), and D118 is DECIDED;
+the [design map](../../web10-v3/db/design-revolution.md) controls target status.
+
 [← back to the gauntlet doctrine](./README.md)
 
 The other nine plans are single-user state machines. This plan is the **Multi-User

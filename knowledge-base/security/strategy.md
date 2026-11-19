@@ -18,7 +18,7 @@ do not parallelize away the gates between levels or waves.
 ## Wave 1: Protocol First
 
 - **Node API:** `api/app/`, including authentication, contracts, groups,
-  documents, query/storage boundaries, media and asynchronous imports.
+  documents, API -> ClickHouse authorization, API -> object-storage signing, media and asynchronous imports.
 - **SDK:** `sdk/src/`, including credential storage/transport, auth messages,
   consent callbacks and the optional RTC client.
 - **RTC:** `api/rtc/`, including signaling admission, identity and lifecycle.
@@ -33,7 +33,7 @@ Run the levels in order across this protocol scope:
    small, one-finding fix PRs with exploit red -> denied green evidence.
 2. **L2:** inspect direct caller/callee and source/sink edges, including token
    verification, permission checks, query/storage, document/media signing and
-   message/credential-store boundaries.
+   credential-window -> app message handling and app -> credential-store access.
 3. **L3:** inspect complete API, SDK and RTC service flows, including revocation,
    recovery, concurrency, asynchronous authority and lifecycle composition.
 4. **L4:** inspect protocol-wide integration: API/SDK/RTC composition, issuer

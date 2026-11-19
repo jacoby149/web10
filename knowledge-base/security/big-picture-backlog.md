@@ -19,7 +19,7 @@ a critical invariant break beats a hardening nicety.
 |---|---|---|---|---|---|---|
 | **BP-1** | open | **Federation signing: HS256 → RS256/EdDSA + JWKS** (D7) | I1 | Cross-node protocol change; asymmetric per-node keypair; breaking | Per-node keypair, public keys at a well-known JWKS URL, offline verify; dual-verify during migration, then drop HS256 | blocks BP-4, BP-5 |
 | **BP-2** | open | **Scoped app-management delegation** | I5 | New trust primitive; management grants must intersect current person authority | Signed-origin revocable delegation; exact grants ∩ caller authority | — |
-| **BP-3** | open | **RTC admission / certify gate** | I5 | Cross-service (RTC ↔ API) trust boundary; one-use tickets | One-use pre-upgrade RTC tickets; fail-closed certify; `CERTIFY_BASE_URL` | — |
+| **BP-3** | open | **RTC admission / certify gate** | I5 | RTC service -> API certification boundary; one-use tickets | One-use pre-upgrade RTC tickets; fail-closed certify; `CERTIFY_BASE_URL` | — |
 | **BP-4** | open | **Historical exposure + credential rotation** | I1, I5 | Residual: keys/creds that were in source or symmetric; needs a deliberate rotate + re-login decision, not a code edit | Rotate all long-lived creds; force legacy-session re-login; document the exposure window | after BP-1 |
 | **BP-5** | open | **Coordinated 4.0.0 rollout** | — | Breaking change spanning API/RTC/SDK/consumers; must deploy atomically or the guarantee is broken | Version-gated deploy; explicit key/credential provisioning runbook; legacy re-login | after BP-1, BP-4 |
 | **BP-6** | open | **Independent external security audit** | all | The internal scan is self-reported; an external review is the claim that makes "secure" mean something to a third party | Commission after BP-1..BP-5 land; feed findings back into the security record + checklist | after BP-1..BP-5 |
@@ -34,7 +34,7 @@ a critical invariant break beats a hardening nicety.
 - **One item = one bounded PR (or a sequence of ≤500-line PRs).** The *decision*
   is one item; the *implementation* is small PRs that all reference it.
 - **L3 staleness is on architectural change, not a file commit** — an item re-opens
-  when a decision lands or a boundary moves, not on every commit. See
+  when a decision lands or authority moves between named services, not on every commit. See
   [`the-security-record/staleness-and-cadence.md`](../../ai-pack/ai-security-theory/the-security-record/staleness-and-cadence.md).
 
 ## The gate

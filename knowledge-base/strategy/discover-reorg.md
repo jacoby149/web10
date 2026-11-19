@@ -167,7 +167,7 @@ switches between them + holds `?tab=`/`?q=`.
   **Why a server-side composition for now, and a query later:** the query
   engine is *today* walled off from the contract tables — `safe_query.
   py:60-78` blocklists `group_members` / `group_contracts` / `users` as raw
-  tables a caller query must never reference (the boundary CTEs expose only
+  tables a caller query must never reference (the API-generated access-filtered CTEs expose only
   `documents` columns). So **today** the follower count (in `group_members`)
   can't be joined in a caller query — D0 ships as this node function, which is
   where the per-endpoint I3 gate lives. **Once the `engine-group-metadata`

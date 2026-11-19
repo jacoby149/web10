@@ -1,12 +1,17 @@
 # Advanced SDK Features (v4)
 
+**Historical next-version planning, not current v3 or the new storage target.**
+The authoritative targets are D116 (DECIDED), D117 (DIRECTION, cell pending) and
+D118 (DECIDED), linked from the [design map](../../web10-v3/db/design-revolution.md).
+Retaining these proposals does not admit their implementation or a rollout.
+
 These SDK features are beyond the core v3 architecture switch. They require the foundation to be stable first.
 
 ## w.query() — CTE-Wrapped ClickHouse SQL
 
 **Implemented in v3** (the safe-query engine). Full ClickHouse `SELECT` over
-your services — the API compiles it through the safe-query engine (boundary
-CTEs + block/sharing/hidden) and runs it. Read-only by construction: raw node
+your services — the API supplies access-filtered CTEs and block/sharing/hidden checks to ClickHouse,
+then executes the compiled SQL. Read-only by construction: raw node
 tables, table functions, and anything but a single `SELECT` are rejected before
 execution. Self-joins, aggregations, subqueries, and caller CTEs all work, and
 none can leak past your groups.
@@ -22,7 +27,7 @@ const results = await w.query(`
 `)
 ```
 
-The engine replaces each service name with an API-built boundary CTE, then
+The engine replaces each service name with an API-generated access-filtered CTE, then
 applies:
 - `deleted = 0` (tombstone filter) + ReplacingMergeTree dedup
 - Group membership check (you only see documents in groups you can read)
@@ -30,7 +35,7 @@ applies:
 
 **Note:** the original design wrapped the query over the raw `documents` table
 with a `user_docs` CTE. The implemented design is stronger — the caller queries
-*service names* that the engine rewrites to boundary CTEs, so the raw tables are
+*service names* that the API rewrites to access-filtered CTEs, so the raw tables are
 unreachable (a wall, not a membrane). See
 `../web10-v3/safe-query.md` + `../web10-v3/query-engine.md`.
 

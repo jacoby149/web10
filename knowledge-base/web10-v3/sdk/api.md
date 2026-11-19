@@ -1,5 +1,11 @@
 # web10 SDK v3
 
+**Current API contract and implementation examples.** JSON remains the app ->
+API input and API -> app/UI response format. It does not prescribe ClickHouse
+storage (D118, DECIDED). Single-`ref_value`/JSON SQL examples are current, not the
+D116 (DECIDED)/D117 (DIRECTION, cell pending) target. See the
+[canonical design map](../db/design-revolution.md).
+
 The JavaScript/TypeScript SDK. One client. Groups are baked into every verb.
 
 ## Request Flow
@@ -106,7 +112,7 @@ This is infrastructure trust — "what can this app do with my data?" Per-servic
 
 ## Access Health (verifyAccess)
 
-The confirmatory access check. Instead of an app guessing from status codes (a `401` on this node means "bad token" **or** "no permission" **or** "user not found" — the information is destroyed at the boundary), the server runs the ACTUAL checks it would run on a real request and reports each as a stable code, plus the ordered recovery `actions` the client should execute. The app's `verifyAndRecover` (in `access.ts`) executes those actions — the client never reverse-engineers a status code. There is no "guard" — `verifyAccess` is the oracle (the node reports state), `verifyAndRecover` is the recovery (the app acts on it).
+The confirmatory access check. Instead of an app guessing from status codes (a `401` can mean "bad token", "no permission" or "user not found"), the API reports the actual checks as stable codes at the API -> app/UI boundary, plus ordered recovery `actions`. The app's `verifyAndRecover` (in `access.ts`) executes those actions rather than reverse-engineering a status code. `verifyAccess` reports node state; `verifyAndRecover` acts on it.
 
 **Generic by design (D60).** It checks only *universal* legs — `token`, `user`, `contract`. It does **not** know about any app's groups (no "followers group" check). App-specific recovery (e.g. the social app healing its own followers group) is the **app's** job, client-side — the app is the one that knows what its groups are.
 
@@ -515,7 +521,7 @@ const updated = await w.updateGroup('web10.app/groups/jacoby149/close-friends', 
 
 ## Query — the flexible read (v3)
 
-Write a ClickHouse `SELECT` over your services and the node runs it. Read-only by construction: the safe-query engine rejects anything but a single `SELECT`, raw node tables, and table functions before anything executes. Every service name is replaced by an API-built **boundary CTE** filtered to the groups you can read that service in — so aggregations, self-joins, subqueries, and your own CTEs all work, and none can leak past your groups (the raw tables are unreachable, a wall not a membrane).
+Write a ClickHouse `SELECT` over your services and the node runs it. Read-only by construction: the safe-query engine rejects anything but a single `SELECT`, raw node tables, and table functions before anything executes. At the API -> ClickHouse boundary, each service name becomes an API-generated access-filtered CTE. Aggregations, self-joins, subqueries and caller CTEs retain that readable-group restriction; caller SQL cannot reach the raw tables.
 
 Each service CTE exposes: `doc_id`, `author_key`, `body` (a JSON string — use `JSONExtractString(body, 'field', 'value')` for fields), `ref_value`, `tags`, `created_at`, `updated_at`.
 
@@ -555,7 +561,7 @@ const { rows } = await w.query(`
 
 ### The prepare pass — mint the rows in the same call (D73)
 
-`w.query(sql, { groups, prepare })` takes an optional `prepare` spec. After the SELECT, the engine **mints** the result rows — resolves media, attaches ads, and resolves the author's face — so a whole feed is **one round-trip** instead of a read + N media reads + N profile reads (the 267→1). The mint reuses the read path's passes verbatim and only touches docs the boundary CTE already proved you can read — **no escalation**.
+`w.query(sql, { groups, prepare })` takes an optional `prepare` spec. After the SELECT, the API resolves media, attaches ads and resolves the author's face in the same API call. API -> ClickHouse authorization of input rows does not make arbitrary projected owner/body columns canonical. Canonical preparation checks and remaining face/ad acceptance limits are documented in [query-engine.md](../query-engine.md#the-prepare-pass-read--resolve); this paragraph does not upgrade those gates.
 
 ```ts
 type V3Prepare = {
@@ -701,7 +707,7 @@ Each SDK call triggers specific ClickHouse operations:
 | `w.create('posts', body, { groups })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
 | `w.read('posts', { groups: ['me'] })` | `SELECT group_ids FROM group_members WHERE member = :user`, then discover query |
 | `w.read('posts', { groups })` | `SELECT FROM documents JOIN doc_groups JOIN group_members WHERE member = :user AND group IN (...)` |
-| `w.query(sql)` | the safe-query engine compiles to boundary-CTE SQL, run with `max_execution_time` |
+| `w.query(sql)` | the safe-query engine supplies API-generated access-filtered SQL to ClickHouse, with `max_execution_time` |
 | `w.update(docId, body, { groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete(docId)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
 | `w.createGroup(...)` | `INSERT INTO group_contracts` + `INSERT INTO group_members` (all members) |

@@ -322,7 +322,7 @@ same rules it enforces for the user's own browser session.
 | I3 — no query returns docs for an author_key the token doesn't own | Unchanged. The token's `username` is the user; I3 enforcement is on the data path, not the token path. `client_id` doesn't alter I3. |
 | I4 — node-readable by design | Unchanged. OAuth doesn't add encryption or access control — it adds a delegation marker. |
 | I5 — scoped/expiring/revocable tokens | The access token is expiring (60d) and revocable (contract tombstone). The refresh token is expiring (60d), rotating, and revocable (family invalidation). Scope is enforced by the existing `has_permission` (default-deny). |
-| I6 — cross-node boundary is HTTP API + verified token | Unchanged. OAuth is a local delegation layer; it doesn't cross the node boundary. |
+| I6 — reader app -> serving-node API uses verified tokens | Unchanged. OAuth remains local delegation; it adds no serving-node API -> home-node API or foreign-database route. |
 
 ## Implementation bites (suggested order)
 

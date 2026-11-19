@@ -54,7 +54,7 @@ rewrite every `member_key` to the domain:
    `member_key = reader`. The reader principal is derived from the token
    as `{provider}/users/{username}`. If groups key on the domain but the
    token keys on the username, the JOIN fails and nobody can read
-   anything. The read gate is the security boundary; it must key on the
+   anything. Authorization at the API -> ClickHouse boundary must key on the
    same stable principal the token carries.
 
 ### The DNS analogy (why this is the right shape)

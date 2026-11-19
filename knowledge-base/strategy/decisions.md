@@ -10,7 +10,25 @@ For D115–D120, **DECIDED** records operator intent, **DIRECTION** records a
 chosen design awaiting its proving cell, and **PRINCIPLE** records the lesson.
 None of these labels means implemented, measured or shipped.
 
+**Reading older entries:** original rationale, operator quotations and dated
+implementation receipts are historical, not retroactively revised acceptance.
+Current API/storage examples use JSON and a single `ref_value`; that is not the
+D116 (DECIDED)/D117 (DIRECTION, cell pending) replacement target. D118 is DECIDED
+about representation separation; the [design map](../web10-v3/db/design-revolution.md)
+links the canonical definitions and reports. Older decisions explicitly
+superseded by a later entry remain visible as history.
+
 ---
+
+### D121 — Target SIGMOD RESEARCH, January round of the 2028 cycle [DECIDED]
+
+**Jacob Hoffman, 19 November 2026.** Deliberately choose the research-track bar,
+not the old industrial-track submission or CIDR fallback. If that January
+round rejects the paper, revise for PVLDB's monthly research rounds, without
+simultaneous submission. The existing twelve-page plan is unchanged. The
+canonical dates, forecast-versus-official distinction and re-verification gate
+live in [paper-submission.md](paper-submission.md); this decision admits no
+submission, new measurements, cloud work or manuscript rewrite.
 
 ### D120 — Answer the question once, rather than over-read on every request [PRINCIPLE]
 
@@ -22,14 +40,13 @@ Fanout supplies delivery (D109/D113), tallies supply numbers (D114), aggregates
 supply views, and satellites supply relationships and typed values (D116/D117).
 Reads should be bounded seeks over those shapes, not rediscoveries of history.
 
-**Receipts, not a new result:** standalone document-count diagnostics read
-91,897,589 / 176,400,726 / 247,081,302 rows; raw views read 1,474,936 rows;
-the node-ad inventory statement read 88,364,203 rows / 9,933,017,043 bytes.
-Ordinary tally diagnostics reduce each count lookup to 1,600 rows / 107,200
-bytes. Views aggregate parity is banked at 344,064 rows / 46,216,238 bytes
-versus raw 98,621,175 bytes, **not a sampled latency win**. Exact evidence and
-the PR #1587/#1589/#1590/#1591 lineage are indexed in
-[the design receipt ledger](../web10-v3/db/design-revolution.md).
+**Receipts, not a new result:** the motivating measurements live only in the
+[treated-completion report](../../research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md),
+[views report](../../research/experiments/costfn/evidence/engagement26-20261118/RESULTS.md)
+and [qualified tally report](../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md).
+Their measurement scopes and limitations control any use of those facts; the
+[design map](../web10-v3/db/design-revolution.md) indexes them without duplicating
+the figures. D114's required paired acceptance is still OPEN.
 
 In the row-model direction, declaring a value or relationship and indexing it
 are the same act: no future declared question shape should be born unindexed.
@@ -59,9 +76,9 @@ and treating every newly declared key as a physical schema migration.
 ### D118 — Storage shape is not export shape [DECIDED]
 
 **Jacob Hoffman, 19 November 2026.** Retire the assumption that data must be
-stored as it is exported. A node's internal storage is its own business: the
-wire principle applies inward too. Export is a boundary transformation—assemble
-the document from rows, serialize it, hand it over. Exports are rare; reads are
+stored as it is exported. A node's internal storage is its own business. At the
+API -> app/UI boundary, the API assembles and serializes the exported document;
+that response format does not prescribe API -> ClickHouse storage. Exports are rare; reads are
 constant. Do not charge every query for preserving the export representation.
 
 The wire/export document format and protocol surface do not change under this
@@ -111,7 +128,7 @@ with order-of-magnitude costlier assembly rejects the maximal version and banks
 the refinement: queryable values as rows, payload as document content. A parity
 mismatch blocks measurement; neither verdict is recorded yet.
 
-**Proof order and boundary:** “make all the fixes, then do the experiments.”
+**Proof order and admitted scope:** “make all the fixes, then do the experiments.”
 Row-model source preparation is necessary before spending on runs, but its
 measured cell queues **after** all-fixes banking, not inside or instead of it.
 The isolated post-family experiment retains canonical JSON as build source,
@@ -172,9 +189,9 @@ never repick at read time. “Forever” rules out automatic reassignment, not t
 document's explicit version/delete lifecycle or current access/deletion checks.
 Node ads monetize otherwise-empty slots because not every author is an influencer.
 
-The motivating old inventory statement scanned **88,364,203 rows /
-9,933,017,043 bytes** per completed uniform/paired response to find roughly300
-static ads. The intended treatment deletes that read-time inventory scan and
+The motivating old inventory statement's exact cost and per-composition scope
+are banked in the [treated-completion report](../../research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md).
+The intended treatment deletes that read-time inventory scan and
 resolves ads through the refs satellite; it does not merely cache its answer.
 The exact scan receipt is banked, while the approximate inventory size is
 operator context. The all-fixes directive admits remodel fixtures and measurement;
@@ -186,6 +203,10 @@ older read-time rotation/node-overlay design, retaining its history in
 [node-ads.md](../web10-v3/social/node-ads.md).
 
 ### D114 — Tallying is a generic maintained satellite in the fanout family [decided; research first]
+
+**Acceptance is OPEN on the paired gate.** Source repair is not a native result;
+the [tally report and domain audit](../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md)
+are the canonical home of the observed values, raw PASS flags and coverage gap.
 
 **Jacob Hoffman,18 November2026:** feed reads fetch ready numbers from the
 `counting_numbers` abstraction instead of counting canonical documents again.
@@ -240,7 +261,7 @@ and the claim that documents alone encode attachment/subscription/access history
 The 1,999-pointer ceiling is per small-group publication, not per multi-group write.
 `fanout_member_cutoff` is distinct from benchmark K (reader-followed group count);
 the default still needs experiment validation, including write cost and the
-1,999↔2,000 boundary. Existing K20/K1000 cells and admission gates are unchanged.
+1,999↔2,000 cutoff. Existing K20/K1000 cells and admission gates are unchanged.
 
 **Node Settings follow-up:** the operator asks to make the cutoff configurable,
 or plan it. `fanout_member_cutoff` is a planned persisted node-wide admin setting,
@@ -369,14 +390,14 @@ contract for hashtags.
 **The board:** `/tag/:hashtag` is a public, newest-first board read through
 the D73 safe-query engine (the app's own SELECT over `posts`,
 `has(JSONExtract(body,'hashtags','Array(String)'), '<tag>')`, scoped to the
-discover group — anon-capable per D41/D58, I3-walled by the boundary CTE's
+discover group — anon-capable per D41/D58, I3-filtered by the API-generated CTE's
 block/sharing/hidden anti-joins). The card is the feed's `PostCard` (one
 renderer everywhere, post-render.md). The Discover topic chips (`?tag=`) union
 doc tags + body hashtags of the loaded board; chips stay a pool filter — the
 global destination is the board.
 
 **The pattern:** `#` + 1–30 of `[a-zA-Z0-9_]` (no hyphens, no unicode in v1),
-mention-boundary discipline (start/whitespace/`(` before, a boundary after),
+mention-token delimiters (start/whitespace/`(` before, a non-token character or text end after),
 never in code/headings/link labels/URLs; one shared regex (`@web10/discover/hashtags`)
 feeds the write derivation and the read render so they cannot drift. The
 composer is untouched (typed prose — the toolbar is the only *formatting*
@@ -499,8 +520,8 @@ staying **content-blind**: all text and input values remain masked, media
 drops content-bearing attributes — input values, alt/title/placeholder, media
 srcs, DOM ids (route/document identifiers), and every `data-*`/`aria-*`
 payload; hrefs are route-templated. Supersedes D103's "deliberately reduced
-fidelity" replay posture, not its content-out boundary: content is still never
-recorded. Terms/Privacy copy updated to match. Re-verified: pinned wire test,
+fidelity" replay posture. At that historical browser-page -> PostHog capture boundary,
+content was excluded; D107 later narrows that exclusion. Terms/Privacy copy updated to match. Re-verified: pinned wire test,
 real-Chromium/SDK intercepted-batch check with a class-survival assertion and
 sentinel absence, and a live dev recording for operator inspection.
 
@@ -707,7 +728,7 @@ allowlisted; instagram gains no embed host — there is no embed).
 
 Contract: `web10-v3/social/link-unfurl.md` (the provider matrix rows, the
 wall-retry flow, the Open section). The SSRF scan record carries the curl
-subprocess as a documented seam (the boundary is unchanged).
+subprocess as a documented preview-service -> remote-origin fetch seam; the destination checks are unchanged.
 
 ---
 
@@ -732,8 +753,8 @@ app keeps its own copy for the full-density feed — unchanged.
 
 **Why CORS `*` (and not an origin list, and not an nginx proxy):** the
 answer is public card metadata — no session, no cookies, no credentials in
-or out. CORS is reader access, not the boundary: the SSRF guard + the
-60/min per-IP damper are unchanged, and a browser on any origin was already
+or out. At the preview-service -> remote-origin boundary, the SSRF guard
+controls destinations; CORS only permits browser reads. The 60/min per-IP damper is unchanged, and a browser on any origin was already
 able to call the endpoint from server-side code; CORS just lets a second
 SPA read the same answer. `*` (not a list) so a self-hosted marketing build
 pointing at its own social origin works without a rebuild. An nginx
@@ -763,8 +784,8 @@ pages, and the social feed alike. Marketing against an undeployed social
 app degrades to plain links, never to a broken card.
 
 Contract: `web10-v3/social/link-unfurl.md` ("The second consumer: the
-marketing site (D100)"). Scan record unchanged in substance (the boundary
-is the SSRF guard; CORS is documented there as reader access).
+marketing site (D100)"). Scan record unchanged in substance: the SSRF guard
+controls preview-service -> remote-origin fetches; CORS permits browser reads.
 
 ---
 
@@ -1755,10 +1776,12 @@ limit *for now* (deferred — D66).
 per-user-limited; a shared anon budget (or no anon limit) is a separate,
 deferred concern.
 
-### D64 — Origin-based approval is curation, not a security boundary [decided]
+<a id="d64--origin-based-approval-is-curation-not-a-security-boundary-decided"></a>
+
+### D64 — Origin-based approval is curation, not app -> API authentication [decided]
 
 **The decision.** A node-level origin gate (approving/denying which
-websites/apps may call the node) is **curation, not a security boundary.** The
+websites/apps may call the node) is **curation, not app -> API authentication.** The
 `Origin` header is client-controlled: a browser enforces it (a web page's JS
 can't forge it — it's a forbidden header the browser sets), but a non-browser
 client (curl, a backend, a mobile app) sets whatever it wants. So an origin gate
@@ -1767,7 +1790,7 @@ caller forges `Origin` freely.
 
 **Why.** Operator, probing the model: "is that easy to spoof pretend they are
 from website, change the html of the website that is approved?" → "yeah, so can
-be abused since an api can abuse." The real security boundary in web10 is the
+be abused since an api can abuse." At the app -> API boundary, authentication and permissions use the
 **user's token + the user's app contract** — the user is the trust anchor who
 judges the origin (the user-centric model). Origin tells you which *site* a
 browser is on; it is not a proof of who's calling. This extends D49 (rejected
@@ -1784,34 +1807,40 @@ curation (which sites are blessed), but it must not be relied on to stop a
 determined caller. **Abuse prevention is rate limiting** (D65), not origin
 gating.
 
-### D63 — The flexible read: `w.query()` / `POST /v3/query` — a caller writes a ClickHouse `SELECT` over their services; the engine is the boundary [decided]
+<a id="d63--the-flexible-read-wquery--post-v3query--a-caller-writes-a-clickhouse-select-over-their-services-the-engine-is-the-boundary-decided"></a>
+
+### D63 — The flexible read: the API authorizes app SQL before ClickHouse execution [decided]
+
+**Current implementation, not replacement storage.** JSON/single-ref examples
+retain their present API meaning; D116 is DECIDED, D117 is DIRECTION (cell pending)
+and D118 is DECIDED. See the [design map](../web10-v3/db/design-revolution.md).
 
 **The decision.** An app writes a ClickHouse `SELECT` over its **service
 names** (`posts`, `comments`, …); the node compiles it through the safe-query
 engine and runs it. Read-only by construction — the engine rejects anything
 but a single `SELECT`, raw node tables, and table functions *before* anything
-executes. Each service name is rewritten to an API-built **boundary CTE**
+executes. Each service name is rewritten to an API-built **access-filtered CTE**
 (group-filtered + block/sharing/hidden), so self-joins, aggregations,
 subqueries, and caller CTEs all work, and none can leak past the caller's
 groups.
 
 **Why.** v2 let an app run any Mongo query inside a user's collection — the
-collection *was* the boundary. v3 has one shared ClickHouse table and a group
-boundary; the fixed read shapes (group read, `ref` filter) didn't reach "do
+API restricted MongoDB reads to that authorized collection. v3 has one shared
+ClickHouse table and group-based authorization; fixed group/ref reads didn't reach "do
 anything." The engine restores v2's query power (flexible filters, cross-
-service self-joins, aggregations) without breaking the group boundary, because
-the boundary is on the *input* (the CTEs the caller reads), not a filter on
+service self-joins, aggregations). At the API -> ClickHouse boundary, the API
+restricts query *inputs* (the CTEs the caller reads), not merely
 the *output* — the raw tables are simply unreachable.
 
 **The query language: a SQL subset, not a DSL, not raw passthrough.** A DSL
 caps the power; raw passthrough is unsafe (the caller drops the group filter).
-The rewriting layer is the boundary, and it's a *wall* (raw tables
+The rewriter enforces API -> ClickHouse authorization (raw tables are
 unreachable), so the parser only has to be complete about *table references*,
 not about every SQL construct. sqlglot (ClickHouse dialect) parses + validates;
 the round-trip re-parse is the backstop.
 
 **The ClickHouse 24.8 CTE-inlining fix (the load-bearing detail).** The
-boundary CTE's block/sharing/hidden filters are `NOT IN` / tuple-`NOT IN`
+access-filtered CTE's block/sharing/hidden filters are `NOT IN` / tuple-`NOT IN`
 subqueries, **not** `LEFT ANTI JOIN`. A ClickHouse 24.8 bug breaks CTE inlining
 when the CTE body combines a `JOIN` with a `LEFT ANTI JOIN` — the CTE's output
 columns become unresolvable (`UNKNOWN_IDENTIFIER`), so *any* query over the
@@ -1825,8 +1854,9 @@ a CTE that wraps the *output* and filters it (a membrane, not a wall — an
 aggregation inside the parens bakes everyone's data in before the filter runs).
 
 **Bounds.** An unbounded query gets `LIMIT 1000` appended (a caller `LIMIT` is
-honored); `max_execution_time = 10`. The boundary CTE is the data bound — a
-query can only scan the caller's readable groups, not the whole node.
+honored); `max_execution_time = 10`. The access-filtered CTE restricts returned
+content to readable groups. It does not promise physical scan pruning or an
+arbitrary-query performance bound (D120, PRINCIPLE).
 
 **Anon + contract.** Anon-capable (D41 — a missing token reads the public
 board). The app-contract gate: the query may only touch services the contract
@@ -1834,7 +1864,7 @@ grants `readAll` on (`query_services()` checks before any group work). D42
 holds: an explicit group the reader can't read is a 403, not an empty result.
 
 Spec'd in `knowledge-base/web10-v3/query-engine.md` (the discussion) +
-`safe-query.md` (the boundary + why the guarantee holds).
+`safe-query.md` (API -> ClickHouse authorization and its verification).
 
 ### D62 — Engagement (comments/reactions) defaults to discover; the UI can pick groups; private accounts deferred [decided]
 Operator, 02.09.2026 — after the "can't comment/like my own post and have it persist" report: "comments being on discover is legit no problem, and reactions unless a private group setting! so not a big deal!" + "put a readme that to do private insta account type stuff, some thought has to go into that. but we arent implementing private yet, i.e. private accounts." + "we have a groups tab, so maybe it does apply, if you make a comment, well the comment can let you say what groups you want in the social ui you decide what groups the comment is going to! so if in a group and commenting can say discover + the group!"

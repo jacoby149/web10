@@ -1,5 +1,9 @@
 # Feed gauntlet — the following feed, tortured
 
+**Current app/API test plan.** Existing JSON/ref examples are not the storage
+target. D116 is DECIDED, D117 is DIRECTION (cell pending), and D118 is DECIDED;
+see the [design map](../../web10-v3/db/design-revolution.md).
+
 [← back to the gauntlet doctrine](./README.md)
 
 The feed is the "following" feed: the reader's own posts + posts from people the

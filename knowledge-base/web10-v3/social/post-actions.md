@@ -1,5 +1,10 @@
 # Post Actions — one shared engagement bar for every post
 
+**Current app/API composition, not target storage.** JSON/ref-based examples
+describe today's implementation. D116 (DECIDED), D117 (DIRECTION, cell pending)
+and D118 (DECIDED) distinguish future relationships/storage from API messages;
+see the [design map](../db/design-revolution.md).
+
 The engagement model (D62, `../overview.md` + the decisions doc) decides what a like, a dislike, or a comment *is* on the wire: documents in the engager's own service, joined to their target by `ref_value`. The feed, Discover, and groups docs decide *where* a post is shown. This doc decides the one thing none of them do: **how the web10-social client renders the engagement row** — the like/dislike, the comment entry, the counts. Because that is where the slop was.
 
 ## The use case

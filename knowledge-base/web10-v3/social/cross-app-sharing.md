@@ -1,5 +1,10 @@
 # Cross-App Sharing: Service Contracts + Groups
 
+**Current app/API composition.** Existing JSON/`ref_value` examples are not a
+physical-storage prescription. The targets are D116 (DECIDED) and D117
+(DIRECTION, cell pending); D118 (DECIDED) preserves the separation from export
+shape. See the [design map](../db/design-revolution.md).
+
 How apps share data across the platform. Two contract types. One permission model.
 
 ## The Two Contracts

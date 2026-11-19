@@ -1,5 +1,11 @@
 # Your Feed
 
+**Historical app-design/API examples.** The current implementation map is
+`../web10-v3/`; the replacement targets are D116 (DECIDED), D117 (DIRECTION,
+cell pending), and D118 (DECIDED), linked from the
+[design map](../web10-v3/db/design-revolution.md). Old JSON/ref SQL is retained
+as history, not a requirement to keep that storage representation.
+
 Your personal feed. Posts from all groups you belong to, except discover.
 
 ## What the Screen Shows
@@ -21,7 +27,7 @@ Feed
 
 **Your feed is all groups you belong to, except the discover group.** The discover group (`{provider}/groups/web10/discover`) is the public board — it has its own screen. Your feed is personal: followers, communities, close-friends.
 
-The feed is **one query** the app writes, run through the safe-query engine, with the **prepare pass** minting media + ads + the author's face in the same round-trip (D73 — the old `POST /v3/feed` endpoint is retired). Get your groups, filter out discover, and the query's boundary CTEs are scoped to the rest:
+The retained feed design uses an app-authored query and a prepare pass (D73; `POST /v3/feed` is retired). At the API -> ClickHouse boundary, API-generated access-filtered CTEs restrict the query to the selected readable groups:
 
 > **Engagement counts are read separately.** The in-query `reactions` / `comments` joins are scoped to the feed's follower groups, but reactions and comments are *written* to the discover group (the default reaction/comment group — `createReaction` / `createComment` write there). So those joins see no data and return 0. The displayed like / dislike / comment tallies come from a second, small read (`readFeedEngagementCounts`) scoped to `[...feedGroups, discover]` — the same place `readFeedReactions` (the "did I like this?" read) and the DiscoverScreen count from. The in-query joins remain only to feed the tuned-preset power-mean score (total reactions = likes + dislikes).
 
@@ -119,4 +125,4 @@ User opens /feed
 
 ## Proof
 
-Your feed is one ranked query plus one engagement read. Get groups, filter out discover, and the safe-query engine's boundary CTEs scope the post read to the rest — the prepare pass mints the media, ads, and the author's face in the same round-trip. Engagement tallies come from a second read over the discover group (where reactions and comments are written), merged onto the page client-side. No feed table. No fan-out on write. No "compute feed" job. The groups define what's in your feed. The protocol handles it.
+This historical feed design scopes an app query using API-generated access-filtered CTEs before ClickHouse execution, then prepares media, ads and faces. Its engagement read and no-fanout description are retained history, not the current D113–D117 target or a new performance claim; use the current design map above.

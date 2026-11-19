@@ -1,5 +1,10 @@
 # Create Post
 
+**Historical app-design/API examples, not target storage.** Current v3 lives in
+`../web10-v3/`. D116 is DECIDED, D117 is DIRECTION (cell pending), and D118 is
+DECIDED; use the [design map](../web10-v3/db/design-revolution.md), not these
+retained JSON/ref examples, to determine replacement-storage intent.
+
 Compose and publish a post. Pick groups. Add media. Write content.
 
 ## What the Screen Shows
