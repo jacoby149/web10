@@ -336,6 +336,15 @@ execution notes below remain historical, not instructions to reopen a lease.
 `knowledge-base/strategy/interface-language.md`. D121 (DECIDED) paper strategy,
 projected dates and fallback live only in `knowledge-base/strategy/paper-submission.md`.
 
+**Views amendment,19 November (research source, native pending):** retain raw
+platform events and the day-grained `content_events_aggregated` analytics table;
+add `content_events_aggregated_all_time` for feed reads. Both MVs consume raw
+inserts, then the quiescent seed builds day slices and derives coarse states
+with MergeState, never a second raw seed or summed distinct counts. Both grains
+need named raw-oracle parity before timing. Logical1.6B event reconciliation is
+separate from measured native rereads. No production integration or app writes.
+Contract: `research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md`.
+
 **Latest D114 evidence,19 November directive/20 November UTC:** the stdin-fixed
 attempt completes native exact-value checks over all20 actual paired roots in
 all five domains, with off-host SQL-hash/native-finish audit. That closes the

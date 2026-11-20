@@ -95,7 +95,7 @@ def install(session, root, *, writers_stopped, expected_events=1_600_000_000, bu
         finally:
             checkpoint()
     try:
-        for index, sql in enumerate((events.DDL, events.MV)):
+        for index, sql in enumerate((events.DDL, events.ALL_TIME_DDL, events.MV, events.ALL_TIME_MV)):
             item = {}
             record['setup'].append(item)
             execute('composition_aggregate_setup_' + str(index), sql, entry=item)
@@ -125,6 +125,21 @@ def install(session, root, *, writers_stopped, expected_events=1_600_000_000, bu
         actual = {row['day']: int(row['n']) for row in counts}
         if len(actual) != len(counts) or {day: n for day, n in actual.items() if n} != expected:
             raise ValueError('seed impression states differ from the frozen per-day event census')
+        record.update(day_matched_events=sum(actual.values()), day_counts_exact=True,
+            native_seed_read_rows=sum(int(s['native']['read_rows']) for s in record['slices']),
+            native_seed_read_bytes=sum(int(s['native']['read_bytes']) for s in record['slices']))
+        all_time = dict(source_table='content_events_aggregated')
+        record['all_time'] = all_time
+        execute('composition_aggregate_all_time_derive', events.ALL_TIME_SEED, entry=all_time)
+        census = {}
+        all_time['census'] = census
+        rows = execute('composition_aggregate_all_time_census',
+            'SELECT (SELECT count() FROM content_events_aggregated_all_time) AS row_count,'
+            '(SELECT countMerge(impressions) FROM content_events_aggregated_all_time) AS events',
+            rows=True, entry=census)
+        if len(rows) != 1 or int(rows[0]['events']) != expected_events or int(rows[0]['row_count']) < 1:
+            raise ValueError('all-time merged states must reconcile to the frozen event population')
+        all_time.update(row_count=int(rows[0]['row_count']), matched_events=int(rows[0]['events']))
         record.update(outcome='PASS', matched_events=sum(actual.values()),
             native_seed_read_rows=sum(int(s['native']['read_rows']) for s in record['slices']),
             native_seed_read_bytes=sum(int(s['native']['read_bytes']) for s in record['slices']))

@@ -104,17 +104,55 @@ def tallies(root, expected):
 
 def views(session, root, expected):
     query_ids = []
+    statuses = {grain: dict(parity='BUILDING', profiles=[], query_ids=[], source_binding=binding())
+        for grain in ('all-time', 'daily')}
+    def checkpoint():
+        for grain, value in statuses.items():
+            save(root / ('composition-views-' + grain + '-parity.json'), value)
     for name, page in expected.items():
         sql = events.read(page['ids'], 'posts', page['views_readable_groups'], aggregate=True)
         aggregate, query_id = session.rows('composition_verify_views_' + name, sql)
         query_ids.append(query_id)
+        statuses['all-time']['query_ids'].append(query_id)
         raw = reads.visible_views(session, page['ids'], page['views_readable_groups'], 'composition_raw_oracle_' + name)
         actual = {row['doc_id']: {k: int(row[k]) for k in ('impressions', 'reach')} for row in aggregate}
         save(root / ('composition-view-parity-' + name + '.json'), dict(actual=actual, expected=raw, query_id=query_id))
         if len(actual) != len(aggregate) or actual != raw:
+            statuses['all-time'].update(parity='FAIL', failed_profile=name)
+            checkpoint()
             raise ValueError('aggregate impressions/reach differ from independent raw canonical oracle')
+        statuses['all-time']['profiles'].append(name)
+        if len(statuses['all-time']['profiles']) == len(expected):
+            statuses['all-time']['parity'] = 'PASS'
+        checkpoint()
+        daily, daily_id = session.rows('composition_verify_daily_views_' + name,
+            events.read_daily(page['ids'], 'posts', page['views_readable_groups']))
+        oracle, oracle_id = session.rows('composition_verify_daily_raw_oracle_' + name,
+            events.read_daily(page['ids'], 'posts', page['views_readable_groups'], aggregate=False))
+        query_ids += [daily_id, oracle_id]
+        statuses['daily']['query_ids'] += [daily_id, oracle_id]
+        def values(rows):
+            result = {(r['doc_id'], r['day']): (int(r['impressions']), int(r['reach'])) for r in rows}
+            if len(result) != len(rows):
+                raise ValueError('duplicate daily view key')
+            return result
+        daily_ok = values(daily) == values(oracle)
+        save(root / ('composition-daily-view-parity-' + name + '.json'),
+            dict(parity='PASS' if daily_ok else 'FAIL', actual=daily, expected=oracle,
+                query_ids=[daily_id, oracle_id]))
+        if not daily_ok:
+            statuses['daily'].update(parity='FAIL', failed_profile=name)
+            checkpoint()
+            raise ValueError('daily impressions/reach differ from independent raw canonical oracle')
+        statuses['daily']['profiles'].append(name)
+        if len(statuses['daily']['profiles']) == len(expected):
+            statuses['daily']['parity'] = 'PASS'
+        checkpoint()
+    for value in statuses.values():
+        value['parity'] = 'PASS'
+    checkpoint()
     return contract.gate('views', dict(parity='PASS', source_binding=binding(), query_ids=query_ids,
-        profiles=list(expected), exact_impressions_and_reach=True))
+        profiles=list(expected), exact_impressions_and_reach=True, all_time_parity='PASS', daily_parity='PASS'))
 
 
 def billboards(session, root, expected):

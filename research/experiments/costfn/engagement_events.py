@@ -21,6 +21,19 @@ STATES = ('SELECT doc_id,service,event_type,toDate(seen_at) AS day,'
     'FROM content_events GROUP BY doc_id,service,event_type,day')
 MV = 'CREATE MATERIALIZED VIEW content_events_aggregated_insert TO content_events_aggregated AS ' + STATES
 SEED = 'INSERT INTO content_events_aggregated ' + STATES
+ALL_TIME_DDL = """CREATE TABLE content_events_aggregated_all_time (
+    doc_id String, service String, event_type String,
+    impressions AggregateFunction(count), reach AggregateFunction(uniqExact,String)
+) ENGINE=AggregatingMergeTree ORDER BY (doc_id,event_type,service)"""
+ALL_TIME_STATES = ('SELECT doc_id,service,event_type,countState() AS impressions,uniqExactState(reader_key) AS reach '
+    'FROM content_events GROUP BY doc_id,event_type,service')
+# Both views listen to RAW inserts. Day seeding must not also populate all-time
+# before its single derivation, which would double count the frozen population.
+ALL_TIME_MV = ('CREATE MATERIALIZED VIEW content_events_aggregated_all_time_insert '
+    'TO content_events_aggregated_all_time AS ' + ALL_TIME_STATES)
+ALL_TIME_SEED = ('INSERT INTO content_events_aggregated_all_time SELECT doc_id,service,event_type,'
+    'countMergeState(impressions) AS impressions,uniqExactMergeState(reach) AS reach '
+    'FROM content_events_aggregated GROUP BY doc_id,event_type,service SETTINGS optimize_aggregation_in_order=1')
 
 
 def integer_counts(rows):
@@ -91,7 +104,15 @@ def read(ids, service, groups, *, aggregate=True):
     scope = 'doc_id IN (' + targets(ids) + ') AND doc_id IN (' + authorized_ids(ids, groups) + ')'
     if aggregate:
         return ('SELECT doc_id,countMerge(impressions) AS impressions,uniqExactMerge(reach) AS reach '
-            'FROM content_events_aggregated WHERE service=' + q(service)
+            'FROM content_events_aggregated_all_time WHERE service=' + q(service)
             + " AND event_type='delivery' AND " + scope + ' GROUP BY doc_id')
     return ('SELECT doc_id,count() AS impressions,uniqExact(reader_key) AS reach FROM content_events '
         'WHERE service=' + q(service) + " AND event_type='delivery' AND " + scope + ' GROUP BY doc_id')
+
+
+def read_daily(ids, service, groups, *, aggregate=True):
+    scope = 'doc_id IN (' + targets(ids) + ') AND doc_id IN (' + authorized_ids(ids, groups) + ')'
+    select = ('SELECT doc_id,day,countMerge(impressions) AS impressions,uniqExactMerge(reach) AS reach '
+        'FROM content_events_aggregated' if aggregate else
+        'SELECT doc_id,toDate(seen_at) AS day,count() AS impressions,uniqExact(reader_key) AS reach FROM content_events')
+    return select + ' WHERE service=' + q(service) + " AND event_type='delivery' AND " + scope + ' GROUP BY doc_id,day'
