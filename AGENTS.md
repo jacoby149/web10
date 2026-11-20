@@ -336,7 +336,17 @@ execution notes below remain historical, not instructions to reopen a lease.
 `knowledge-base/strategy/interface-language.md`. D121 (DECIDED) paper strategy,
 projected dates and fallback live only in `knowledge-base/strategy/paper-submission.md`.
 
-**Latest views run,20 November UTC:** day slices are PARTIAL at the retained
+**20 November layout/clock ruling (D122):** platform analytics physical layout is
+ours to choose, including production intent; event values stay frozen. The new
+admitted research attempt clones every live column into day-partitioned events
+with existing doc/reader order, one sorted rebuild and old/new all-column per-day
+hash/count census before atomic exchange. Other measured layouts stay frozen.
+After separate fix merge/source controls, one fresh all-fixes→row-model lease
+uses a24-hour self-kill backstop; the programme has$1,000 and costs are receipted.
+No production migration, guardian or old-lease reopening follows. Current
+precedence/admission: `research/experiments/costfn/README.md`.
+
+**Latest banked views run,20 November UTC:** day slices are PARTIAL at the retained
 service bound:293 controller-PASS/294 native finishes, exact partial day counts,
 no full1.6B reconciliation/all-time derivation/formal parity/feed/row timing.
 Native read amplification is reported, not a failure gate; observed slice memory

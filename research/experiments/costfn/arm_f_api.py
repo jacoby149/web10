@@ -30,6 +30,7 @@ import arm_f_views
 import arm_f_faults
 from arm_f_fence import Fence
 import arm_f_online_rebuild
+import engagement_window as window
 from arm_f_journal import Journal
 from arm_f_store import Store
 from arm_f_runtime import admitted
@@ -44,9 +45,9 @@ ROOT = Path(os.environ['FANOUT_STATE'])
 admission = json.loads((ROOT / 'admission.json').read_bytes())
 start, deadline = (datetime.fromisoformat(admission[key]) for key in ('approved_utc', 'deadline_utc'))
 if (admission.get('configuration') != 'F' or admission.get('droplet_id') != p.host
-        or admission.get('approved_by') != 'Jacob' or admission.get('budget_usd') != 2
+        or admission.get('approved_by') != 'Jacob'
         or admission.get('cutoff') != f.CUTOFF or admission.get('sort_order_arm_admitted') is not False
-        or (deadline - start).total_seconds() != 14400 or not start <= datetime.now(UTC) < deadline):
+        or not window.valid(admission, (deadline - start).total_seconds()) or not start <= datetime.now(UTC) < deadline):
     raise RuntimeError('exact current parent F admission required')
 build = json.loads((ROOT / 'build.json').read_bytes())
 banked_comparator = (admission.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')

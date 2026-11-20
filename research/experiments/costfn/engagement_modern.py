@@ -9,6 +9,7 @@ import arm_f_runtime
 import arm_t
 import engagement_limits as limits
 import restore_realism as restore
+import engagement_window as window
 
 ENGINE = '26.10.4.207'
 IMAGE = 'ghcr.io/jacoby149/base-clickhouse:26.10.4.207@sha256:4f491abc44d9f4a1747c033c35ddd5bc385521305d85ca8251ba0824ff597035'
@@ -73,7 +74,8 @@ class Session(arm_f_runtime.Session):
 
     def query(self, label, sql, *, measured=False, setup_seconds=600, settings=None):
         admitted(self.operation, self.host_id)
-        if self.operation.get('tally_wiring_admitted') is True:
+        rebuild_setup = (not measured and label == 'events_layout_rebuild' and window.enabled(self.operation))
+        if self.operation.get('tally_wiring_admitted') is True and not rebuild_setup:
             setup_seconds = min(setup_seconds, 600)
         current_policy = limits.enabled(self.operation)
         budget = min((600 if current_policy else 10) if measured else setup_seconds, remaining(self.operation))
