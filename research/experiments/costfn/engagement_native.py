@@ -36,7 +36,8 @@ def await_query(session, command, query_id, budget, *, sql, statement_kind):
                 restore.command(session.compose, session.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',
                     '--user', 'web10', '--password', 'web10', '--max_execution_time=2',
                     data=b'SYSTEM FLUSH LOGS', timeout=5)
-                sql = ("SELECT query_id,toString(type) AS type,exception_code,exception,query_duration_ms,read_rows,read_bytes "
+                sql = ("SELECT query_id,toString(type) AS type,exception_code,exception,query_duration_ms,read_rows,read_bytes,"
+                    "written_rows,written_bytes,memory_usage "
                     "FROM system.query_log WHERE query_id='" + query_id
                     + "' AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing') FORMAT JSON")
                 raw = restore.command(session.compose, session.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',

@@ -87,7 +87,26 @@ does not return. Receipt each lease's cost. Agent ~300s supervision and host
 self-kill timers only; no independent guardian. No local engine execution.
 Preserve failed attempts, source bindings, native receipts and cleanup.
 
-## Latest admitted attempt —stdin fixed
+## Next admitted attempt —day-sliced views seed
+
+Jacob19 November directs a seed-execution-only repair, then a fresh unchanged
+all-fixes→row-model run after the separate fix merges. The composed entry installs
+DDL then MV with API writers stopped, plans every day explicitly (optional
+preplanned doc_id hash buckets), and uses the original STATES select plus only
+the slice predicate. Day and doc_id belong to the group key; no group is split.
+Every slice has original native memory/I/O receipts and no implicit retry/reseed.
+Final per-day countMerge impressions must equal the frozen census/1.6B events;
+the existing raw-versus-aggregate views parity gate still follows before timing.
+
+**Operator-confirmed accounting clarification:** retain the source layout and
+separate exact once-only matched-event reconciliation from actual native scan
+rows/bytes, including repeated granule reads. Day predicates on the doc/reader-
+first unpartitioned source cannot promise a single physical pass or131GB total.
+Receipt inventory/reconciliation/observation work separately. All old attempts,
+native241 partial actuals, paired proof and FAILs stay banked unchanged. No lease
+is bound merely by this source preparation; no automatic partial-slice replay.
+
+## Latest banked attempt —stdin fixed
 
 PR#1597/source55b68ef7f clears the large native billboard INSERT. On fresh
 DO621423661, completed tally checks natively cover all20 actual paired roots in
