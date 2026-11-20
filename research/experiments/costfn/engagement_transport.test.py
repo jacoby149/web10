@@ -51,6 +51,7 @@ class TransportTests(unittest.TestCase):
                     if data == b'SYSTEM FLUSH LOGS':
                         return b''
                     self.assertIn(seen['command'][seen['command'].index('--query_id') + 1].encode(), data)
+                    self.assertIn(b'memory_usage', data)
                     if seen['process'].poll() is None:
                         return b'{"data":[]}'
                     return json.dumps({'data': [dict(type='QueryFinish', exception_code=0)]}).encode()

@@ -8,7 +8,7 @@ import engagement_cells as cells
 import engagement_composition as contract
 import engagement_composition_setup as setup
 import engagement_composition_verify as verify
-import engagement_events as events
+import engagement_event_seed as event_seed
 import engagement_finish as finish
 import engagement_modern as modern
 import engagement_pairs as pairs
@@ -86,12 +86,10 @@ class Actions(finish.Actions):
         tally = tallies.run(self.root)  # Existing recipes/build/verifier, unchanged.
         satellite = setup.build_pairs(session, self.root)
         # Setup build is explicitly admitted; banked Stage B timings/diagnosis
-        # are cited, not rerun. Install MV before one seed with API writers down.
-        receipts = []
-        for index, sql in enumerate((events.DDL, events.MV, events.SEED)):
-            _, query_id = session.query('composition_aggregate_setup_' + str(index), sql)
-            receipts.append(dict(query_id=query_id, native=session.native(query_id)))
-            save(self.root / 'composition-aggregate-build.json', receipts)
+        # are cited, not rerun. Install MV before disjoint day seeds, writers down.
+        cells.stop(self.root)
+        receipts = event_seed.install(session, self.root, writers_stopped=True,
+            buckets_by_day=self.approval.get('aggregate_seed_day_buckets'))
         self.aggregate_ready = True
         if setup.parts(session, 'engagement_documents')[0] != digest:
             raise ValueError('canonical copy changed during furniture build')
