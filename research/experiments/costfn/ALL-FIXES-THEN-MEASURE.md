@@ -47,6 +47,26 @@ near-one amplification requirement becoming a gate.
 
 ## Treatment
 
+### 20 November repair —bounded all-time historical backfill
+
+The layout attempt on merged PR#1602 completes the old/new event censuses and
+all319 daily slices, reconciling exactly1.6B events. Its subsequent single
+all-time MergeState statement fails natively241 at22GiB; composition and row
+measurements remain blocked. That failure is preserved, never replayed into PASS.
+
+Jacob requests a source repair: derive all-time from the completed daily states
+in sequential, non-overlapping document-key ranges. Bound each range to4096
+distinct document IDs using a4097-key ordered lookahead; retain every service,
+event type and day for each owned document. Record each inventory and INSERT's
+original native ID, memory and read/write actuals. Retain countMergeState and
+uniqExactMergeState, then require the full1.6B reconciliation and both existing
+raw-oracle parity gates. Neither daily reach summation nor a second raw seed is
+allowed. Both live raw-insert MVs, schemas/layouts and600s/22GiB limits stay
+unchanged. One unusually large document can still exceed memory; batching is
+not a native fit guarantee. A failed batch stops dependent work without retry,
+and an existing partial build cannot be resumed or overwritten implicitly.
+This repair does not admit another paid lease or reopen the stopped attempt.
+
 1. A generic derived pairs satellite indexes every governing `ref_value` and
    finer body target. It carries document identity, ref identity, author payload
    and role-as-data (`root`/`target`), sorted by `(ref_id, doc_id)`. Exactly one
