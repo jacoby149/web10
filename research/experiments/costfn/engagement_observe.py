@@ -57,7 +57,7 @@ def classify(sql, callers, current):
     canonical = bool(tables & {'documents', 'engagement_documents', 'doc_groups'})
     if counters:
         return ('counts_embedded_in_preparation' if preparation else 'counts_embedded_in_resolution') if canonical else 'counts'
-    if tables & {'content_events', 'content_events_aggregated'}:
+    if tables & {'content_events', 'content_events_aggregated', 'content_events_aggregated_all_time'}:
         return 'views'
     if preparation:
         return 'preparation'

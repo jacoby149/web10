@@ -10,7 +10,15 @@ owns the target; the [directive index](README.md#directive-precedence-index)
 owns execution precedence. The present JSON implementation remains source/oracle
 and experimental fallback, not a permanent hybrid or the replacement target.
 
-## Latest attempt —stdin fixed
+## Latest attempt —day slices/two grains
+
+Fresh bindings/readiness on8402cd5fe pass before DO621488571 restores. Day seeding
+is partial at the existing service bound; all-time derivation and composition
+banking never occur, so the row worker/build/key-type checks/six assembly stages
+remain NOT RUN. D117 pending; no partial PASS. Receipts/CSV are preserved and
+owned cleanup verified, snapshot retained, admission closed. [Accounting and bindings](evidence/all-fixes-two-grain-20261120/RESULTS.md).
+
+## Earlier attempt —stdin fixed
 
 Fresh bindings/readiness on merged55b68ef7f pass before DO621423661 restores.
 Native billboard transport and tally verification complete; aggregate seeding
