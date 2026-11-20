@@ -63,7 +63,8 @@ def install(session, root, *, writers_stopped, expected_events=1_600_000_000, bu
     started = time.perf_counter()
     record = dict(outcome='BUILDING', expected_events=expected_events, slices=[], setup=[],
         writers_stopped=True, group_key=['doc_id', 'service', 'event_type', 'day'],
-        native_scan_rows_are_not_matched_events=True, full_source_layout_unchanged=True)
+        native_scan_rows_are_not_matched_events=True,
+        full_source_layout_unchanged=not (root / 'events-layout/identity.json').exists())
     def checkpoint():
         save(output / 'build.json', record)
         save(root / 'composition-aggregate-build.json', record)

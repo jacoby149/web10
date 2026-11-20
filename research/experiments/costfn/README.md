@@ -1,6 +1,20 @@
 # Access-Control Cost Function Experiment
 
-## Latest attempt —two grains/day slices, PARTIAL at service bound
+## Current admission —20 November analytics layout and clock repair
+
+Jacob explicitly admits one fresh all-fixes→row-model attempt after a separate
+layout/clock fix merges and exact-source controls/bindings pass. D122 lifts only
+the raw analytics physical-layout fence: same complete1.6B event values, one
+sorted rebuild into day partitions, old/new all-column per-day hash/count census
+before atomic exchange. All other measured layouts/gates stay frozen. The owned
+self-kill backstop is24 hours, not four; the programme has$1,000 and per-run
+compute costs remain receipted. This supersedes older four-hour/$2 clock shapes
+for this explicitly bound composition only; it never reopens an old lease.
+The new rebuild is setup, not a600s measurement; it may use the remaining24h
+backstop with existing22GiB/spill limits. Existing day slices and measured
+statements retain600s. Full contract: [all fixes](ALL-FIXES-THEN-MEASURE.md).
+
+## Latest banked attempt —two grains/day slices, PARTIAL at service bound
 
 Merged day-seed/all-time source8402cd5fe executes on original-window DO621488571.
 Of319 slices,293 are controller-PASS and294 native-finished, with exact observed
@@ -46,7 +60,7 @@ is consumed/closed, no automatic retry. Exact failure/cost/custody/cleanup:
 
 ## Directive precedence index
 
-**As of 19 November 2026.** This index owns precedence, not design definitions
+**As of 20 November 2026.** This index owns precedence, not design definitions
 or measured values. The [decision ledger](../../../knowledge-base/strategy/decisions.md)
 owns D115/D116/D118 DECIDED, D117/D119 DIRECTION and D120 PRINCIPLE. Evidence
 reports own numerical facts. Current implementation is still documented in the
@@ -61,6 +75,7 @@ retroactive waiver of failed or missing gates.
 
 | Directive/document | Status and controlling successor or record |
 |---|---|
+|20 November layout/clock amendment above; D122 | **Operative for the newly admitted composition→row cell** — analytics layout mutable, logical events frozen,24h self-kill; supersedes prior raw-layout/four-hour fences only |
 | `README.md`, Governing execution directive below | **Operative** — current execution policy; overrides older row/deadline/client/byte aborts, not receipts |
 | [ALL-FIXES-THEN-MEASURE.md](ALL-FIXES-THEN-MEASURE.md) | **Operative** — composed read treatment and required prechecks; no measured result banked |
 | [ROW-MODEL-QUEUED.md](ROW-MODEL-QUEUED.md) | **Queued behind ALL-FIXES-THEN-MEASURE measurements** — source work precedes both runs; D117 proving cell pending |

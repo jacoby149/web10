@@ -20,6 +20,30 @@ superseded by a later entry remain visible as history.
 
 ---
 
+### D122 — Platform analytics owns its physical events layout [DECIDED]
+
+**Jacob Hoffman, 20 November 2026.** The platform owns the auxiliary analytics
+layer, including the physical arrangement of `content_events`, in experiments
+and in production. The old fence against changing that layout is lifted;
+`documents` and the measured fanout/tally/refs/aggregate layouts remain frozen.
+The logical dataset does not change: all1,600,000,000 event values are retained.
+
+For the newly admitted composition→row-model attempt, clone every live event
+column/type, partition by `toDate(seen_at)` and retain `(doc_id,reader_key)` order
+inside each day. One sorted INSERT reads the old source once for rebuilding;
+never rebuild with per-day inserts against the old layout. Separate old/new
+full-population, per-day counts and per-day all-column hash censuses must agree
+before the new table takes the name. Preserve both censuses and native rebuild
+I/O/time/memory receipts. Seed amplification is reported, not a failure gate.
+
+The same directive replaces the inherited four-hour race with a24-hour self-kill
+backstop, sized for the whole run. The programme has$1,000; report actual lease
+costs, not a renewed$2/four-hour stop. Agent supervision and owned self-kill
+timers remain; no guardian. Source repair merges separately, then exact-source
+controls/admission/bindings precede one fresh lease and the unchanged ordered
+gates/composition/row cell. Earlier attempts stay banked. This decision does not
+deploy a production migration. Contract: [costfn](../../research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md).
+
 ### D121 — Target SIGMOD RESEARCH, January round of the 2028 cycle [DECIDED]
 
 **Jacob Hoffman, 19 November 2026.** Deliberately choose the research-track bar,

@@ -9,6 +9,7 @@ import uuid
 
 import arm_t
 import restore_realism as restore
+import engagement_window as window
 
 
 def admitted(operation, host_id, now=None):
@@ -26,8 +27,7 @@ def admitted(operation, host_id, now=None):
                 and operation.get('host_self_kill_verified') is True
                 and operation.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
                 and operation.get('parent_admission_sha256')))
-            or not 0 < operation.get("budget_usd", 0) <= 2
-            or not 0 < (deadline - start).total_seconds() <= 4 * 3600
+            or not window.valid(operation, (deadline - start).total_seconds(), subordinate=True)
             or not start <= now < deadline):
         raise ValueError("current own-host Config P canonical-source approval required")
     return deadline

@@ -10,6 +10,41 @@ engine or lease belongs in that phase. Only after all source gates pass may one
 fresh DigitalOcean lease restore snapshot 255003176 and verify every treatment
 before measuring anything.
 
+## 20 November amendment —layout fix, then new admission
+
+Jacob's “FIX the analytics layout and the clock, then RUN it again” overrides
+only the earlier raw-layout fence and four-hour/$2 service clock. D122 makes
+platform analytics layout a platform choice, including production intent; no
+production deployment is part of this research run. All1.6B events and every
+value stay frozen. Documents, fanout, tally, refs and both aggregate layouts
+remain unchanged. All four earlier attempts/receipts stay banked.
+
+With API writers stopped and before installing either aggregate/MV, clone the
+live event schema (including payload and timestamp precision), create day
+partitions retaining `(doc_id,reader_key)`, then rebuild in ONE INSERT SELECT
+ordered by `(toDate(seen_at),doc_id,reader_key)`. Never use per-day source inserts.
+Preserve full old/new per-day censuses: counts plus all-column tuple cityHash64
+and sipHash64 overflow sums and sipHash64 XOR; compare their exact values and
+full1.6B totals before atomic exchange. Hash census equality is the operator's
+identity check, not a claim of collision-free row-by-row multiset proof. A
+mismatch/failure blocks exchange and every dependent consumer; no automatic
+replay. Retire the old table only after identity is banked and exchange finishes.
+Receipt rebuild rows/bytes read/written, native duration/peak memory and total
+setup wall time separately from both censuses and seed work.
+
+Merge the source fix in its own PR, pass all source controls, regenerate source
+and row bindings/admission, then create one fresh lease. Bind24h at creation;
+both owned timers and service lifetime derive from that same absolute backstop,
+never an inherited four-hour timer. The programme has$1,000; receipt SKU/rate,
+elapsed compute and storage separately. The new one-statement rebuild is setup
+and uses the remaining backstop, not the600s measurement deadline. Existing day
+seed statements, parity gates,600s measurements and22GiB envelope are unchanged.
+No guardian or automatic extension/replacement/retry. The RUN sequence remains
+restore→furniture (including rebuilt events/identity)→ordered hard-stop gates→
+composition bank→same-store row-model cell→off-host receipts→verified cleanup.
+Report each seed slice's actual native rows/bytes and amplification without a
+near-one amplification requirement becoming a gate.
+
 ## Treatment
 
 1. A generic derived pairs satellite indexes every governing `ref_value` and

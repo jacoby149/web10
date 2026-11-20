@@ -41,14 +41,21 @@ def save(path, value):
 
 
 def validate(lease):
+    legacy = (lease.get('max_usd') == 2
+        and lease.get('deadline', 0) - lease.get('created_epoch', 0) == 14400)
+    if lease.get('layout_clock_directive'):
+        import engagement_window as window
+        window_ok = window.enabled(lease) and window.valid(lease,
+            lease.get('deadline', 0) - lease.get('created_epoch', 0), cloud=True)
+    else:
+        window_ok = legacy
     hardware = (lease.get('size') == 's-8vcpu-32gb-amd' and lease.get('hourly_usd') == .25) or (
         lease.get('size') == 's-8vcpu-32gb-640gb-intel' and lease.get('hourly_usd') == .28571
         and lease.get('hardware_directive') == TALLY_INTEL and lease.get('tally_wiring_admitted') is True)
     if (not re.fullmatch(r'web10-fanout-f-[a-f0-9]{12}', lease.get('name', ''))
             or lease.get('tag') != lease['name'] or lease.get('configuration') != 'F'
             or lease.get('region') != 'nyc3' or not hardware
-            or lease.get('max_usd') != 2
-            or lease.get('deadline', 0) - lease.get('created_epoch', 0) != 14400
+            or not window_ok
             or not lease.get('account_uuid')):
         raise ValueError('exact granted Config F four-hour/$2 lease required')
     if lease.get('ssh_source_cidr'):
@@ -172,7 +179,7 @@ def watchdog_program(script, lease, *, executable=None):
     return [str(python), '-I', '-S', str(script), 'tick', '--lease', str(lease)]
 
 
-def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None, hardware_override=None):
+def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None, hardware_override=None, layout_clock=False):
     state = Path(state)
     if scope not in (None, 'F_DEPLOY_REHEARSAL', 'F_GATES_ONLY'):
         raise ValueError('unknown F admission scope')
@@ -203,6 +210,10 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
                    cleanup_model='agent-supervised-self-kill', guardian_required=False)
     if hardware_override:
         lease.update(hardware_directive=hardware_override,tally_wiring_admitted=True)
+    if layout_clock:
+        import engagement_window as window
+        lease.update(layout_clock_directive=window.DIRECTIVE, composition_admitted=True, row_model_admitted=True,
+            max_usd=window.PROGRAMME_USD, deadline=created + window.SECONDS)
     if scope:
         lease['scope'] = scope
     if ssh_source_cidr:

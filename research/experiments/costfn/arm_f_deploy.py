@@ -14,6 +14,7 @@ import time
 
 import arm_f_cloud as cloud
 import arm_t
+import engagement_window as window
 
 
 def ssh_options(private, jump=None):
@@ -59,8 +60,8 @@ def wait_for_ssh(private, destination, *, jump=None, seconds=120):
     raise error from last
 
 
-def worker_command(remaining, here, *, detach=False, scoped=False, read_first=False):
-    if type(remaining) is not int or not 300 <= remaining <= 14100:
+def worker_command(remaining, here, *, detach=False, scoped=False, read_first=False, layout_clock=False):
+    if type(remaining) is not int or not 300 <= remaining <= (window.SECONDS - 300 if layout_clock else 14100):
         raise ValueError('worker must fit the original four-hour lease and cleanup margin')
     return ['systemd-run', '--unit=fanout-step0', '--property=RuntimeMaxSec=' + str(remaining),
         '--property=WorkingDirectory=/opt/fanout/repo',
@@ -113,6 +114,9 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
         cutoff=2000, R_plus_W_required=True, T7_admitted=False, sort_order_arm_admitted=False,
         full_population_backfill_required=True,
         population_gate_order=['T4', 'T2-F', 'T6-F', 'T3-F', 'population', 'T6-F-populated', 'T5-F', 'R+W'])
+    if window.enabled(lease):
+        admission.update(layout_clock_directive=window.DIRECTIVE, composition_admitted=True, row_model_admitted=True,
+            budget_usd=window.PROGRAMME_USD)
     scoped = state.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
     if scoped:
         import arm_f_banked
@@ -171,7 +175,8 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     remaining = int(lease['deadline'] - time.time()) - 300
     if remaining < 1800:
         raise ValueError('insufficient remaining original admission before restore')
-    command = worker_command(remaining, here, detach=detach, scoped=scoped, read_first=state.get('read_first', False))
+    command = worker_command(remaining, here, detach=detach, scoped=scoped, read_first=state.get('read_first', False),
+        layout_clock=window.enabled(lease))
     print('[arm-f] guarded archive restore and P setup starting; deadline=' + admission['deadline_utc'], flush=True)
     if detach:
         # A VPN/SSH disconnect must not tear down the worker's stdout pipe.

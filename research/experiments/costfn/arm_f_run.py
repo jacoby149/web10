@@ -29,6 +29,7 @@ import arm_satellite_verify as verify
 import core_feed
 import restore_dataset
 import restore_realism as restore
+import engagement_window as window
 
 
 def save(path, value):
@@ -49,7 +50,7 @@ def operation(root):
     start, deadline = (datetime.fromisoformat(admission[name]) for name in ('approved_utc', 'deadline_utc'))
     if (admission.get('configuration') != 'F' or admission.get('approved_by') != 'Jacob'
             or admission.get('droplet_id') != host or admission.get('dataset_id') != arm_t.DATASET
-            or admission.get('budget_usd') != 2 or (deadline - start).total_seconds() != 14400
+            or not window.valid(admission, (deadline - start).total_seconds())
             or not start <= datetime.now(UTC) < deadline
             or not __import__('arm_f_runtime').cleanup_approved(admission)):
         raise ValueError('current exact Config F admission required')

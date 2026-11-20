@@ -9,6 +9,8 @@ import engagement_composition as contract
 import engagement_composition_setup as setup
 import engagement_composition_verify as verify
 import engagement_event_seed as event_seed
+import engagement_event_layout as event_layout
+import engagement_window as window
 import engagement_finish as finish
 import engagement_modern as modern
 import engagement_pairs as pairs
@@ -88,12 +90,15 @@ class Actions(finish.Actions):
         # Setup build is explicitly admitted; banked Stage B timings/diagnosis
         # are cited, not rerun. Install MV before disjoint day seeds, writers down.
         cells.stop(self.root)
+        layout = None
+        if window.enabled(self.approval):
+            layout = event_layout.rebuild(session, self.root, writers_stopped=True)
         receipts = event_seed.install(session, self.root, writers_stopped=True,
             buckets_by_day=self.approval.get('aggregate_seed_day_buckets'))
         self.aggregate_ready = True
         if setup.parts(session, 'engagement_documents')[0] != digest:
             raise ValueError('canonical copy changed during furniture build')
-        return dict(initial=initial, tally_rows=tally.get('table'), pairs=satellite, aggregate=receipts,
+        return dict(initial=initial, tally_rows=tally.get('table'), pairs=satellite, event_layout=layout, aggregate=receipts,
             live_maintenance_implemented=False, no_stage_B_timing_rerun=True)
 
     def decomposition(self):
