@@ -336,7 +336,15 @@ execution notes below remain historical, not instructions to reopen a lease.
 `knowledge-base/strategy/interface-language.md`. D121 (DECIDED) paper strategy,
 projected dates and fallback live only in `knowledge-base/strategy/paper-submission.md`.
 
-**Generic tallying (D114), operator18 November2026:** tallying belongs in the
+**Latest D114 evidence,19 November directive/20 November UTC:** the stdin-fixed
+attempt completes native exact-value checks over all20 actual paired roots in
+all five domains, with off-host SQL-hash/native-finish audit. That closes the
+missing-root proof gap described historically below. Formal composition gates
+stay BLOCKED after aggregate seed241/22GiB; no feed/row measurements or production
+acceptance. Owned resources are cleaned, snapshot retained, admission closed.
+Report: `research/experiments/costfn/evidence/all-fixes-stdin-20261119/RESULTS.md`.
+
+**Generic tallying (D114), operator18 November2026 (historical run statuses below):** tallying belongs in the
 fanout family as a generic platform-maintained satellite; meanings are named
 recipes/data, not social-specific node columns. The isolated admitted tally
 experiment builds/verifies canonical scope-qualified `counting_numbers` values

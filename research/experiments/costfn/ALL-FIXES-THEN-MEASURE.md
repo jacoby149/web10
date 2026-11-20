@@ -87,7 +87,16 @@ does not return. Receipt each lease's cost. Agent ~300s supervision and host
 self-kill timers only; no independent guardian. No local engine execution.
 Preserve failed attempts, source bindings, native receipts and cleanup.
 
-## Latest admitted rerun —19 November2026
+## Latest admitted attempt —stdin fixed
+
+PR#1597/source55b68ef7f clears the large native billboard INSERT. On fresh
+DO621423661, completed tally checks natively cover all20 actual paired roots in
+all five domains with exact values; off-host SQL/native audit banks that proof.
+The aggregate seed then stops241 at22GiB before the formal composition gates.
+Their BLOCKED statuses remain unchanged; no feed/row measurements or automatic
+retry. Owned cleanup verified, snapshot retained, admission closed. [Failure, qualified paired proof, bindings and cost](evidence/all-fixes-stdin-20261119/RESULTS.md).
+
+## Earlier admitted rerun —19 November2026
 
 After separate restore fix PR#1595 merged, fresh DO621414125 on exact source
 2749c1037 passes row readiness, restore, read setup and migration. Billboard

@@ -1,0 +1,108 @@
+{
+  "kind": "ALL_FIXES_ROW_MODEL_STDIN_FIXED_ATTEMPT_THREE",
+  "outcome": "STOP_AGGREGATE_SETUP_NATIVE_241_BEFORE_COMPOSITION_GATES",
+  "operator": "Jacob Hoffman",
+  "operator_directive_date": "2026-11-19",
+  "fix_pr": 1597,
+  "fix_merged_before_spending": true,
+  "source_commit": "55b68ef7f786920458a86196f633924eb4c01e18",
+  "source_changed_during_run": false,
+  "deployed_source_hashes_verified": 1480,
+  "source_controls": {"suites": 38, "tests": 361, "outcome": "PASS", "rerun_on_exact_merged_source": true},
+  "source_binding_file": "source-binding.json",
+  "row_source_readiness_before_restore": "PASS",
+  "earlier_attempt_records_unchanged": true,
+  "earlier_attempt_numbers_reused": false,
+  "lease": {
+    "droplet_id": 621423661, "name": "web10-fanout-f-25a00cf5079b", "region": "nyc3",
+    "size": "s-8vcpu-32gb-amd", "vcpus": 8, "host_gib": 32, "container_gib": 28, "server_gib": 22,
+    "disk_gib": 400, "engine": "26.10.4.207", "snapshot_id": "255003176", "hourly_usd": 0.25,
+    "approved_utc": "2026-11-19T23:08:08+00:00", "deadline_utc": "2026-11-20T03:08:08+00:00",
+    "provider_readiness_timeouts": 2, "replacement_hosts": 0, "guardian_started": false,
+    "owned_self_kill_timers_verified": true, "costs_receipted_not_capped": true
+  },
+  "setup": {
+    "banked": "PASS_CITED_NOT_REMEASURED", "restore": "PASS", "restore_bridge_seconds": 89.69316597099998,
+    "read_setup": "PASS", "migration": "PASS", "billboard_fixtures": "PASS",
+    "billboard_documents": 338, "billboard_links": 950, "static_node_creatives": 300,
+    "tally_verified": true, "tally_scopes": 12, "tally_setup_seconds": 2764.820385627,
+    "tally_deterministic_sample_roots": 60, "refs_satellite_build": "COMPLETE_CENSUS_NOT_RUN",
+    "aggregate_seed": "NATIVE_EXCEPTION_241", "furniture": "INCOMPLETE"
+  },
+  "transport_native_proof": {
+    "query_id": "fanout-f-89fb7d2499e346bcb076baf9203b37af",
+    "sql_sha256": "b7c5f1b512759a40a4a341d2dd84791db395607959616a6699ae3218a0eeb207",
+    "statement_utf8_bytes": 185447, "transport": "stdin", "submitted_once": true,
+    "type": "QueryFinish", "client_returncode": 0, "exception_code": 0,
+    "native_ms": 364, "read_rows": 338, "read_bytes": 185293, "written_rows": 338, "written_bytes": 185293,
+    "logical_bytes_are_not_statement_bytes": true
+  },
+  "failure": {
+    "stage": "furniture", "label": "composition_aggregate_setup_2",
+    "query_id": "fanout-f-55f2521e468e410fa3ad5cf35d8ef7fc",
+    "sql_sha256": "249e8f028b5553b24888feb078abdfe603862ccb834eb15d55196c134b3ad910",
+    "type": "ExceptionWhileProcessing", "exception_code": 241,
+    "reason": "Query memory limit exceeded at22.00GiB while executing SourceFromNativeStream",
+    "native_ms": 247336, "read_rows": 1600000000, "read_bytes": 131199996416,
+    "written_rows": 13214911, "written_bytes": 1202556901, "memory_usage": 23620075140,
+    "max_memory_usage": 23622320128, "max_execution_time": 600,
+    "transport": "stdin", "submitted_once": true, "original_failure_preserved": true,
+    "source_repair_after_stop": false, "retry_performed": false, "memory_limit_raised": false,
+    "partial_aggregate_used_for_measurement": false, "worker_exit_code": 1,
+    "row_bridge_refusal": "banked all-fixes per-statement accounting required"
+  },
+  "parity_evidence": {
+    "refs_census_and_same_question": "NOT_RUN_FURNITURE_BLOCKED",
+    "tally_ordinary_fat_store_sample": "PASS_COMPLETED_NATIVE_SETUP",
+    "paired_tally_actual20_roots_all_five_domains": "PASS_COMPLETED_NATIVE_EVIDENCE_AUDITED_OFF_HOST",
+    "paired_tally_evidence_file": "paired-tally-evidence.json",
+    "original_missing20_domain_proof_gap": "CLOSED_BY_THIS_ATTEMPT_NATIVE_EVIDENCE",
+    "views_raw_vs_aggregate": "NOT_RUN_INCOMPLETE_AGGREGATE",
+    "ads_exact_identity_per_post": "NOT_RUN",
+    "complete_response_parity": "NOT_RUN"
+  },
+  "formal_composition_gates": {
+    "verify-refs": "BLOCKED_PRE_MEASUREMENT_VERIFICATION",
+    "verify-paired-tallies": "BLOCKED_PRE_MEASUREMENT_VERIFICATION",
+    "verify-views": "BLOCKED_PRE_MEASUREMENT_VERIFICATION",
+    "verify-ads": "BLOCKED_PRE_MEASUREMENT_VERIFICATION"
+  },
+  "composition_cells": {
+    "uniform-K20": {"warmup": "BLOCKED", "measured": "BLOCKED", "stages": null},
+    "paired-P": {"warmup": "BLOCKED", "measured": "BLOCKED", "stages": null},
+    "paired-F": {"warmup": "BLOCKED", "measured": "BLOCKED", "stages": null}
+  },
+  "measured_complete_responses": 0, "new_budget_verdict": "UNAVAILABLE_NO_MEASUREMENTS",
+  "unclassified_query_inventory": {"status": "UNAVAILABLE_DECOMPOSITION_NOT_REACHED", "queries": null},
+  "row_model": {
+    "outcome": "NOT_RUN_UNBANKED_COMPOSITION", "worker_started": false, "family_build": "NOT_RUN",
+    "page_fat_sample_adversarial_key_type_verification": "NOT_RUN",
+    "stages": {"uniform-K20-feed": "NOT_RUN", "paired-P-feed": "NOT_RUN", "paired-F-feed": "NOT_RUN", "ordinary-post-open": "NOT_RUN", "paired-post-open": "NOT_RUN", "fat-post-open": "NOT_RUN"},
+    "assembly_measurements": null, "generation_fence_measurements": null, "assembly_verdict": "UNAVAILABLE", "D117_acceptance": "PENDING"
+  },
+  "native_collection": {
+    "terminal_root_F_setup_records": 576, "exception0_records": 575, "exception241_records": 1,
+    "native_time_bound_counts": {"600s": 575, "120s": 1}, "memory_bound_gib": 22,
+    "scope": "root F setup ledger terminal records, not exhaustive child/observer work or composition measurements",
+    "engine_restarted_for_collection": false, "all_container_oom_flags": false
+  },
+  "off_host_receipts": {
+    "private_root": "~/.local/state/web10-research/web10-fanout-f-25a00cf5079b",
+    "checkpoint": {"file": "all-fixes-stdin-checkpoint-20261120T005958Z.tar.gz", "bytes": 6819867, "sha256": "5456a3fd4d64019b31338d1a2debaf6d0601b24d085658778324c32dbff6b2e2", "verified_before_cleanup": true},
+    "stopped_native_parts": {"file": "stopped-native-query-log.tar.gz", "bytes": 13219526, "sha256": "87485432c15e70b3907b2c1b9061363de93d2a63b79152cf8e8f7a6232c6ca96", "verified_before_cleanup": true}
+  },
+  "cost": {
+    "basis": "attempt three only, admission creation through verified cleanup; conservative elapsed SKU compute estimate",
+    "elapsed_seconds": 6822.391993999481, "hourly_usd": 0.25, "estimated_compute_usd": 0.4737772218055195,
+    "invoice": false, "snapshot_storage": "ongoing, separate, not included"
+  },
+  "cleanup": {
+    "verified": true, "verified_utc": "2026-11-20T01:01:50.391994+00:00",
+    "additional_provider_readback_utc": "2026-11-20T01:02:45.277178+00:00", "before_original_deadline": true,
+    "droplet_absent": true, "firewall_absent": true, "ssh_key_absent": true, "tag_absent": true,
+    "snapshot_255003176_retained": true, "provider_settling_and_key_delete_errors_preserved": true
+  },
+  "baseline_B_D_and_historical_failures": "BANKED_UNCHANGED_NOT_REMEASURED",
+  "whole_arm_pass": false, "production_or_section8_acceptance": false,
+  "admission_closed": true, "new_paid_run_requires_fresh_admission": true
+}

@@ -46,7 +46,9 @@ Reads should be bounded seeks over those shapes, not rediscoveries of history.
 and [qualified tally report](../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md).
 Their measurement scopes and limitations control any use of those facts; the
 [design map](../web10-v3/db/design-revolution.md) indexes them without duplicating
-the figures. D114's required paired acceptance is still OPEN.
+the figures. D114's missing paired-domain proof is now banked in the
+[stdin-fixed attempt](../../research/experiments/costfn/evidence/all-fixes-stdin-20261119/RESULTS.md);
+its aggregate setup STOP still blocks formal composition acceptance.
 
 In the row-model direction, declaring a value or relationship and indexing it
 are the same act: no future declared question shape should be born unindexed.
@@ -204,9 +206,13 @@ older read-time rotation/node-overlay design, retaining its history in
 
 ### D114 — Tallying is a generic maintained satellite in the fanout family [decided; research first]
 
-**Acceptance is OPEN on the paired gate.** Source repair is not a native result;
-the [tally report and domain audit](../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md)
-are the canonical home of the observed values, raw PASS flags and coverage gap.
+**The original missing20-root paired verification gap now has native proof.**
+The [stdin-fixed attempt](../../research/experiments/costfn/evidence/all-fixes-stdin-20261119/RESULTS.md)
+banks exact value/domain checks over all actual roots in all five native domains,
+audited off-host against original SQL hashes and terminal receipts. Its formal
+composition gates remain BLOCKED after aggregate seed241; this is not whole-feed
+or production acceptance. The [first tally report/domain audit](../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md)
+retains its untested-domain history, raw PASS flags, costs and original FAILs.
 
 **Jacob Hoffman,18 November2026:** feed reads fetch ready numbers from the
 `counting_numbers` abstraction instead of counting canonical documents again.

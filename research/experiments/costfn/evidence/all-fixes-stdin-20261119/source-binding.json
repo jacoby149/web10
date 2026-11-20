@@ -1,0 +1,23 @@
+{
+  "generated_from_merged_source_commit": "55b68ef7f786920458a86196f633924eb4c01e18",
+  "modern_source_binding": {
+    "engagement_modern.py": "3295b92a11fad848a6e1976e7430cef1879aaae807b022d2a3dc09a0f82e6e54",
+    "engagement_native.py": "0947dd6407566e99ebe52458f3251aeda091a42158b5da0e933fa18a44eea3c1",
+    "engagement_restore.py": "8f101309986c2688594c3630ff046181c6324f85dbc4bbdea6ad6f151cd215a5"
+  },
+  "row_model_admitted": true,
+  "row_model_directive": "Jacob Hoffman 2026-11-19 post-family maximal row-model assembly after all-fixes",
+  "row_model_source_binding": {
+    "row_model.py": "e7c8b45c022568e02e979b0e24bd8c2cf7a94a310901cc41d4a6250714b9b0ef",
+    "row_model_ingest.py": "ed9429443b1dec9936366a0c0e041af15b744c62728480de996a47e4eae781bc",
+    "row_model_sql.py": "6dc2615a55c0da03577632118daa2bca79397c91ca2d709327de882968b23656",
+    "row_model_store.py": "67ceb943dd354678135800113b3523217b4fa7ff2624ebed3deac5641cda90f1",
+    "row_model_fence.py": "9b778214c156436e2ecbf286d28601c398108f40b0707a4beb9c312adeccdd7c",
+    "row_model_cell.py": "1279a2ff1817452294cd1c924ac676ba916a944efbab9aef94471307f0c0bbd6",
+    "row_model_build.py": "69e0d16b6470fb4a0e9be717f8a6f5c413dcecc416e3c3bbac3c8d6c06414aa5",
+    "row_model_native.py": "faa15cf7139314aec2e249698171b79a1a9aa817ed9247c067c4ff4375da0dc8",
+    "row_model_actions.py": "b9dca7ed0ffa2fdc0bc4e0e712225f0a89972141d4d0811c1c6a0c16e7c5be59",
+    "row_model_worker.py": "0ab6b0d7a3e322ab0dc00d7464d0d2636877e4a741ba97fd9f7576e73cc43292",
+    "row_model_run.py": "c3c794c001b1716f6a5cc60d7f75c169c088412389d2577a8e931da85c6f144f"
+  }
+}
