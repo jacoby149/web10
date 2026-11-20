@@ -89,6 +89,17 @@ Preserve failed attempts, source bindings, native receipts and cleanup.
 
 ## Next admitted attempt —day-sliced views seed
 
+**Subsequent two-grain amendment:** retain the day table for analytics; add
+`content_events_aggregated_all_time` without day for feed reads. Both materialized
+views consume raw platform inserts directly. With writers stopped, install both
+DDLs/MVs, seed day slices, then derive all-time only from the seeded day table
+using countMergeState/uniqExactMergeState. This order cannot double seed all-time
+through a chained MV. Initial derivation groups the complete doc/event/service
+key; later insert states remain correctly mergeable rather than a promise of
+one physical row during live merges. The feed uses the coarse table; both grains
+must independently match the raw oracle on the actual pages before measurement.
+The build receipt records all-time source/table row count and exact event total.
+
 Jacob19 November directs a seed-execution-only repair, then a fresh unchanged
 all-fixes→row-model run after the separate fix merges. The composed entry installs
 DDL then MV with API writers stopped, plans every day explicitly (optional

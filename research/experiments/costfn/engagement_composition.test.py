@@ -42,7 +42,8 @@ def proof(name):
             'main:reactions', 'main:comments', 'main:posts', 'reactions:reactions', 'comments:comments')},
             ordinary=True, fat=True, store_sample=True, values_exact=True)
     elif name == 'views':
-        result.update(profiles=['ordinary', 'fixture'], exact_impressions_and_reach=True)
+        result.update(profiles=['ordinary', 'fixture'], exact_impressions_and_reach=True,
+            all_time_parity='PASS', daily_parity='PASS')
     else:
         result.update(profiles=['ordinary', 'fixture'], exact_creative_identity_required=True, setup_sha256='setup')
     return result

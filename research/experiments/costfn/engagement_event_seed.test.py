@@ -33,6 +33,8 @@ class Session:
 
     def rows(self, label, sql):
         _, query_id = self.query(label, sql)
+        if label == 'composition_aggregate_all_time_census':
+            return [dict(row_count=3, events=5)], query_id
         return [dict(day='2026-01-01', n=2), dict(day='2026-01-02', n=3)], query_id
 
     def native(self, query_id):
@@ -96,7 +98,9 @@ class SeedTests(unittest.TestCase):
             session = Session(directory)
             result = seed.install(session, directory, writers_stopped=True, expected_events=5)
             self.assertEqual(session.calls[0][1], events.DDL)
-            self.assertEqual(session.calls[1][1], events.MV)
+            self.assertEqual(session.calls[1][1], events.ALL_TIME_DDL)
+            self.assertEqual(session.calls[2][1], events.MV)
+            self.assertEqual(session.calls[3][1], events.ALL_TIME_MV)
             self.assertEqual(result['outcome'], 'PASS')
             self.assertEqual(result['matched_events'], 5)
             self.assertEqual(result['native_seed_read_rows'], 2000)
@@ -159,6 +163,21 @@ class SeedTests(unittest.TestCase):
             session.receipts['missing'] = dict(read_rows=1, read_bytes=8, exception_code=0)
             with self.assertRaisesRegex(ValueError, 'memory and I/O actuals required'):
                 seed.native(session, 'missing')
+
+    def test_bad_all_time_population_preserves_day_proof_but_blocks_build(self):
+        with tempfile.TemporaryDirectory() as directory:
+            class WrongAllTime(Session):
+                def rows(self, label, sql):
+                    values, query_id = super().rows(label, sql)
+                    if label == 'composition_aggregate_all_time_census':
+                        values[0]['events'] = 6
+                    return values, query_id
+            with self.assertRaisesRegex(ValueError, 'all-time merged states'):
+                seed.install(WrongAllTime(directory), directory, writers_stopped=True, expected_events=5)
+            record = json.loads((Path(directory)/'aggregate-seed/build.json').read_bytes())
+            self.assertEqual(record['outcome'], 'INCOMPLETE')
+            self.assertEqual(record['day_matched_events'], 5)
+            self.assertTrue(record['day_counts_exact'])
 
 
 if __name__ == '__main__':

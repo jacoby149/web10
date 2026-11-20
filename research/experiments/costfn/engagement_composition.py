@@ -36,7 +36,8 @@ def gate(name, value):
             raise ValueError('all20 actual paired roots must be verified in all five domains')
     elif name == 'views':
         if (set(value.get('profiles', [])) != {'ordinary', 'fixture'}
-                or value.get('exact_impressions_and_reach') is not True):
+                or value.get('exact_impressions_and_reach') is not True
+                or value.get('all_time_parity') != 'PASS' or value.get('daily_parity') != 'PASS'):
             raise ValueError('both actual pages need exact aggregate views verification')
     elif name == 'ads':
         if (set(value.get('profiles', [])) != {'ordinary', 'fixture'}
