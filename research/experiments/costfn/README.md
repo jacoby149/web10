@@ -1,6 +1,16 @@
 # Access-Control Cost Function Experiment
 
-## Latest rerun —19 November2026, restore fixed
+## Latest attempt —19 November directive, stdin fixed
+
+Merged PR#1597/source55b68ef7f runs on fresh DO621423661: exact large billboard
+stdin transport passes, and completed native tally checks now cover all20 actual
+paired roots in all five domains with exact values (audited off-host against SQL
+hashes/native finishes). That closes the old missing-domain proof gap, not the
+composition. Aggregate seeding stops241 at22GiB; formal gates, all compositions,
+decomposition and row worker are BLOCKED. Receipts are preserved, owned cleanup
+verified, snapshot retained, admission closed/no retry. [Qualified results and bindings](evidence/all-fixes-stdin-20261119/RESULTS.md).
+
+## Earlier rerun —19 November2026, restore fixed
 
 Separate path-only fix PR#1595 merged before fresh DO621414125 ran exact source
 2749c1037. Restore/read setup/migration pass. Billboard fixture setup then stops

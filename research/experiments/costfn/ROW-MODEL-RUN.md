@@ -10,7 +10,15 @@ owns the target; the [directive index](README.md#directive-precedence-index)
 owns execution precedence. The present JSON implementation remains source/oracle
 and experimental fallback, not a permanent hybrid or the replacement target.
 
-## Latest rerun —19 November2026
+## Latest attempt —stdin fixed
+
+Fresh bindings/readiness on merged55b68ef7f pass before DO621423661 restores.
+Native billboard transport and tally verification complete; aggregate seeding
+stops241 at22GiB, so composition banking/row worker/build/assembly remain blocked.
+D117 remains pending. Owned cleanup verified, snapshot retained, admission closed;
+no automatic retry. [Bindings and qualified receipts](evidence/all-fixes-stdin-20261119/RESULTS.md).
+
+## Earlier rerun —19 November2026
 
 The binding is regenerated on merged restore-fix source2749c1037 and verified
 before fresh DO621414125 restores. Restore/read setup/migration pass; billboard

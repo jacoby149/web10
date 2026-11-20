@@ -1,12 +1,19 @@
 # Tallies: fetch numbers, not the documents behind them
 
-**D114: design DECIDED; full acceptance OPEN on the paired gate.** The
+**D114: design DECIDED; original missing paired-domain proof now banked.** The
 [decision ledger](../../strategy/decisions.md#d114--tallying-is-a-generic-maintained-satellite-in-the-fanout-family-decided-research-first)
 owns the design; the [tally report/domain audit](../../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md)
 owns measured values and qualifications. A tally is a generic satellite in the fanout family.
 The platform is intended to maintain it; an app supplies the counter's meaning
 as data. This admission builds canonical setup tallies and verifies them. It
 does not implement production write maintenance, a new API or a protocol rollout.
+
+The [stdin-fixed attempt](../../../research/experiments/costfn/evidence/all-fixes-stdin-20261119/RESULTS.md)
+completes native exact-value checks with all20 actual paired roots in all five
+101-ID domains. Off-host audit reconstructs the ten original SQL hashes/native
+finishes and replays page/domain checks. This closes the old missing-root proof
+gap, not whole-composition acceptance: aggregate seed241 blocks the formal
+composition stages and every feed/row measurement. Older receipts stay unchanged.
 
 ## Build, verify, then read
 
@@ -70,7 +77,7 @@ Live write maintenance, invalidation and rollout still need separate admission.
 The [first tally report and domain audit](../../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md)
 bank ordinary response/count observations with their original budget FAILs.
 The paired verification domain omitted the actual paired roots; its raw PASS
-flags do not close that gate. **D114 paired/full acceptance remains OPEN.**
-The source-domain repair is not native acceptance. The cancelled repair lease
+flags do not close that gate. **Paired/full acceptance was OPEN at that point.**
+The source-domain repair alone was not native acceptance. The cancelled repair lease
 and current proving order are recorded in the operative directive index, not
 inferred from old admission text.
