@@ -1,6 +1,16 @@
 # Access-Control Cost Function Experiment
 
-## Current admission —20 November analytics layout and clock repair
+## Current state —layout/day PASS, all-time241; batching source repair
+
+PR#1602's admitted attempt is now closed. The full event rebuild and all319 day
+slices reconcile1.6B events, but all-time MergeState derivation fails at22GiB.
+No formal composition or row-model measurements run. Receipts are verified
+off-host; owned cleanup is verified and the original snapshot retained.
+[Native results, failure and custody](evidence/all-fixes-layout-20261120/RESULTS.md).
+The operator requests bounded document-key backfill; that repair is source-only,
+not permission to reuse the stopped host or start a new paid lease.
+
+## Consumed admission —20 November analytics layout and clock repair
 
 Jacob explicitly admits one fresh all-fixes→row-model attempt after a separate
 layout/clock fix merges and exact-source controls/bindings pass. D122 lifts only

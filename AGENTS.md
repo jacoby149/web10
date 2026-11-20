@@ -346,7 +346,16 @@ uses a24-hour self-kill backstop; the programme has$1,000 and costs are receipte
 No production migration, guardian or old-lease reopening follows. Current
 precedence/admission: `research/experiments/costfn/README.md`.
 
-**Latest banked views run,20 November UTC:** day slices are PARTIAL at the retained
+**Latest layout/views run,20 November UTC:** PR#1602's merged source passes full
+1.6B old/new event count/hash identity and all319 day slices, with exact1.6B day
+reconciliation. The one-shot all-time MergeState derivation stops241 at22GiB;
+formal parity, feed and row-model measurements remain blocked. State/native
+receipts verify off-host, owned resources are cleaned and the snapshot retained.
+Bounded4096-document historical all-time backfill is a source repair, not native
+fit proof or a new paid admission. Report:
+`research/experiments/costfn/evidence/all-fixes-layout-20261120/RESULTS.md`.
+
+**Earlier banked views run,20 November UTC:** day slices are PARTIAL at the retained
 service bound:293 controller-PASS/294 native finishes, exact partial day counts,
 no full1.6B reconciliation/all-time derivation/formal parity/feed/row timing.
 Native read amplification is reported, not a failure gate; observed slice memory

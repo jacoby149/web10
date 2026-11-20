@@ -10,7 +10,16 @@ owns the target; the [directive index](README.md#directive-precedence-index)
 owns execution precedence. The present JSON implementation remains source/oracle
 and experimental fallback, not a permanent hybrid or the replacement target.
 
-## Latest attempt —day slices/two grains
+## Latest attempt —layout/full day PASS, all-time memory failure
+
+Merged PR#1602 source passes layout identity and the complete319-day/1.6B seed.
+The subsequent all-time derivation stops natively241 at22GiB. Formal composition
+banking is blocked, and the row bridge correctly refuses; no row-model worker,
+build or assembly comparison runs. Receipts are preserved off-host, owned cleanup
+is verified and the original snapshot retained. Admission closed, D117 pending.
+[Native result and bounded-backfill source repair](evidence/all-fixes-layout-20261120/RESULTS.md).
+
+## Earlier attempt —day slices/two grains
 
 Fresh bindings/readiness on8402cd5fe pass before DO621488571 restores. Day seeding
 is partial at the existing service bound; all-time derivation and composition
