@@ -336,6 +336,15 @@ execution notes below remain historical, not instructions to reopen a lease.
 `knowledge-base/strategy/interface-language.md`. D121 (DECIDED) paper strategy,
 projected dates and fallback live only in `knowledge-base/strategy/paper-submission.md`.
 
+**Latest views run,20 November UTC:** day slices are PARTIAL at the retained
+service bound:293 controller-PASS/294 native finishes, exact partial day counts,
+no full1.6B reconciliation/all-time derivation/formal parity/feed/row timing.
+Native read amplification is reported, not a failure gate; observed slice memory
+fits22GiB but does not prove full completion. Owned resources are cleaned,
+snapshot retained, admission closed. Source-only all-time diagnostic label
+repair is not deployed to the stopped run. Report/319-slice native CSV:
+`research/experiments/costfn/evidence/all-fixes-two-grain-20261120/RESULTS.md`.
+
 **Views amendment,19 November (research source, native pending):** retain raw
 platform events and the day-grained `content_events_aggregated` analytics table;
 add `content_events_aggregated_all_time` for feed reads. Both MVs consume raw

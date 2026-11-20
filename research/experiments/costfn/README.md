@@ -1,6 +1,18 @@
 # Access-Control Cost Function Experiment
 
-## Latest attempt —19 November directive, stdin fixed
+## Latest attempt —two grains/day slices, PARTIAL at service bound
+
+Merged day-seed/all-time source8402cd5fe executes on original-window DO621488571.
+Of319 slices,293 are controller-PASS and294 native-finished, with exact observed
+partial1,165,394,847 event states; full1.6B reconciliation/all-time derivation and
+formal parity/measurement stages never run. Peak observed memory2.69GiB fits;
+470.4B rows/17.728TB native logical bytes are reported scan amplification, not a
+failure gate. Service guard07:38:51UTC stops the controller. Receipts preserved,
+owned resources deleted/snapshot retained before deadline, admission closed.
+[Full accounting/319-slice CSV/bindings](evidence/all-fixes-two-grain-20261120/RESULTS.md).
+All-time diagnostic label repair is source-only after this run, not redeployed.
+
+## Earlier attempt —19 November directive, stdin fixed
 
 Merged PR#1597/source55b68ef7f runs on fresh DO621423661: exact large billboard
 stdin transport passes, and completed native tally checks now cover all20 actual

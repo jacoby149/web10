@@ -11,6 +11,7 @@ from sqlglot import exp
 import engagement_composition as contract
 import engagement_composition_verify as verify
 import engagement_events as events
+import engagement_observe as observe
 
 
 class AllTimeTests(unittest.TestCase):
@@ -92,6 +93,10 @@ class AllTimeTests(unittest.TestCase):
         for key in ('all_time_parity','daily_parity'):
             with self.assertRaises(ValueError):
                 contract.gate('views', {**value,key:'FAIL'})
+
+    def test_all_time_feed_and_daily_analytics_both_classify_as_views_not_unclassified(self):
+        for sql in (events.read(['p'], 'posts', ['g']), events.read_daily(['p'], 'posts', ['g'])):
+            self.assertEqual(observe.classify(sql, [], {}), 'views')
 
 
 if __name__ == '__main__':

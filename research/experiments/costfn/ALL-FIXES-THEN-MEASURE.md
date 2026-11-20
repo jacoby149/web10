@@ -87,7 +87,15 @@ does not return. Receipt each lease's cost. Agent ~300s supervision and host
 self-kill timers only; no independent guardian. No local engine execution.
 Preserve failed attempts, source bindings, native receipts and cleanup.
 
-## Next admitted attempt —day-sliced views seed
+## Day-sliced/two-grain contract —attempt four admission closed
+
+Latest receipt: [partial run](evidence/all-fixes-two-grain-20261120/RESULTS.md).
+The original service bound stops the controller after293 acknowledged/294 native
+successful day slices. Partial observed logical counts match their raw prefix,
+not the full1.6B population; all-time derivation, formal parity and timing are
+unrun. Native read amplification is not a gate failure. Owned cleanup verified,
+snapshot retained, no automatic extension/retry. The contract below remains the
+target, not a fresh paid grant or proof that complete seeding passed.
 
 **Subsequent two-grain amendment:** retain the day table for analytics; add
 `content_events_aggregated_all_time` without day for feed reads. Both materialized
