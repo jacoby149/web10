@@ -10,7 +10,18 @@ owns the target; the [directive index](README.md#directive-precedence-index)
 owns execution precedence. The present JSON implementation remains source/oracle
 and experimental fallback, not a permanent hybrid or the replacement target.
 
-## Latest attempt —layout/full day PASS, all-time memory failure
+## Latest attempt —batched all-time PASS, statement audit STOP
+
+Fresh post-PR#1603 source readiness passes before DO621754971 restores.
+All489 all-time batches and exact1.6B reconciliation pass, as do refs/paired
+tallies/views/ads gates. All three response cells finish with exact parity and
+budget FAIL. Statement auditing then rejects the raw delivery-history read;
+decomposition stays INCOMPLETE, so the row bridge correctly refuses and the
+worker/build/six assembly comparisons do not run. D117 remains pending.
+Receipts are verified off-host, owned cleanup verified, original snapshot
+retained, admission closed. [Native evidence and audit qualification](evidence/all-fixes-batched-20261120/RESULTS.md).
+
+## Earlier attempt —layout/full day PASS, all-time memory failure
 
 Merged PR#1602 source passes layout identity and the complete319-day/1.6B seed.
 The subsequent all-time derivation stops natively241 at22GiB. Formal composition
