@@ -1,6 +1,18 @@
 # Access-Control Cost Function Experiment
 
-## Current state —layout/day PASS, all-time241; batching source repair
+## Current state —full batch proof PASS, responses parity PASS, audit STOP
+
+Jacob's fresh post-PR#1603 attempt on DO621754971 passes all489 all-time batches,
+2,000,001 document IDs and exact1.6B reconciliation, with565,711,161-byte peak
+batch query memory. All four formal gates pass; uniform K20/paired P/F complete
+warmup+measured responses have exact parity and budget FAIL. Statement auditing
+then rejects the raw delivery-history max(seen_at) read, so decomposition stays
+INCOMPLETE and row-model measurements do not run. This is not treatment-wide
+acceptance. [Original outcomes, native costs and diagnostic query CSV](evidence/all-fixes-batched-20261120/RESULTS.md).
+Receipts/native parts verify off-host before owned cleanup; original snapshot
+retained, admission consumed/closed. No automatic retry or paid continuation.
+
+## Earlier attempt —layout/day PASS, all-time241
 
 PR#1602's admitted attempt is now closed. The full event rebuild and all319 day
 slices reconcile1.6B events, but all-time MergeState derivation fails at22GiB.
@@ -24,7 +36,7 @@ The new rebuild is setup, not a600s measurement; it may use the remaining24h
 backstop with existing22GiB/spill limits. Existing day slices and measured
 statements retain600s. Full contract: [all fixes](ALL-FIXES-THEN-MEASURE.md).
 
-## Latest banked attempt —two grains/day slices, PARTIAL at service bound
+## Earlier banked attempt —two grains/day slices, PARTIAL at service bound
 
 Merged day-seed/all-time source8402cd5fe executes on original-window DO621488571.
 Of319 slices,293 are controller-PASS and294 native-finished, with exact observed

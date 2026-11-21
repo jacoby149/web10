@@ -1,0 +1,580 @@
+{
+  "source_commit": "ffa4b5066ba164519b9be0a5a2e32e87bf0e4755",
+  "droplet_id": 621754971,
+  "native_batch_proof": "PASS",
+  "composition_acceptance": "OPEN_STATEMENT_AUDIT_STOP",
+  "row_model": "NOT_RUN",
+  "original_stage_outcomes": {
+    "banked": "PASS",
+    "restore": "PASS",
+    "read-setup": "PASS",
+    "migrate": "PASS",
+    "billboard-fixtures": "PASS",
+    "furniture": "PASS",
+    "verify-refs": "PASS",
+    "verify-paired-tallies": "PASS",
+    "verify-views": "PASS",
+    "verify-ads": "PASS",
+    "uniform-K20": "PASS",
+    "paired-P": "PASS",
+    "paired-F": "PASS",
+    "decomposition": "INCOMPLETE"
+  },
+  "original_audit_failure": "retired projection/raw-view read survived in measured composition",
+  "samples": [
+    {
+      "cell": "uniform-K20",
+      "phase": "warmup",
+      "elapsed_ms": 11987.313497998912,
+      "parity": "PASS",
+      "captured_queries": 70,
+      "captured_read_rows": 134603229,
+      "captured_read_bytes": 12760268545,
+      "stages": {
+        "generation_or_envelope": {
+          "queries": 20,
+          "read_rows": 112,
+          "read_bytes": 8136,
+          "native_ms": 60
+        },
+        "unclassified": {
+          "queries": 11,
+          "read_rows": 974848,
+          "read_bytes": 52096217,
+          "native_ms": 119
+        },
+        "candidates": {
+          "queries": 17,
+          "read_rows": 85957,
+          "read_bytes": 10167477,
+          "native_ms": 475
+        },
+        "metadata_identities": {
+          "queries": 1,
+          "read_rows": 64,
+          "read_bytes": 2099,
+          "native_ms": 277
+        },
+        "counts_embedded_in_resolution": {
+          "queries": 1,
+          "read_rows": 235528,
+          "read_bytes": 18690582,
+          "native_ms": 172
+        },
+        "views": {
+          "queries": 2,
+          "read_rows": 49730905,
+          "read_bytes": 2098079891,
+          "native_ms": 1725
+        },
+        "preparation": {
+          "queries": 16,
+          "read_rows": 83572615,
+          "read_bytes": 10580811129,
+          "native_ms": 4066
+        },
+        "counts": {
+          "queries": 2,
+          "read_rows": 3200,
+          "read_bytes": 413014,
+          "native_ms": 51
+        }
+      },
+      "audit_violations": [
+        {
+          "query_id": "3962c113-2b70-4419-ae9d-4237b61ce816",
+          "sql_sha256": "522806ca9abf1ca1da36fc2481e0e884ad32526ba83d8b021b2263f58e51f02a",
+          "reasons": [
+            "raw_events_table"
+          ]
+        }
+      ],
+      "auxiliary": {
+        "queries": 15,
+        "read_rows": 151,
+        "read_bytes": 15812,
+        "written_rows": 92,
+        "written_bytes": 10661,
+        "query_duration_ms": 210
+      },
+      "budget": "FAIL"
+    },
+    {
+      "cell": "uniform-K20",
+      "phase": "measured",
+      "elapsed_ms": 10365.82449100024,
+      "parity": "PASS",
+      "captured_queries": 70,
+      "captured_read_rows": 84770480,
+      "captured_read_bytes": 10666667270,
+      "stages": {
+        "generation_or_envelope": {
+          "queries": 20,
+          "read_rows": 112,
+          "read_bytes": 8136,
+          "native_ms": 70
+        },
+        "unclassified": {
+          "queries": 11,
+          "read_rows": 974848,
+          "read_bytes": 52096217,
+          "native_ms": 99
+        },
+        "candidates": {
+          "queries": 17,
+          "read_rows": 85957,
+          "read_bytes": 10167477,
+          "native_ms": 219
+        },
+        "metadata_identities": {
+          "queries": 1,
+          "read_rows": 64,
+          "read_bytes": 2099,
+          "native_ms": 6
+        },
+        "counts_embedded_in_resolution": {
+          "queries": 1,
+          "read_rows": 234852,
+          "read_bytes": 18649354,
+          "native_ms": 164
+        },
+        "views": {
+          "queries": 2,
+          "read_rows": 193868,
+          "read_bytes": 17937729,
+          "native_ms": 362
+        },
+        "preparation": {
+          "queries": 16,
+          "read_rows": 83278091,
+          "read_bytes": 10567452419,
+          "native_ms": 4085
+        },
+        "counts": {
+          "queries": 2,
+          "read_rows": 2688,
+          "read_bytes": 353839,
+          "native_ms": 53
+        }
+      },
+      "audit_violations": [
+        {
+          "query_id": "1b7740b2-647a-4688-95a0-fb007700320e",
+          "sql_sha256": "522806ca9abf1ca1da36fc2481e0e884ad32526ba83d8b021b2263f58e51f02a",
+          "reasons": [
+            "raw_events_table"
+          ]
+        }
+      ],
+      "auxiliary": {
+        "queries": 12,
+        "read_rows": 60,
+        "read_bytes": 6840,
+        "written_rows": 8,
+        "written_bytes": 2520,
+        "query_duration_ms": 245
+      },
+      "budget": "FAIL"
+    },
+    {
+      "cell": "paired-P",
+      "phase": "warmup",
+      "elapsed_ms": 5865.178209000078,
+      "parity": "PASS",
+      "captured_queries": 68,
+      "captured_read_rows": 44558718,
+      "captured_read_bytes": 1901881931,
+      "stages": {
+        "generation_or_envelope": {
+          "queries": 20,
+          "read_rows": 112,
+          "read_bytes": 8136,
+          "native_ms": 54
+        },
+        "unclassified": {
+          "queries": 11,
+          "read_rows": 139264,
+          "read_bytes": 8128775,
+          "native_ms": 66
+        },
+        "candidates": {
+          "queries": 3,
+          "read_rows": 1216,
+          "read_bytes": 51040,
+          "native_ms": 28
+        },
+        "metadata_identities": {
+          "queries": 1,
+          "read_rows": 64,
+          "read_bytes": 5440,
+          "native_ms": 6
+        },
+        "counts_embedded_in_resolution": {
+          "queries": 1,
+          "read_rows": 234568,
+          "read_bytes": 15499835,
+          "native_ms": 159
+        },
+        "views": {
+          "queries": 2,
+          "read_rows": 43008173,
+          "read_bytes": 1811398906,
+          "native_ms": 819
+        },
+        "preparation": {
+          "queries": 28,
+          "read_rows": 1172761,
+          "read_bytes": 66467697,
+          "native_ms": 462
+        },
+        "counts": {
+          "queries": 2,
+          "read_rows": 2560,
+          "read_bytes": 322102,
+          "native_ms": 37
+        }
+      },
+      "audit_violations": [
+        {
+          "query_id": "6a2ab8ac-b5e0-4d23-a22c-0fb8ba0c66ef",
+          "sql_sha256": "8ea0e3427a6da7f1c1bd1d045ad68ec3727a88ce90d47c2977a0f9d3d7f22561",
+          "reasons": [
+            "raw_events_table"
+          ]
+        }
+      ],
+      "auxiliary": {
+        "queries": 15,
+        "read_rows": 147,
+        "read_bytes": 15414,
+        "written_rows": 88,
+        "written_bytes": 10279,
+        "query_duration_ms": 201
+      },
+      "budget": "FAIL"
+    },
+    {
+      "cell": "paired-P",
+      "phase": "measured",
+      "elapsed_ms": 4878.58801999937,
+      "parity": "PASS",
+      "captured_queries": 68,
+      "captured_read_rows": 828545,
+      "captured_read_bytes": 57281695,
+      "stages": {
+        "generation_or_envelope": {
+          "queries": 20,
+          "read_rows": 112,
+          "read_bytes": 8136,
+          "native_ms": 58
+        },
+        "unclassified": {
+          "queries": 11,
+          "read_rows": 139264,
+          "read_bytes": 8128775,
+          "native_ms": 63
+        },
+        "candidates": {
+          "queries": 3,
+          "read_rows": 1216,
+          "read_bytes": 51040,
+          "native_ms": 32
+        },
+        "metadata_identities": {
+          "queries": 1,
+          "read_rows": 64,
+          "read_bytes": 5440,
+          "native_ms": 5
+        },
+        "counts_embedded_in_resolution": {
+          "queries": 1,
+          "read_rows": 233892,
+          "read_bytes": 15458607,
+          "native_ms": 139
+        },
+        "views": {
+          "queries": 2,
+          "read_rows": 20,
+          "read_bytes": 1640,
+          "native_ms": 79
+        },
+        "preparation": {
+          "queries": 28,
+          "read_rows": 453977,
+          "read_bytes": 33628057,
+          "native_ms": 384
+        },
+        "counts": {
+          "queries": 2,
+          "read_rows": 0,
+          "read_bytes": 0,
+          "native_ms": 9
+        }
+      },
+      "audit_violations": [
+        {
+          "query_id": "1a24c92b-e79f-450b-ad27-d8621e0a6858",
+          "sql_sha256": "8ea0e3427a6da7f1c1bd1d045ad68ec3727a88ce90d47c2977a0f9d3d7f22561",
+          "reasons": [
+            "raw_events_table"
+          ]
+        }
+      ],
+      "auxiliary": {
+        "queries": 12,
+        "read_rows": 60,
+        "read_bytes": 6840,
+        "written_rows": 8,
+        "written_bytes": 2520,
+        "query_duration_ms": 211
+      },
+      "budget": "FAIL"
+    },
+    {
+      "cell": "paired-F",
+      "phase": "warmup",
+      "elapsed_ms": 4083.590712998557,
+      "parity": "PASS",
+      "captured_queries": 67,
+      "captured_read_rows": 827846,
+      "captured_read_bytes": 57256411,
+      "stages": {
+        "generation_or_envelope": {
+          "queries": 20,
+          "read_rows": 112,
+          "read_bytes": 8136,
+          "native_ms": 55
+        },
+        "unclassified": {
+          "queries": 11,
+          "read_rows": 139264,
+          "read_bytes": 8128775,
+          "native_ms": 57
+        },
+        "candidates": {
+          "queries": 2,
+          "read_rows": 517,
+          "read_bytes": 25756,
+          "native_ms": 20
+        },
+        "metadata_identities": {
+          "queries": 1,
+          "read_rows": 64,
+          "read_bytes": 5440,
+          "native_ms": 8
+        },
+        "counts_embedded_in_resolution": {
+          "queries": 1,
+          "read_rows": 233892,
+          "read_bytes": 15458607,
+          "native_ms": 126
+        },
+        "views": {
+          "queries": 2,
+          "read_rows": 20,
+          "read_bytes": 1640,
+          "native_ms": 62
+        },
+        "preparation": {
+          "queries": 28,
+          "read_rows": 453977,
+          "read_bytes": 33628057,
+          "native_ms": 338
+        },
+        "counts": {
+          "queries": 2,
+          "read_rows": 0,
+          "read_bytes": 0,
+          "native_ms": 9
+        }
+      },
+      "audit_violations": [
+        {
+          "query_id": "0214f711-41d7-4155-b837-edf4301bdd56",
+          "sql_sha256": "8ea0e3427a6da7f1c1bd1d045ad68ec3727a88ce90d47c2977a0f9d3d7f22561",
+          "reasons": [
+            "raw_events_table"
+          ]
+        }
+      ],
+      "auxiliary": {
+        "queries": 12,
+        "read_rows": 60,
+        "read_bytes": 6840,
+        "written_rows": 8,
+        "written_bytes": 2520,
+        "query_duration_ms": 159
+      },
+      "budget": "FAIL"
+    },
+    {
+      "cell": "paired-F",
+      "phase": "measured",
+      "elapsed_ms": 4604.0448889998515,
+      "parity": "PASS",
+      "captured_queries": 67,
+      "captured_read_rows": 827846,
+      "captured_read_bytes": 57256411,
+      "stages": {
+        "generation_or_envelope": {
+          "queries": 20,
+          "read_rows": 112,
+          "read_bytes": 8136,
+          "native_ms": 55
+        },
+        "unclassified": {
+          "queries": 11,
+          "read_rows": 139264,
+          "read_bytes": 8128775,
+          "native_ms": 58
+        },
+        "candidates": {
+          "queries": 2,
+          "read_rows": 517,
+          "read_bytes": 25756,
+          "native_ms": 16
+        },
+        "metadata_identities": {
+          "queries": 1,
+          "read_rows": 64,
+          "read_bytes": 5440,
+          "native_ms": 5
+        },
+        "counts_embedded_in_resolution": {
+          "queries": 1,
+          "read_rows": 233892,
+          "read_bytes": 15458607,
+          "native_ms": 123
+        },
+        "views": {
+          "queries": 2,
+          "read_rows": 20,
+          "read_bytes": 1640,
+          "native_ms": 75
+        },
+        "preparation": {
+          "queries": 28,
+          "read_rows": 453977,
+          "read_bytes": 33628057,
+          "native_ms": 362
+        },
+        "counts": {
+          "queries": 2,
+          "read_rows": 0,
+          "read_bytes": 0,
+          "native_ms": 10
+        }
+      },
+      "audit_violations": [
+        {
+          "query_id": "c285cf03-56dc-4c15-83dc-8b18476dbefa",
+          "sql_sha256": "8ea0e3427a6da7f1c1bd1d045ad68ec3727a88ce90d47c2977a0f9d3d7f22561",
+          "reasons": [
+            "raw_events_table"
+          ]
+        }
+      ],
+      "auxiliary": {
+        "queries": 12,
+        "read_rows": 60,
+        "read_bytes": 6840,
+        "written_rows": 8,
+        "written_bytes": 2520,
+        "query_duration_ms": 218
+      },
+      "budget": "FAIL"
+    }
+  ],
+  "day_seed": {
+    "batches": 319,
+    "matched_events": 1600000000,
+    "read_rows": 1600000000,
+    "read_bytes": 131200472337,
+    "written_rows": 125266146,
+    "written_bytes": 11399219286,
+    "query_duration_ms": 799188
+  },
+  "all_time": {
+    "batches": 489,
+    "documents": 2000001,
+    "matched_events": 1600000000,
+    "row_count": 2000001,
+    "peak_query_memory": 565711161,
+    "inserts": {
+      "read_rows": 169016080,
+      "read_bytes": 42410866715,
+      "written_rows": 2000001,
+      "written_bytes": 178000089,
+      "query_duration_ms": 319586
+    },
+    "inventory": {
+      "read_rows": 5748255949,
+      "read_bytes": 224181981679,
+      "written_rows": 0,
+      "written_bytes": 0,
+      "query_duration_ms": 57425
+    }
+  },
+  "controls": {
+    "suites": 42,
+    "tests": 395,
+    "outcome": "PASS"
+  },
+  "csv": {
+    "path": "native-query-costs.csv",
+    "bytes": 136842,
+    "sha256": "81aaf38a08c199a69446a927ddf323520e14ce516e6716eb57a8719331c81741",
+    "captured_queries": 410,
+    "auxiliary_queries": 78,
+    "diagnostic_only_not_a_promoted_controller_decomposition": true
+  },
+  "custody": {
+    "checkpoint": {
+      "bytes": 79625729,
+      "sha256": "e06d5ca4954bf3747fd46652d2d6d49734ec5fc98b06a8ab9d1c4c670d8a29f5",
+      "off_host_verified": true,
+      "droplet_id": 621754971
+    },
+    "native": {
+      "bytes": 25953643,
+      "sha256": "3389b9ca96e1175d01d1a35d121f0148c26f3954e7795e88ea6d3dee4b62007c",
+      "original_query_log_parts": true,
+      "engine_restarted": false,
+      "off_host_verified": true,
+      "droplet_id": 621754971,
+      "collected_utc": "2026-11-20T23:59:23.906491+00:00"
+    },
+    "original_packets": {
+      "aggregate-seed/build.json": {
+        "bytes": 844021,
+        "sha256": "785c21bb45cc17f5503df8766d5e3c2c6c12c4c6a9b31889198c360bec43b817"
+      },
+      "events-layout/build.json": {
+        "bytes": 8747,
+        "sha256": "53abc14ca06b8a9d6476f851648efe8b5014850588ec309c55a8378a4d20473d"
+      },
+      "programme-all-fixes/summary.json": {
+        "bytes": 1121087,
+        "sha256": "4910f62e682c8bdf1e2e65456f164be6cf7c50daca67b7b95868deeb5370d911"
+      }
+    }
+  },
+  "cleanup": {
+    "droplet_id": 621754971,
+    "checked_utc": "2026-11-21T00:01:04.641298+00:00",
+    "droplet_absent": true,
+    "firewall_absent": true,
+    "ssh_key_absent": true,
+    "tag_absent": true,
+    "snapshot_retained": true,
+    "deadline_utc": "2026-11-21T20:21:53+00:00",
+    "before_deadline": true,
+    "compute_estimate_usd": 0.9133084234595299,
+    "invoice": false,
+    "storage_separate": true,
+    "core_cleanup_utc": "2026-11-21T00:01:03.406249+00:00"
+  },
+  "p95": false,
+  "whole_arm_pass": false,
+  "automatic_retry": false
+}
