@@ -346,7 +346,17 @@ uses a24-hour self-kill backstop; the programme has$1,000 and costs are receipte
 No production migration, guardian or old-lease reopening follows. Current
 precedence/admission: `research/experiments/costfn/README.md`.
 
-**Latest layout/views run,20 November UTC:** PR#1602's merged source passes full
+**Latest batched proof,20–21 November UTC:** merged PR#1603 passes489 all-time
+batches over2,000,001 document IDs, exact1.6B reconciliation and all four formal
+composition gates. Uniform K20/paired P/F responses retain exact parity and
+budget FAIL. Statement auditing rejects the raw delivery-history max(seen_at)
+read; decomposition stays INCOMPLETE and row-model measurements do not run.
+The diagnostic query inventory retains that cost, not a retroactive audit PASS.
+Receipts/native parts verify off-host before owned cleanup; snapshot retained,
+admission closed. Report:
+`research/experiments/costfn/evidence/all-fixes-batched-20261120/RESULTS.md`.
+
+**Earlier layout/views run,20 November UTC:** PR#1602's merged source passes full
 1.6B old/new event count/hash identity and all319 day slices, with exact1.6B day
 reconciliation. The one-shot all-time MergeState derivation stops241 at22GiB;
 formal parity, feed and row-model measurements remain blocked. State/native

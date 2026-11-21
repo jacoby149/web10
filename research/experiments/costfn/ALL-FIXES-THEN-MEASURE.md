@@ -47,6 +47,17 @@ near-one amplification requirement becoming a gate.
 
 ## Treatment
 
+### Latest execution —batched backfill passes, audit remains open
+
+Jacob explicitly admits one fresh post-PR#1603 run in this session. Exact merged
+source passes full489-batch/2,000,001-document all-time construction and1.6B
+reconciliation, with all four formal gates PASS. Complete response parity passes
+in uniform K20/paired P/F; budgets FAIL. The statement audit rejects raw delivery
+deduplication's max(seen_at) read, leaving decomposition INCOMPLETE and the row
+bridge blocked. Original outcomes and failed guard are preserved; the diagnostic
+query CSV is not a replacement PASS. Owned cleanup is verified, snapshot retained
+and this admission closed. [Native results and scope accounting](evidence/all-fixes-batched-20261120/RESULTS.md).
+
 ### 20 November repair —bounded all-time historical backfill
 
 The layout attempt on merged PR#1602 completes the old/new event censuses and
