@@ -9,6 +9,7 @@ from pathlib import Path
 
 from arm_f_failure import details
 from arm_f_native import save
+import engagement_delivery_dedup as delivery_dedup
 
 DIRECTIVE = 'Jacob Hoffman 2026-11-19 all fixes first then one experiment'
 GATES = ('refs', 'paired-tallies', 'views', 'ads')
@@ -99,22 +100,33 @@ def statement_inventory(directory, records):
         sql = (Path(directory) / (digest + '.sql')).read_text()
         if hashlib.sha256(sql.encode()).hexdigest() != digest:
             raise ValueError('measured SQL digest differs from query receipt')
-        tree = sqlglot.parse_one(sql, read='clickhouse')
+        statements = sqlglot.parse(sql, read='clickhouse')
+        if len(statements) != 1 or statements[0] is None:
+            raise ValueError('one parsed measured statement required')
+        tree = statements[0]
         tables = sorted({t.name for t in tree.find_all(exp.Table)})
         if digest == '4bc916c85c420f45a56d98424274efe1f83483092363c8c9fdae1194c24765f6':
             raise ValueError('retired node-ad inventory statement executed')
-        if 'ref_sorted' in sql or 'content_events' in tables:
+        dedup = 'content_events' in tables and delivery_dedup.admitted(tree)
+        if 'ref_sorted' in sql or ('content_events' in tables and not dedup):
             raise ValueError('retired projection/raw-view read survived in measured composition')
         if any(isinstance(fn.expression, exp.Literal) and fn.expression.this == 'node_ad'
                 and fn.find_ancestor(exp.Not) is None for fn in tree.find_all(exp.ArrayContains)):
             raise ValueError('read-time node-ad inventory search survived')
         native = record['native']
-        result.append(dict(query_id=identity, sql_sha256=digest, tables=tables,
+        item = dict(query_id=identity, sql_sha256=digest, tables=tables,
             identity=record.get('identity', 'read:' + '+'.join(tables) if tables else 'select:constant') + ':' + digest,
             previous_stage=record.get('stage'), sql_file=digest + '.sql',
-            native={key: int(native[key]) for key in ('read_rows', 'read_bytes', 'query_duration_ms', 'exception_code')}))
+            native={key: int(native[key]) for key in ('read_rows', 'read_bytes', 'query_duration_ms', 'exception_code')})
+        if dedup:
+            item.update(stage=delivery_dedup.STAGE, identity=delivery_dedup.STAGE + ':' + digest)
+            print('[composition-audit]', delivery_dedup.STAGE, identity,
+                'rows=', item['native']['read_rows'], 'bytes=', item['native']['read_bytes'],
+                'native_ms=', item['native']['query_duration_ms'], flush=True)
+        result.append(item)
     if not result:
         raise ValueError('empty statement inventory is not measured decomposition')
     return dict(statements=result, read_rows=sum(v['native']['read_rows'] for v in result),
-        read_bytes=sum(v['native']['read_bytes'] for v in result), additive_native_statements=True,
-        auxiliary_scope='report request-tagged non-captured work separately')
+         read_bytes=sum(v['native']['read_bytes'] for v in result), additive_native_statements=True,
+         native_ms_sum_not_wall=sum(v['native']['query_duration_ms'] for v in result),
+         auxiliary_scope='report request-tagged non-captured work separately')

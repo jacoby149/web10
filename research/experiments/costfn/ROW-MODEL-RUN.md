@@ -10,6 +10,12 @@ owns the target; the [directive index](README.md#directive-precedence-index)
 owns execution precedence. The present JSON implementation remains source/oracle
 and experimental fallback, not a permanent hybrid or the replacement target.
 
+The21 November D123 source reconciliation admits the exact bounded delivery
+history read as a named, fully costed inventory stage; it does not alter this
+bridge or its refusal of unbanked accounting. Offline replay of attempt6 is not
+a replacement controller result. Merge/source controls and a fresh explicit
+admission still precede any rerun or six-stage assembly measurement.
+
 ## Latest attempt —batched all-time PASS, statement audit STOP
 
 Fresh post-PR#1603 source readiness passes before DO621754971 restores.
