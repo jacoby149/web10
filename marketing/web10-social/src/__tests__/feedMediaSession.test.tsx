@@ -161,17 +161,15 @@ describe('feed media and the one browser Media Session', () => {
     expect(music.isPlaying).toBe(false);
   });
 
-  it('keeps a music-tagged video in the persistent music transport, including its attached stage', async () => {
+  it('leaves a music-tagged video as a video on the post surface, not the MUSIC card', () => {
+    // Operator 22.11.2026: a post labeled music that carries a video renders
+    // the video renderer on Posts (resolved MIME beats the tag); the
+    // music-style card + app-transport handoff is the Music tab's treatment.
     render(tree(false, ['music'], '/feed', 'video/mp4'));
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Play music' })));
-    expect(music.current?.media.mime_type).toBe('video/mp4');
-    expect(music.isPlaying).toBe(true);
-    const stage = document.createElement('div'); document.body.append(stage);
-    await act(async () => music.attachVideoStage(stage));
-    await act(async () => music.videoElement!.dispatchEvent(new Event('play')));
-    expect(music.current?.post._id).toBe('song');
-    expect(music.queue).toHaveLength(1);
-    expect(screen.getByTestId('music-player')).toBeInTheDocument();
+    expect(screen.getByText('Ordinary inline audio')).toBeInTheDocument();
+    expect(screen.queryByTestId('music-feed-media')).not.toBeInTheDocument();
+    expect(music.current).toBeNull();
+    expect(music.queue).toHaveLength(0);
   });
 
   it('X stops and dismisses music rather than hiding ongoing playback', async () => {

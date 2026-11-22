@@ -649,9 +649,12 @@ export function fromFeedQueryRow(row: Record<string, unknown>): PostRecord {
  * is counted. `ref_value` keys the tally to the post's doc_id, which is stable
  * regardless of which group the post lives in. The `GROUP BY ref_value` runs
  * through the safe-query engine, so the count is exact for the readable groups
- * (no cap) and scoped to the page's posts only.
+ * (no cap) and scoped to the page's posts only. Shared beyond the feed: the
+ * Shorts lens loads its engagement state through this same exact read
+ * (passing no extra groups — the lens's reactions live in the discover
+ * group alone).
  */
-async function readFeedEngagementCounts(
+export async function readFeedEngagementCounts(
   postIds: string[],
   feedGroups: string[],
 ): Promise<{

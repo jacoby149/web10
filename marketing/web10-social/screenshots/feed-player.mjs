@@ -188,10 +188,14 @@ try {
     assert.equal(await note.locator('audio').evaluate(el => el.paused), true);
     await page.evaluate(() => window.sessionHandlers.get('play')({ action: 'play' }));
     await page.waitForFunction(() => !document.querySelector('[data-media-session-title="A studio voice note"] audio').paused);
-    const musicVideo = page.getByTestId('music-feed-media').filter({ has: page.getByRole('button', { name: 'Open player: Studio Session' }) });
-    await musicVideo.getByRole('button', { name: 'Play music', exact: true }).click();
+    // Operator ruling (22.11.2026): a music-tagged video renders as a VIDEO on
+    // the post surface — no MUSIC card, no app-transport handoff. The inline
+    // video owns the system controls while mounted and its audible playback
+    // dismisses the Music transport, exactly like an ordinary video.
+    const musicVideo = page.locator('[data-media-session-title="Studio Session"]');
+    await musicVideo.getByRole('button', { name: 'Play video', exact: true }).first().click();
     await page.waitForFunction(() => navigator.mediaSession.metadata?.title === 'Studio Session');
-    assert.equal(await player.count(), 1, 'a music video keeps the music transport');
+    assert.equal(await player.count(), 0, 'a music-tagged video plays inline and dismisses the music transport');
     const clip = page.locator('[data-media-session-title="A studio video"]');
     await clip.getByRole('button', { name: 'Play video', exact: true }).first().click();
     await page.waitForFunction(() => navigator.mediaSession.metadata?.title === 'A studio video');
