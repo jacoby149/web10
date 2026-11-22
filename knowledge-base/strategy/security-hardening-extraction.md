@@ -24,7 +24,7 @@ Repository: `https://github.com/jacoby149/web10`.
 
 | Source | Immutable Head | Use |
 |---|---|---|
-| PR 1157 | `61ece872c1e9bfb8706e4c4e9776ef01c53a467a` | Issuer/delegation, API boundaries, consent rollout, security KB |
+| PR 1157 | `61ece872c1e9bfb8706e4c4e9776ef01c53a467a` | Issuer/delegation, app -> API credentials, API -> ClickHouse authorization, consent rollout, security KB |
 | PR 1159 | `ede48ff19056111b2d15660b7b2667bf85e9b858` | SDK credential transport, popup overlap, RTC admission, detail transport, CI/deploy, security KB |
 
 The original analysis inspected `gh pr diff 1157` and relevant PR 1159 diffs.
@@ -72,7 +72,7 @@ output by domain; the first 100 files in a PR view are not a complete inventory.
 - Keep the assigned workspace branch name. Inspect its base and unrelated changes; do not rename it, reset it, or move original PR refs. If it is not a suitable dev-derived workspace, ask for a new workspace rather than overwriting it.
 - Manual edits use `apply_patch`. Do not whole-file-copy, cherry-pick the omnibus PRs, or mechanically overwrite current dev with a pinned version. Preserve intervening features and other agents' work.
 - Research and test-design can begin now everywhere. A dependent patch can be prepared against an explicit integration commit, but is not independently merge-ready. Name the prerequisite PR/commit and deployment hold in its report.
-- Preserve diagnostic sequence/outcomes, never bearer credentials, tickets, passwords, OTPs, private exports, signed URLs, arbitrary exception text, or content payloads. The security-specific logging boundary supersedes payload-dumping guidance for these flows; document the reconciled policy.
+- Preserve diagnostic sequence/outcomes, never bearer credentials, tickets, passwords, OTPs, private exports, signed URLs, arbitrary exception text, or content payloads. The API-request-handler -> operations-log policy supersedes payload-dumping guidance for these flows; document the reconciled policy.
 - Read `design.md` before any UI work. Preserve tokens/brand, URL state, all failure/loading/denial states, and desktop plus 375px screenshots. Use `scripts/dev-shot.sh` for ui/marketing and the social screenshot harness for social; never a foreground dev server. Read captures desktop then mobile. A fixture screenshot is not a real popup E2E test.
 - A pasted kickoff below authorizes that future workspace to implement, test, commit intended changes, push, and open PRs to `dev`. This document-creation request does not authorize those actions now. No block authorizes merging or deploying.
 - Before committing inspect status, diff, and recent log; stage intended files only. Before PR creation inspect tracking, all included commits, and base diff. Open to `dev`, check conflicts immediately, watch every check, use `scripts/ci-failures.sh <n>` on failures, fix until green. Optional checks count. Prove any baseline failure on current dev; never assert it from memory.
@@ -110,7 +110,7 @@ future slice to be researched before starting an independent one.
    practical add a focused exploit regression and demonstrate failure before
    the fix and success after it. If the test cannot run before a dependency,
    record that gate rather than fabricating a red/green result. Preserve the
-   source anti-tests, but inspect whether they actually exercise the boundary.
+   source anti-tests, but inspect whether they exercise the specified app -> API, API -> ClickHouse or API -> signer exchange.
 6. Publish a brief research checkpoint in the workspace conversation: source
    anchors inspected, proposed owned hunks, conflicts, dependencies, baseline
    evidence and any unassigned changes. Continue autonomously for an agreed,
@@ -143,7 +143,7 @@ receipt and gets an owner. Never implement solely from the prose summary.
 | S1 | Yes | Metadata-only logging, SDK transport/parser safety, manifest SSRF, bootstrap/admin-list semantics, typed env | Provision secrets/admins before default removal; S3 integrates auth settings; S2 integrates SDK lifecycle |
 | S2 | Yes | Sender/origin binding and lifecycle fixes using today's token protocol | App-only token acceptance needs S3; integrate S1 transport and S6/S7 client changes before final bundle build |
 | S3 | Yes | Carefully bounded crypto helper/key plumbing only if existing protocol remains coherent | New credential-kind enforcement, app issuance, endpoint gates, authenticator and consumers form a coordinated release cohort |
-| S4 | Yes | Role/tombstone/attachment/join fixes, SQL parser and resource bounds | Canonical prepare needs hardened read provenance and S5 media signing boundary; signed-app gates use S3 |
+| S4 | Yes | Role/tombstone/attachment/join fixes, SQL parser and resource bounds | Canonical prepare needs hardened read provenance and S5 API -> object-storage signing checks; signed-app gates use S3 |
 | S5 | Yes | Object/archive/transcode/queue safety in bounded PRs | Persisted import auth needs S3 claims/helpers and S4 roles; HLS key provisioning required for RS256-only deployment |
 | S6 | Yes | Logout-generation cleanup can precede ticket protocol | Ticket client/API/RTC deploy together; live app-contract validation needs S3 foundation |
 | S7 | Yes | Body-authenticated detail transport with current verified auth | Port S4 service-read checks and S3 app-contract gate into shared detail implementation before cohort release |
@@ -216,13 +216,13 @@ changed-file/commit inventory from both PRs, including tests and generated files
 | E12 | Exact reserved `group/node/user/imports` grants; document wildcard cannot grant management; every management gate intersects current person role/admin authority | S3; domain handoffs S4-S8 |
 | E13 | Group structural changes require management; existing create cannot rewrite/enroll as owner; no duplicate initial member loop; pending join cannot self-approve as invite | S4; app intersections S3 |
 | E14 | Group service reads/writes require effective roles, not bare membership; batched reads agree; update attachments require destination create authority | S4 |
-| E15 | Latest document/group/media/link state before tombstone filter; direct reads share full query visibility, moderation/block/share boundary; carrier media uses actual service | S4; media list S5 |
+| E15 | Latest document/group/media/link state before tombstone filter; direct reads share API -> ClickHouse visibility/moderation/block/share checks; carrier media uses actual service | S4; media list S5 |
 | E16 | Node ads require current admin author, active ad/node-ad tags/status, current discover attachment; mutation requires delegated monetization plus admin | S3 with S4 tombstone provenance; D60 review |
 | E17 | Lexical CTE scope, raw/reserved/qualified/table-function/settings rejection; identifier/literal escaping and round-trip validation; wildcard service rules | S4; reserved wildcard contract S3 |
 | E18 | Hard row/byte/time/read-only limits for caller limits/set operations and prepared output; shared anon budget; sanitized SQL/error diagnostics | S4 |
-| E19 | Canonical carrier/face/ad refetch; projected bodies/authors/refs are hints, not signing authority; current service/group boundary and exact canonical pair before minting | S4 after S5 signing boundary |
+| E19 | Canonical carrier/face/ad refetch; projected bodies/authors/refs are hints, not signing authority; API -> ClickHouse service/group checks and exact canonical pair before minting | S4 after S5 API -> signer checks |
 | E20 | Owned object trees, filename/service validation, upload/confirm bounds, metadata validation, author-bound minio/media URL resolution, media-only delete/current service lookup | S5 |
-| E21 | HLS dedicated secret/provisioning, required lifetime claims, prefix/doc/variant binding, strict segment regex, current role/visibility authorization | S5 after S4 read boundary |
+| E21 | HLS dedicated secret/provisioning, required lifetime claims, prefix/doc/variant binding, strict segment regex, current role/visibility authorization | S5 after S4 API -> ClickHouse read authorization |
 | E22 | Bounded nonblocking transcode queue, source ownership/head/download limits, FFmpeg/ffprobe file+pipe protocols | S5 |
 | E23 | Bounded export parts/downloads, ZIP directory/ZIP64 checks, TAR extension-header checks, metadata/member/expanded-size budgets, streaming extraction | S5 |
 | E24 | Bounded/deduplicated import queue, admission-before-persist semantics, nonblocking worker startup and paged boot recovery, capacity response | S5; queue changes move together |
@@ -298,7 +298,7 @@ path and git show <pin>:<path>; supplement already-merged/source history.
 
 Own metadata-only log_requests/_insert_log in api/app/middleware.py and safe
 bare_exception_handler/validation_handler in main.py. Prefer 1157's
-no-body/no-buffer/route-template boundary over 1159's buffered redaction.
+API-request-handler -> operations-log no-body/no-buffer/route-template rule over 1159's buffered redaction.
 Map every superseded redaction test to an equivalent stronger non-exposure
 assertion; preserve status/latency/outcome/correlation diagnostic usefulness.
 No unsigned user extraction, arbitrary headers/URL params/error text or body
@@ -544,7 +544,7 @@ Mutable PR diffs are not the pinned source oracle; never whole-file-copy.
 Own clickhouse.py get_document/get_document_any_author/get_doc_groups latest
 state-before-deleted filter; can_read_group/can_write_group/effective roles,
 readable_groups_batched role union; read_document_by_id using full visibility
-boundary; can_read_carrier_post actual service/current canonical carrier read.
+API -> ClickHouse authorization; can_read_carrier_post actual service/current canonical carrier read.
 Membership is not blanket service permission. Align direct/group/query paths
 for block/share/moderation/tombstone behavior and public/authenticated classes.
 Own documents.py update attachment destination create-authority checks.
@@ -563,12 +563,12 @@ rejection, quoting/literal escaping, allowed document namespace/wildcards,
 hard limits including caller LIMIT/set operations and round-trip backstop.
 Own query.py rate budget including anon, row/byte/time/readonly enforcement,
 safe error references and canonical _canonical_prepare_doc/_prepare_rows.
-Re-fetch projected doc IDs through current full read boundary. Prove author/ref
+Re-fetch projected doc IDs through current API -> ClickHouse read authorization. Prove author/ref
 face pairs against current authorized canonical data; projected body/author
 and ad-helper output never authorize signing. Preserve legitimate extra columns,
 drop spoofed prepared capability fields, authorize attached ads independently.
 S3 supplies signed-origin and app-service allowlist hunks. S5 supplies owned
-media resolution/HLS contracts. Canonical prepare is gated on those boundaries;
+media resolution/HLS contracts. Canonical prepare retains API -> ClickHouse reads and API -> signer authority checks;
 parser/resource/role/tombstone/attachment/invite slices can merge independently
 when tested on current dev without new credential requirements. Do not label
 the whole query or documents file independent; own only agreed semantic hunks.
@@ -590,7 +590,7 @@ Own groups/access.md authority docs and identified query KB updates; send
 overview/findings/operations/historical audit/tracker hunks to S3 coordinator.
 Read design.md before any UI touch; tokens/URL state/all states, self-booting
 screenshots inspected desktop then 375px, never foreground dev server.
-Acceptance: E13-E15/E17-E19 accounted, direct and query boundaries agree,
+Acceptance: E13-E15/E17-E19 accounted, direct and query API -> ClickHouse authorization agree,
 no capabilities minted from attacker projections; dependent app/prepare hunks
 are held until foundation plus media integration, not silently skipped.
 Inspect status/diff/log before intended commit; serialize truthful changelog/
@@ -625,7 +625,7 @@ supplement source history/original inventory for merged work. No whole-file copy
 Own services/hls.py owns_object_key/MAX_MEDIA_BYTES/_signing_config/mint_sig/
 verify_sig/can_view_doc/segment_key; dedicated explicit HLS secret, lifetime
 claims, strict prefix tree/doc binding, fullmatch segment/variant validation.
-S4 supplies current role/full visibility/carrier boundary: membership alone
+S4 supplies API -> ClickHouse role/visibility/carrier authorization: membership alone
 cannot authorize playback. HLS must work when auth becomes RS256-only and no
 PRIVATE_KEY is configured; request provisioning coordination from S1/S3.
 The source retains an explicitly configured PRIVATE_KEY fallback for HLS;
@@ -805,11 +805,11 @@ params. Anonymous GET remains for public clients; authenticated detail uses
 optional JSON body token. Fail closed on invalid presented credentials, never
 silently downgrade an invalid token to anon or authorize unsigned claims.
 PR1159 adds certify on shared detail; PR1157 adds app readAll/service role and
-current read boundary checks. Combine those in shared _group_detail, not in
+current API -> ClickHouse read-authorization checks. Combine those in shared _group_detail, not in
 the old GET signature. S3 owns auth helpers; S4 owns service/person authority.
 Request their detail-specific patches/tests and name integration commits.
 Don't rewrite group management/create/invite/moderation sections they own.
-Preserve public/unlisted/member detail behavior and current metadata boundaries;
+Preserve public/unlisted/member detail behavior and current API -> app/UI metadata-visibility policy;
 membership alone must not expose posts without service permission. No new
 app-shaped identity/face endpoint or broader node social concepts (D60).
 

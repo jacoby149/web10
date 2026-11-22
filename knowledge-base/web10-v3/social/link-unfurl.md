@@ -90,11 +90,11 @@ from the SAME endpoint, cross-origin.
   /preview/unfurl` — it asks `${SOCIAL_ORIGIN}/preview/unfurl?url=…` and the
   SSRF guard + cache + damper all still apply (the marketing origin adds no
   new fetch surface; it just lets a second browser read the answer).
-- **CORS, not a boundary:** the preview server answers the unfurl route with
+- **CORS does not authorize preview-service -> remote-origin fetches:** the preview server answers the unfurl route with
   `Access-Control-Allow-Origin: *` (card metadata is public and
   credential-free — no session, no cookies, no token in or out). CORS only
   lets the browser READ the same answer a server-side caller already gets;
-  the security boundary remains the SSRF guard + the per-IP damper, exactly
+  the SSRF guard controls the preview-service -> remote-origin boundary; the per-IP damper limits request rate,
   as before (D99). The social app's own SPA asks same-origin, so the header
   is inert for it.
 - **One renderer, two apps:** the unfurl render (the deterministic YouTube /
@@ -146,7 +146,7 @@ The endpoint fetches an **attacker-influenced** URL. The guard, in order:
    stable and cached long).
 5. **Abuse dampening**: 60 requests/min per client IP (the rightmost
    X-Forwarded-For entry, the one nginx appended) → 429. A soft damper, not
-   the boundary — the guard above is the boundary.
+   destination authorization. The SSRF guard enforces the preview-service -> remote-origin boundary.
 
 **The residual (documented, not hidden):** the guard resolves-then-fetches, so
 a DNS-rebinding window exists between the check and the connection (a host
@@ -178,7 +178,7 @@ the `_fs-ch-` asset path) gets the **stealth retry** (one curl attempt, the
 libcurl TLS fingerprint the challenged edges accept — D101); a wall that
 survives the retry (or no curl in the container) is refused as
 `no_metadata` — the plain link is the honest card, never a wall-shaped card.
-The retry is a transport swap, not a second boundary: the url is re-validated
+The retry changes transport within the same preview-service -> remote-origin boundary: the URL is re-validated
 by the guard before the spawn (scheme/shape/DNS-public), curl follows no
 redirect (`--max-redirs 0` — the Location comes back and the per-hop loop
 re-validates it exactly as the default fetcher's), the transfer is time- and

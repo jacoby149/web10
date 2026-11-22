@@ -1,0 +1,19 @@
+{
+  "kind": "SATELLITE_FULL_API_SETUP_FAILURE",
+  "observed_utc": "2026-11-15T14:26:58.192412+00:00",
+  "endpoint": "/v3/groups/list",
+  "http_status": 500,
+  "native_exception_code": 159,
+  "native_elapsed_seconds": 10.001173933,
+  "native_maximum_seconds": 10.0,
+  "api_log_sha256": "27d4540f9b222abf463d6211469e157eb764913a5300500e4f060ebf68dfe951",
+  "private_log_published": false,
+  "schema_warning_16_separate": true,
+  "T2": "NOT_ESTABLISHED",
+  "feed_warmup_completed": false,
+  "performance_observations": [],
+  "fanout_authorized": false,
+  "repair": "restore original timeout for unlabelled setup; keep marked feed reads at ten seconds and all reads at22GiB",
+  "native_repaired_attempt_complete": false,
+  "lease_extended": false
+}

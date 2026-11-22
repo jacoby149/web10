@@ -38,7 +38,7 @@
 services:
   clickhouse:
     # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
-    image: ghcr.io/jacoby149/base-clickhouse:latest
+    image: ghcr.io/jacoby149/base-clickhouse:26.10.4.207
     environment:
       CLICKHOUSE_DB: web10
       CLICKHOUSE_USER: web10

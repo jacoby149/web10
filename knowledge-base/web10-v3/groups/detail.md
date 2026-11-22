@@ -4,6 +4,12 @@
 unrouted directory and cards are retired without a group-detail redirect.
 The generic API contract and social group screen described below are unchanged.
 
+**Historical unlisted-model discussion below:** its unconditional metadata
+statements predate QE-7. The current metadata contract is
+[`engine-group-metadata.md`](../../strategy/engine-group-metadata.md); at the
+API -> ClickHouse boundary, the reader's effective role still controls content.
+This annotation records the existing successor, not a new visibility policy.
+
 The group **detail** is the read of a *specific* group by its ID — "open this group." It is deliberately **not** a constrained "directory detail page." It is a flexible, principal-based read that **any app can use for any group**, the way an app reads any document it has a principal for. This is the groups analog of the app store's detail (D52), but looser on purpose: the app store's detail 404s for unapproved apps (approval is the gate); a group's detail has no such gate, because a group's content is already governed by the reader's effective role.
 
 The model is an **unlisted YouTube video**: a group that is not in the directory is still fully reachable if you have its ID. Being *listed* and being *reachable* are different things.
@@ -16,9 +22,9 @@ Three questions are easy to tangle. They are separate:
 |---|---|---|
 | Is it **in the directory**? | `discoverable` (boolean) | the *blasting* flag — advertised or not |
 | Is it **reachable by ID**? | always (if it exists) | the detail never 404s for a non-discoverable group |
-| Can a reader see its **posts**? | the reader's effective role (I3) | the real permission boundary — independent of `discoverable` |
+| Can a reader see its **posts**? | the reader's effective role (I3) | API -> ClickHouse authorization, independent of `discoverable` |
 
-`discoverable` is a **blasting** flag, not a **permission** flag. It controls whether the group is *advertised* in the directory. It never gates the detail, and it never gates content. The permission boundary is the reader's effective role, full stop (`access.md`).
+`discoverable` controls directory advertisement, not content permission. The reader's effective role controls reads at the API -> ClickHouse boundary (`access.md`).
 
 ## The Unlisted Model
 
@@ -78,11 +84,11 @@ A directory entry deep-links to the detail. A signed-out visitor clicking a dire
 ## Security Invariants
 
 - **I3 holds.** Posts are returned only when the *reader's* effective role grants `readAll` on the service — the same role gate that enforces I3 for every other read. `discoverable` plays no part in content access.
-- **Metadata is low-sensitivity.** The contract (join policy, roles, member count) and the identity (name, banner, tags) are readable by ID. This is accepted: group IDs are guessable URLs anyway, and the real boundary is the content, which stays role-gated. (A DM group's *metadata* — "invite_only, 2 members" — is visible by ID; its *posts* are not.)
+- **Metadata policy versus content.** The earlier unlisted-model description is superseded where the group-metadata authorization contract says otherwise; see `../../strategy/engine-group-metadata.md`. Content remains role-gated at the API -> ClickHouse boundary. This wording change grants no additional metadata visibility.
 - **No new access surface.** The detail reuses the existing principal seam (`user_or_anon`) and the existing group read. It invents no new permission.
 
 ## Summary
 
-The group detail is a flexible, principal-based read of a group by ID. It is **unlisted-model**: `discoverable` controls only the directory listing, never reachability — a non-discoverable group is still open by ID (like an unlisted video), and only a non-existent group 404s. Metadata is always returned; posts are gated by the *reader's* effective role (I3), evaluated against the token's principal (or the `anyone` principal with no token). Any app can grab any group it has a principal for. The permission boundary is the effective role, not `discoverable`.
+The detail is a principal-based group read. Directory advertisement and content authorization are separate: at the API -> ClickHouse boundary, the reader's effective role controls content, not `discoverable`. For metadata, follow the current group-metadata contract linked above rather than interpreting the earlier unlisted-model discussion as a new permission grant.
 
 For the directory (the list) and the `discoverable` flag, see `discoverability.md`. For the identity record the detail reads (name, banner, tags), see `identity.md`. For the generic group model, see `overview.md`.

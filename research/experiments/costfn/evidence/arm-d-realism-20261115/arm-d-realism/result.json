@@ -1,0 +1,133 @@
+{
+  "kind": "ARM_D_REALISM_MAIN_ONLY",
+  "outcome": "FAILED_STOP",
+  "parity": "NOT_RUN",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619371600,
+  "deadline_utc": "2026-11-15T05:17:51Z",
+  "setup_settings": {
+    "max_bytes_before_external_sort": 2147483648,
+    "max_bytes_before_external_group_by": 2147483648,
+    "max_temporary_data_on_disk_size_for_query": 107374182400,
+    "max_memory_usage": 23622320128,
+    "max_threads": 4,
+    "join_algorithm": "full_sorting_merge"
+  },
+  "steps": [
+    {
+      "label": "ready",
+      "query_id": "arm-d-realism-ab51155ddf734e71b00c987a05820488",
+      "sql_sha256": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+      "setup": true,
+      "elapsed_seconds": 0.424
+    },
+    {
+      "label": "ready",
+      "query_id": "arm-d-realism-0e3234bd583f4e09ba1227c5eca9f35a",
+      "sql_sha256": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+      "setup": true,
+      "elapsed_seconds": 0.715
+    },
+    {
+      "label": "engine",
+      "query_id": "arm-d-realism-a6427a85ed3d4465826efd1d7cb674d0",
+      "sql_sha256": "df1f1d15d442789a5b9c81cdddf44d88d5748499cc48865023ddc1ff1587d0f6",
+      "setup": true,
+      "elapsed_seconds": 0.468
+    },
+    {
+      "label": "server_cap",
+      "query_id": "arm-d-realism-79143f0f6a9b4ebdb26d03fbdc727e7e",
+      "sql_sha256": "2095cc241cf01e4f0587234cfabfc1dd1e1c36bc646622a624aafa1913f97a63",
+      "setup": true,
+      "elapsed_seconds": 0.448
+    },
+    {
+      "label": "original_identities",
+      "query_id": "arm-d-realism-9361a34e2f884b549057a86cb1cbb2cb",
+      "sql_sha256": "85b0bd984a358ec596bc3a1d5bd7f6911998a3a10eaafe4eac4b11cdea331676",
+      "setup": true,
+      "elapsed_seconds": 0.421
+    },
+    {
+      "label": "variant_absent",
+      "query_id": "arm-d-realism-9498ca1b5c6f4459b41d0871deedfba1",
+      "sql_sha256": "6084d46a08691044e1c6d69789c8866c9c60d161eb1437d5e5dd9be11ae3adc7",
+      "setup": true,
+      "elapsed_seconds": 0.403
+    },
+    {
+      "label": "source_ddl",
+      "query_id": "arm-d-realism-9bcd10fd5aac4838a25daad091b8768e",
+      "sql_sha256": "3b532975a5cddb369cb4f36d233f46da07700d746e47b5165c1f7fc899762182",
+      "setup": true,
+      "elapsed_seconds": 0.429
+    },
+    {
+      "label": "create_own_copy",
+      "query_id": "arm-d-realism-8a88c1f52fa84a55aae24a59fd560841",
+      "sql_sha256": "9297fbdbe7254f37f698b47197e4d57e0dc11f119c8f583bdfee59fdb0a91827",
+      "setup": true,
+      "elapsed_seconds": 0.463
+    },
+    {
+      "label": "original_identities_after",
+      "query_id": "arm-d-realism-351a1eb34c8e416d904a4ab415ac0f95",
+      "sql_sha256": "85b0bd984a358ec596bc3a1d5bd7f6911998a3a10eaafe4eac4b11cdea331676",
+      "setup": true,
+      "elapsed_seconds": 0.446
+    }
+  ],
+  "trials": [],
+  "K1000": "NOT_RUN",
+  "full_sequence": "NOT_ATTEMPTED",
+  "scope": "native main, not HTTP/p95/full-sequence",
+  "source_sha256": {
+    "arm_d_realism.py": "32bac88ca3b6579d261d4141006f8118ff1f29b586f2d823f4e3f4b49db6e725",
+    "arm_d_rewrite.py": "c6feba3dada1883333063d119df2cb7e5fe2c20ea9eb8c4d1dc32126dbfaa2e0",
+    "smoke_realism.py": "d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5",
+    "arm_t_oracle.py": "364debb823e5b17842003b95cb23b485d406320efbe2776150ae7df7656d1de1"
+  },
+  "host_resources": {
+    "host_memory_bytes": 33654894592,
+    "docker_store_free_bytes": 345001431040,
+    "setup_query_spill_cap_bytes": 107374182400
+  },
+  "original_identities_before": [
+    {
+      "name": "doc_groups",
+      "uuid": "69e9bbf9-1d6d-4c79-8c9d-1b4520815226",
+      "sorting_key": "doc_id, group_id"
+    },
+    {
+      "name": "doc_groups_t",
+      "uuid": "4fb8ed8a-4f92-4ef6-acd4-2a3201072cba",
+      "sorting_key": "group_id, created_at, doc_id"
+    },
+    {
+      "name": "documents",
+      "uuid": "e6df5ed3-9636-4121-9a63-72159761cead",
+      "sorting_key": "author_key, doc_id"
+    }
+  ],
+  "error_class": "CalledProcessError",
+  "original_identities_after": [
+    {
+      "name": "doc_groups",
+      "uuid": "69e9bbf9-1d6d-4c79-8c9d-1b4520815226",
+      "sorting_key": "doc_id, group_id"
+    },
+    {
+      "name": "doc_groups_t",
+      "uuid": "4fb8ed8a-4f92-4ef6-acd4-2a3201072cba",
+      "sorting_key": "group_id, created_at, doc_id"
+    },
+    {
+      "name": "documents",
+      "uuid": "e6df5ed3-9636-4121-9a63-72159761cead",
+      "sorting_key": "author_key, doc_id"
+    }
+  ],
+  "original_identities_unchanged": true,
+  "completed_utc": "2026-11-15T04:37:53.240803+00:00"
+}

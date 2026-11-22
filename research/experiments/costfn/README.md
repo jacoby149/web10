@@ -1,5 +1,276 @@
 # Access-Control Cost Function Experiment
 
+## Skinny type-aware pin lookup —source only
+
+The operator requests a research-only skinny placement lookup followed by a
+fresh rerun. Exact full post keys select historical pin candidates, then the
+canonical read resolves only those full identities. No API or document-model
+change. Native proof and cost savings remain pending. [Contract](PIN-INDEX.md).
+
+## Workstream B —skinny pin selection, then exact materialization
+
+The uniform research reader now resolves complete historical ref candidates with
+named skinny canonical columns, then reads bodies only for exact current pin
+survivors. Both statements recheck current winners/service/root/deletion; the
+second retains SQL post_author omission and all D124 validation before the
+unchanged authorized creative fetch. No cache, truncation or new layout.
+`pin_selection` and `pin_materialization` have separate captured native costs.
+[Source contract and controls](PIN-SELECT-MATERIALIZE.md). Native acceptance is
+pending; the operator explicitly requests B→green checks→merge→one experiment
+with five-minute monitoring. This supersedes the earlier row-first restriction
+for this fresh combined run, not any historical receipt or resource limit.
+
+## Workstream A —D124 semantics amendment, source only
+
+The isolated pin reader/oracle/ads gate now permit agreeing full-creative pins
+per post, with author precedence among agreeing placements. Distinct targets
+still refuse; all eligible pins validate before coalescing. Existing canonical
+winner/eligibility/creative authority and zero-pin omission remain unchanged.
+This is a deliberate behaviour change, not a parity-preserving optimization.
+[Amendment, controls and unchanged banked fixtures](PIN-AGREEMENT-AMENDMENT.md).
+Workstream A merged separately as PR#1608. Its source change alone granted no
+lease/native admission; the subsequent B/run direction is recorded above.
+
+## Source work —row receipt repair; uniform pin-discovery inventory
+
+The row driver now routes each requested ID through the pinned client's
+recognized per-call query_id parameter, never transport headers. Insert metadata
+and observation calls have distinct true auxiliary IDs; data receipts remain
+exact-ID/submit-once, with unchanged native limits and treatment guards. Eleven
+new controls use real1.6.0 request planning/insert-context generation and a fake
+server keyed by wire identity. They reproduce the old routing failure, prove
+query/command/insert and collection, and deny proven mismatches without imposing
+a client abandonment cap. Source repair only; attempt7 remains stopped as banked.
+
+The parallel [uniform consumer inventory](UNIFORM-PREPARATION-INVENTORY.md)
+finds that the10GB statement is canonical billboard-pin discovery **after** page
+selection. Four body-derived inputs and duplicate/malformed-pin refusals are not
+answerable from current satellites. Inventory is complete; uniform reorder is
+NOT IMPLEMENTED pending the documented typed-model/bounded-input fork. Three
+no-engine controls pin the source facts/refusals, not an optimization result.
+No cache or paired/gate/audit/oracle change. Uniform measurement remains behind
+the row-model run. No lease/native run/admission is granted by either source task.
+
+## Latest run —22 November: native composition/audit PASS, row receipt-ID STOP
+
+Fresh post-PR#1605 DO622092911 on merged52233c8b9 completes construction,
+all four gates, all three exact-parity/budget-FAIL response cells and the real
+D123 statement inventory with410 captured/78 auxiliary operations. The unchanged
+row bridge accepts that banked composition and launches the worker. Row setup
+then hangs on receipt IDs:39 client-complete requests have zero matching native
+IDs, while57 correlated server UUIDs finish. The pinned driver's query_id
+transport option is an ordinary HTTP header, not server query identity.
+The agent verifies no active row-data work, preserves the original RUNNING
+worker packet and records a separate supervised STOP; no full-family build or
+assembly result is banked. [Original results, query CSVs and diagnostic proof](evidence/all-fixes-reconciled-20261122/RESULTS.md).
+State/native parts verify off-host before owned cleanup, snapshot retained,
+admission closed. No source repair, native retry or new paid continuation.
+
+## Source-only audit reconciliation —21 November, D123
+
+Future audits admit only the exact parsed bounded delivery-history lookup as
+`delivery_dedup_raw_read`, retaining all native rows/bytes/duration and the prior
+captured stage. Raw metric fallbacks and every retired-query/digest/identity
+check remain denied. Seventeen new no-engine controls replay both banked digests
+and the complete410-statement captured set with identical additive totals.
+This does not promote attempt6's failed decomposition or run the row-model cell.
+Production API/gates/budgets/oracle/row bridge are unchanged. Merge this source
+reconciliation before Jacob's separate fresh admission; no lease/native action
+is authorized here. [Exact policy](ALL-FIXES-THEN-MEASURE.md#21-november-measurement-policy-reconciliation-source-only-d123).
+
+## Earlier run —full batch proof PASS, responses parity PASS, audit STOP
+
+Jacob's fresh post-PR#1603 attempt on DO621754971 passes all489 all-time batches,
+2,000,001 document IDs and exact1.6B reconciliation, with565,711,161-byte peak
+batch query memory. All four formal gates pass; uniform K20/paired P/F complete
+warmup+measured responses have exact parity and budget FAIL. Statement auditing
+then rejects the raw delivery-history max(seen_at) read, so decomposition stays
+INCOMPLETE and row-model measurements do not run. This is not treatment-wide
+acceptance. [Original outcomes, native costs and diagnostic query CSV](evidence/all-fixes-batched-20261120/RESULTS.md).
+Receipts/native parts verify off-host before owned cleanup; original snapshot
+retained, admission consumed/closed. No automatic retry or paid continuation.
+
+## Earlier attempt —layout/day PASS, all-time241
+
+PR#1602's admitted attempt is now closed. The full event rebuild and all319 day
+slices reconcile1.6B events, but all-time MergeState derivation fails at22GiB.
+No formal composition or row-model measurements run. Receipts are verified
+off-host; owned cleanup is verified and the original snapshot retained.
+[Native results, failure and custody](evidence/all-fixes-layout-20261120/RESULTS.md).
+The operator requests bounded document-key backfill; that repair is source-only,
+not permission to reuse the stopped host or start a new paid lease.
+
+## Consumed admission —20 November analytics layout and clock repair
+
+Jacob explicitly admits one fresh all-fixes→row-model attempt after a separate
+layout/clock fix merges and exact-source controls/bindings pass. D122 lifts only
+the raw analytics physical-layout fence: same complete1.6B event values, one
+sorted rebuild into day partitions, old/new all-column per-day hash/count census
+before atomic exchange. All other measured layouts/gates stay frozen. The owned
+self-kill backstop is24 hours, not four; the programme has$1,000 and per-run
+compute costs remain receipted. This supersedes older four-hour/$2 clock shapes
+for this explicitly bound composition only; it never reopens an old lease.
+The new rebuild is setup, not a600s measurement; it may use the remaining24h
+backstop with existing22GiB/spill limits. Existing day slices and measured
+statements retain600s. Full contract: [all fixes](ALL-FIXES-THEN-MEASURE.md).
+
+## Earlier banked attempt —two grains/day slices, PARTIAL at service bound
+
+Merged day-seed/all-time source8402cd5fe executes on original-window DO621488571.
+Of319 slices,293 are controller-PASS and294 native-finished, with exact observed
+partial1,165,394,847 event states; full1.6B reconciliation/all-time derivation and
+formal parity/measurement stages never run. Peak observed memory2.69GiB fits;
+470.4B rows/17.728TB native logical bytes are reported scan amplification, not a
+failure gate. Service guard07:38:51UTC stops the controller. Receipts preserved,
+owned resources deleted/snapshot retained before deadline, admission closed.
+[Full accounting/319-slice CSV/bindings](evidence/all-fixes-two-grain-20261120/RESULTS.md).
+All-time diagnostic label repair is source-only after this run, not redeployed.
+
+## Earlier attempt —19 November directive, stdin fixed
+
+Merged PR#1597/source55b68ef7f runs on fresh DO621423661: exact large billboard
+stdin transport passes, and completed native tally checks now cover all20 actual
+paired roots in all five domains with exact values (audited off-host against SQL
+hashes/native finishes). That closes the old missing-domain proof gap, not the
+composition. Aggregate seeding stops241 at22GiB; formal gates, all compositions,
+decomposition and row worker are BLOCKED. Receipts are preserved, owned cleanup
+verified, snapshot retained, admission closed/no retry. [Qualified results and bindings](evidence/all-fixes-stdin-20261119/RESULTS.md).
+
+## Earlier rerun —19 November2026, restore fixed
+
+Separate path-only fix PR#1595 merged before fresh DO621414125 ran exact source
+2749c1037. Restore/read setup/migration pass. Billboard fixture setup then stops
+at OS argv-size handling before native submission; all required parity gates,
+compositions, decomposition and row worker remain blocked. D114 paired OPEN,
+D117 pending. New receipts verified off-host before owned cleanup, snapshot
+retained, admission consumed/closed; no automatic retry. Fix/tests, regenerated
+binding and new-attempt-only cost/cleanup: [rerun report](evidence/all-fixes-row-model-rerun-20261119/RESULTS.md).
+The first attempt's evidence is unchanged.
+
+## First attempt —19 November2026
+
+The explicitly admitted one-lease composed entry on merged dev1c903afb8 stopped
+during restore at the existing `/opt/fanout/input` symlink collision, before any
+parity gate or measurement. Row-source readiness passed before restore; the
+row-model worker was blocked on unbanked composition results. D114 paired
+acceptance remains OPEN; D117 assembly remains pending. Owned DO621405771 and
+auxiliary resources are verified deleted, snapshot255003176 retained. Admission
+is consumed/closed, no automatic retry. Exact failure/cost/custody/cleanup:
+[attempt report](evidence/all-fixes-row-model-20261119/RESULTS.md).
+
+## Directive precedence index
+
+**As of 20 November 2026.** This index owns precedence, not design definitions
+or measured values. The [decision ledger](../../../knowledge-base/strategy/decisions.md)
+owns D115/D116/D118 DECIDED, D117/D119 DIRECTION and D120 PRINCIPLE. Evidence
+reports own numerical facts. Current implementation is still documented in the
+[v3 schema](../../../knowledge-base/web10-v3/db/clickhouse.md); source machinery
+and a chosen direction are not native acceptance or production replacement.
+
+Read operative documents together: source preparation includes the row model
+BEFORE spending; all-fixes measurements bank BEFORE row-model assembly. This
+index grants no lease, retry, extension, local engine execution or rollout.
+Historical documents stay intact; a successor applies prospectively, not as a
+retroactive waiver of failed or missing gates.
+
+| Directive/document | Status and controlling successor or record |
+|---|---|
+|20 November layout/clock amendment above; D122 | **Operative for the newly admitted composition→row cell** — analytics layout mutable, logical events frozen,24h self-kill; supersedes prior raw-layout/four-hour fences only |
+| `README.md`, Governing execution directive below | **Operative** — current execution policy; overrides older row/deadline/client/byte aborts, not receipts |
+| [ALL-FIXES-THEN-MEASURE.md](ALL-FIXES-THEN-MEASURE.md) | **Operative** — composed read treatment and required prechecks; no measured result banked |
+| [ROW-MODEL-QUEUED.md](ROW-MODEL-QUEUED.md) | **Queued behind ALL-FIXES-THEN-MEASURE measurements** — source work precedes both runs; D117 proving cell pending |
+| [ROW-MODEL-RUN.md](ROW-MODEL-RUN.md) | **Operative runbook for the queued ROW-MODEL-QUEUED cell** — explicit host/window/source binding required; not execution evidence |
+| [task-block-engagement-ref-redesign.md](task-block-engagement-ref-redesign.md) | **Superseded for new treatment/run selection by ALL-FIXES-THEN-MEASURE** — retains earlier admissions, closed attempts and receipt pointers |
+| [task-block-fanout-arm.md](task-block-fanout-arm.md) | **Executed and banked, qualified Config F history** — later complete-read work proceeds through ALL-FIXES-THEN-MEASURE; unearned F capacity/write gates remain OPEN |
+| [ARM-F-DESIGN-CLOSURE.md](ARM-F-DESIGN-CLOSURE.md) | **Executed and banked, partial/stopped research attempts** — no whole-F acceptance; current composed-read successor is ALL-FIXES-THEN-MEASURE |
+| [ARM-SATELLITE.md](ARM-SATELLITE.md) | **Executed and banked, qualified Config P attempts** — programme successor task-block-fanout-arm, then ALL-FIXES-THEN-MEASURE; not permission to restart |
+| [ARM-T.md](ARM-T.md) | **Executed and banked, failed setup** — later programme task-block-fanout-arm/ALL-FIXES-THEN-MEASURE does not turn Arm T into a PASS |
+| [ARM-D-REALISM.md](ARM-D-REALISM.md) | **Superseded for current programme selection by ARM-SATELLITE/task-block-fanout-arm** — historical arm contract/results retained |
+| [ARM-D-ATTACHMENT-REPAIR.md](ARM-D-ATTACHMENT-REPAIR.md) | **Superseded for current programme selection by ARM-SATELLITE/task-block-fanout-arm** — retained repair contract, not a newly admitted run |
+| [PLAN.md](PLAN.md) | **Superseded by REALISM-RERUN-PLAN for realism inputs, then ALL-FIXES-THEN-MEASURE for the current read composition** — historical K20-first plan retained |
+| [PROTOCOL.md](PROTOCOL.md) | **Executed and banked historical protocol/results** — old treatment/abort choices are superseded by ALL-FIXES-THEN-MEASURE and current execution policy |
+| [STUDY.md](STUDY.md) | **Superseded by PLAN, then REALISM-RERUN-PLAN** — old industrial-track/VU matrix is not current paper strategy or run admission |
+| [DESIGN-REVIEW.md](DESIGN-REVIEW.md) | **Superseded by PLAN/REALISM-RERUN-PLAN for programme planning** — historical review, not current acceptance |
+| [READYING.md](READYING.md) | **Superseded by PLAN/REALISM-RERUN-PLAN** — old primary matrix is not an alternative launch route |
+| [RUNBOOK.md](RUNBOOK.md) | **Superseded for current runs by ALL-FIXES-THEN-MEASURE/ROW-MODEL-RUN** — earlier commands remain historical |
+| [RUNNING-V2.md](RUNNING-V2.md), [DATASET.md](DATASET.md) | **Superseded by REALISM-DATASET and REALISM-DATASET-DECISIONS** — frozen V2 records preserved |
+| [REALISM-DATASET-DECISIONS.md](REALISM-DATASET-DECISIONS.md) | **Executed and banked input decisions** — canonical realism lineage; does not authorize rebuilding validated inputs |
+| [REALISM-DATASET.md](REALISM-DATASET.md) | **Executed and banked build/validation contract** — current experiment input comes from the retained verified snapshot/archive |
+| [REALISM-RERUN-PLAN.md](REALISM-RERUN-PLAN.md) | **Executed and banked input/early-run history** — new treatment selection is superseded by ALL-FIXES-THEN-MEASURE |
+| [REALISM-CLICKHOUSE.md](REALISM-CLICKHOUSE.md) | **Operative validation contract, executed validation banked** — validator engine/frame is distinct from the measurement engine; no validation rerun admitted here |
+| [REALISM-CHECKPOINTS.md](REALISM-CHECKPOINTS.md) | **Operative validation-resume contract** — not an experiment resubmission or new-host grant |
+| [REALISM-RECOVERY.md](REALISM-RECOVERY.md) | **Operative preparation-persistence contract** — preparation only, not a new experiment-checkpoint framework; old execution windows remain historical |
+| [REALISM-STORAGE.md](REALISM-STORAGE.md) | **Operative frozen-input storage/custody contract** — no new object writes or paid storage implied |
+| [REALISM-CLOUD-PREP.md](REALISM-CLOUD-PREP.md) | **Executed and banked preparation history** — old host admission consumed; current runs require their own explicit binding |
+| [REALISM-SMOKE.md](REALISM-SMOKE.md) | **Executed and banked connected untreated diagnostic, STOP** — its main requests did not complete; no current lease or performance acceptance |
+| [K100-RESULTS.md](K100-RESULTS.md), [K1000-RESULTS.md](K1000-RESULTS.md), [SIXTH-DRAFT-RESULTS.md](SIXTH-DRAFT-RESULTS.md) | **Executed and banked reports** — immutable evidence, never a new directive |
+
+The current [paper target](../../../knowledge-base/strategy/paper-submission.md)
+is separate from experiment admission. Older industrial/CIDR targets in the
+retained documents are superseded by D121 (DECIDED), not silently rewritten.
+
+## Governing execution directive — 18 November 2026
+
+Jacob Hoffman's **“archaic execution limits removed”** directive applies to
+every costfn experiment run from this directive onward, including completion
+work. It overrides conflicting earlier task blocks and standing rules. Earlier
+STOPs, source bindings, costs and cleanup receipts remain historical facts;
+this is not permission to relabel them or reopen a deleted host.
+
+The current order is all source fixes, including row-model preparation, before
+paid proving runs. The [completion report](evidence/engagement-completion-20261118/RESULTS.md)
+distinguishes pre-candidate selection estimates from actual native reads. That
+distinction motivates the execution policy; estimates are never measured I/O.
+
+- **No row-count stop:** remove experiment `max_rows_to_read`/code158 guards;
+  no row-count stop applies to any experiment statement. Record actual rows and
+  logical bytes per step, including partial work on failures.
+- **Measurement statements have a600s native bound, not a10s run-stopper.**
+  A600s timeout is a measured timeout result with partial actuals; preserve it
+  and continue independent work rather than aborting the run. Missing dependent
+  results stay unavailable, never PASS. Production query limits are separate.
+- **No fixed client cap abandons native work.** Use exact-query native-completion
+  polling (PR#1588); a300s-class client/transport timeout is not a native verdict
+  and must not cause resubmission or loss of a still-running operation.
+- **The13 November$40 programme compute ceiling is retired.** Receipt and report
+  lease costs per run; that ceiling does not cap them. Storage charges remain
+  distinct from compute.
+- **500ms/25MB are success lines, not abort conditions.** Record misses and
+  continue the admitted measurements, including scan-shaped completions. Earlier
+  byte-gate aborts remain preserved historical outcomes, not future policy.
+- **Unchanged:** exact parity oracle, adversarial fixtures and claim discipline;
+  the32/28/22GiB host/container/server comparability envelope unless separately
+  directed otherwise; agent supervision about every300s and droplet self-kill
+  timers, with no guardian. The envelope is not a statement acceptance gate.
+- **Admission remains explicit.** Runs start on an operator directive. Within
+  an admitted run, no statement-level run-stoppers apply; the600s statement bound
+  produces a timeout result. This policy change does not itself allocate a new
+  paid host or extend a closed lease.
+
+This entry defines policy, not blanket proof that every historical harness is
+aligned. The separately admitted engagement completion now has
+[native complete-response results](evidence/engagement-finish-20261118/RESULTS.md):
+exact parity PASS/budget FAIL in all four cells, with preserved original startup
+failures and a source-bound transport repair. Before using another research
+entry point, reconcile its wrappers/controllers with this directive; do not
+silently inherit retired row, deadline, client or budget-abort behavior.
+Ordinary API/production behavior is unchanged.
+
+**D114 tally run,19 November:** [qualified count results and coverage audit](evidence/engagement-tally-20261119/RESULTS.md).
+Ordinary/fat/sample evidence and thousand-row scalar reads are banked, but the
+required paired precheck omitted20 actual roots. Full acceptance stays OPEN;
+the source verifier is repaired, not natively reaccepted. That lease is cleaned
+up and consumed; no fresh paid/native retry follows automatically.
+
+**Historical navigation below:** these earlier arm/admission notes retain their
+original moment. The directive index above controls current selection; none of
+the old “wait,” “run,” or host-window text reopens a consumed admission.
+
+**Additive Arm T (14 November):** [contract and sequencing gates](ARM-T.md).
+Separate group-first link layout on the unchanged validated realism input;
+not a replacement for any frozen cell. Build/execution wait for the baseline
+diagnosis receipt and Study B pilot launch; offline implementation is separate.
+
 > **Current directive, 11 November 2026:** read
 > [REALISM-DATASET-DECISIONS.md](REALISM-DATASET-DECISIONS.md) first, then the
 > amended [REALISM-RERUN-PLAN.md](REALISM-RERUN-PLAN.md). New jointly generated

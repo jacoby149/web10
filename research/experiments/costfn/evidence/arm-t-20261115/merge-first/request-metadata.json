@@ -1,0 +1,98 @@
+[
+  {
+    "request_id": "b5b5ea914a534d24a91e40aa3087c29a",
+    "kind": "main",
+    "phase": "warmup",
+    "reader_index": 1,
+    "status": 200,
+    "error": null,
+    "client_start_monotonic": 8983.192593836,
+    "correlated": true,
+    "client_ms": 61535.203776000344,
+    "client_end_monotonic": 9044.727799356
+  },
+  {
+    "request_id": "5b98f1ef296e470abdb87db6fe1c1eb1",
+    "kind": "reactions",
+    "phase": "warmup",
+    "reader_index": 1,
+    "status": 400,
+    "error": "http_or_decode_failure",
+    "client_start_monotonic": 9044.730519673,
+    "correlated": true,
+    "client_ms": 15708.923404001325,
+    "client_end_monotonic": 9060.43944431
+  },
+  {
+    "request_id": "e476b75d99b4461db6114f139037acf4",
+    "kind": "main",
+    "phase": "measured",
+    "reader_index": 1,
+    "status": 200,
+    "error": null,
+    "client_start_monotonic": 9060.88113493,
+    "correlated": true,
+    "client_ms": 64022.5212180012,
+    "client_end_monotonic": 9124.903658632
+  },
+  {
+    "request_id": "b1185619ae5348fb90632b9cc01ccde6",
+    "kind": "reactions",
+    "phase": "measured",
+    "reader_index": 1,
+    "status": 400,
+    "error": "http_or_decode_failure",
+    "client_start_monotonic": 9124.905206409,
+    "correlated": true,
+    "client_ms": 10204.567724000299,
+    "client_end_monotonic": 9135.109775365
+  },
+  {
+    "request_id": "70fa2d97d91b433b9d80fce7afb5ae54",
+    "kind": "main",
+    "phase": "measured",
+    "reader_index": 1,
+    "status": 200,
+    "error": null,
+    "client_start_monotonic": 9135.765022281,
+    "correlated": true,
+    "client_ms": 68543.52288900009,
+    "client_end_monotonic": 9204.308547274
+  },
+  {
+    "request_id": "34955f66286c4466a8e4ef63b11aaa48",
+    "kind": "reactions",
+    "phase": "measured",
+    "reader_index": 1,
+    "status": 400,
+    "error": "http_or_decode_failure",
+    "client_start_monotonic": 9204.309875445,
+    "correlated": true,
+    "client_ms": 10144.367425000382,
+    "client_end_monotonic": 9214.454244163
+  },
+  {
+    "request_id": "10af975ec27b4f88a10052cab1da578b",
+    "kind": "main",
+    "phase": "measured",
+    "reader_index": 1,
+    "status": 200,
+    "error": null,
+    "client_start_monotonic": 9214.864177746,
+    "correlated": true,
+    "client_ms": 64571.95199300077,
+    "client_end_monotonic": 9279.436131573
+  },
+  {
+    "request_id": "528b90046e474d9592a02315b2ca724a",
+    "kind": "reactions",
+    "phase": "measured",
+    "reader_index": 1,
+    "status": 400,
+    "error": "http_or_decode_failure",
+    "client_start_monotonic": 9279.43754625,
+    "correlated": true,
+    "client_ms": 10163.112673000796,
+    "client_end_monotonic": 9289.600659725
+  }
+]

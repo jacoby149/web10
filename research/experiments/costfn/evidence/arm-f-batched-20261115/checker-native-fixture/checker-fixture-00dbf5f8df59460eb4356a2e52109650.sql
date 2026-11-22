@@ -1,0 +1,1 @@
+SELECT name,engine,sorting_key,partition_key,uuid FROM system.tables WHERE database='web10' AND name IN ('documents','doc_groups','doc_groups_t') ORDER BY name FORMAT JSON

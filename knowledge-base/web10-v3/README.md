@@ -1,10 +1,17 @@
 # web10 v3 — Core Architecture
 
-This folder holds the finalized, authoritative documentation for web10 v3.
+This folder maps the current v3 implementation and separately labelled design directions.
+
+**Status convention:** individual design entries may describe chosen but unproved
+directions, not current implementation. The [19 November D115–D120 map](db/design-revolution.md)
+labels those explicitly: billboard/N-ref design is DECIDED, row-model/typed API
+work is DIRECTION with cells pending. No replacement storage has shipped by
+recording it here; the current schema below remains the implementation map.
 
 v3 is the core architecture switch: ClickHouse, groups as the primitive, CRUD with groups, auth, social app. Everything here is what we build first.
 
-Everything beyond the core is in `../web10-v4/` — P2P delivery at scale, federation, real-time, advanced SDK, finance, monetization.
+`../web10-v4/` retains earlier next-version planning. It is not a competing
+current storage target; use the decision ledger for the chosen direction.
 
 ## Brainstorm
 
@@ -26,7 +33,12 @@ web10-v3/
 │   ├── contracts.md       ← service contracts, group contracts, blacklists
 │   └── document-typing.md ← leaf-level type convention
 ├── db/                    ← ClickHouse implementation & setup
-│   └── clickhouse.md      ← complete schema: tables, indexes, patterns
+│   ├── clickhouse.md      ← current JSON/ref_value implementation: tables, indexes, patterns
+│   ├── design-revolution.md ← D115–D120 status map and canonical evidence links
+│   ├── tallies.md         ← D114 research contract; paired acceptance OPEN
+│   ├── service-names.md   ← current identifier/permission-key contract
+│   ├── attachments.md     ← generic document/group link contract
+│   └── group-delivery.md  ← D113 planned delivery contract, not deployed replacement
 ├── setup/                 ← node setup & operator config
 │   ├── node-config.md     ← the node_config table, admins model, setup flow, /am_admin gate
 │   └── custom-domain.md   ← claiming your web10 identity on your own domain via a DNS TXT record (Njalla recommended, the DKIM pattern for user identity)
@@ -55,7 +67,7 @@ web10-v3/
 │   ├── monetization-bootcamp.md ← the creator's working guide to earning on web10 (ads, affiliates, the programs)
 │   ├── node-ads.md        ← the node operator's ad inventory (the `node_ad` tag, density, the read-path attach)
 │   ├── video-player.md    ← the client's one shared video surface: <VideoPlayer>, two modalities (inline vs modal), the source union
-│   ├── shorts.md          ← the vertical short-form feed: a short is a 9:16 post on the discover group, the /shorts swipe surface, the "can you fake a short?" trust boundaries
+│   ├── shorts.md          ← vertical short-form feed, rendering checks and app -> API permissions
 │   ├── post-actions.md    ← the client's one shared engagement bar: <PostActions>, the like/dislike pair (one reaction per user), the repost axis, the comment thread mount
 │   ├── comments.md        ← the comment thread: threaded replies (ref_value = the post, parent_id in the body, one read builds the tree) + comment likes (a reactions doc on the comment)
 │   ├── reposts.md         ← the repost: a type:'repost' reaction (independent of like/dislike), the real count, the tappable repeat icon — NOT a boost
@@ -91,11 +103,13 @@ web10-v3/
 - **SDK** — `sdk/api.md` (surface), `sdk/implementation.md` (SQL), `sdk/contracts.md` (contracts)
 - **Auth & Consent** — `auth/auth.md` (token flow), `auth/consent.md` (consent experience, ideal UX)
 - **DB** — `db/clickhouse.md` (tables, indexes, patterns)
+- **Group delivery (pre-build, D113)** — [db/group-delivery.md](db/group-delivery.md): built-in fanout/seek lanes, canonical tombstone resolution, lifecycle, evidence gates and unresolved design decisions; not a deployed schema.
 - **Setup & Config** — `setup/node-config.md` (node_config table, admins, /am_admin)
 - **App Store** — `app-store/overview.md` (registration, visits, PWA manifests), `app-store/endpoints.md` (the endpoint surface: product page, ratings, stats)
 - **Content Analytics** — `analytics/overview.md` (the generic per-content engine, D86: the three primitives, the two-tier impression — delivery server-side + viewport client-gated, what a "surface" is, the `trackContentEvent` SDK surface, the D49-pattern anti-gaming, the "crazy metrics are queries" note)
 - **Security** — `security/overview.md` (invariants I1–I5, two-contract model, blocking)
-- **Query Engine** — `query-engine.md` (the flexible read: how far to take the power), `safe-query.md` (the boundary CTE + why the guarantee holds; `w.query()` / `POST /v3/query`)
+- **Query Engine** — `query-engine.md` (the flexible read), `safe-query.md` (API -> ClickHouse authorization; `w.query()` / `POST /v3/query`)
+- **Research source versus proof** — [row-model runbook](../../research/experiments/costfn/ROW-MODEL-RUN.md), [directive precedence](../../research/experiments/costfn/README.md#directive-precedence-index); no native model verdict is implied.
 - **Groups** — `groups/overview.md` (primitive), `groups/access.md` (who can do what — the D58 gate), `groups/identity.md` (profiles), `groups/contract-healing.md` (the app owns its own contracts — the consensual self-heal)
 - **Social** — `social/overview.md` (implementation), `social/cross-app-sharing.md` (patterns), `social/ads.md` (the creator-owned ads — a post tagged `ad`), `social/ads-catalog.md` (the catalog + composer), `social/monetization.md` (the app-owned ad surface, D75 — the catalog + onboarding + node-ad inventory in web10-social, node-admin gated), `social/video-player.md` (the client's one shared video surface — `<VideoPlayer>`, the two modalities), `social/shorts.md` (the vertical short-form feed — a 9:16 post on the discover group, the /shorts swipe surface), `social/post-actions.md` (the client's one shared engagement bar — `<PostActions>`, the like/dislike pair, the repost axis, the `<CommentThread>` mount), `social/comments.md` (the comment thread — threaded replies: `ref_value` is always the post, `parent_id` in the body, one read builds the tree; comment likes: a `reactions` doc on the comment), `social/reposts.md` (the repost — a `type:'repost'` reaction, independent of like/dislike, the real count + tappable repeat icon, not a boost), `social/group-chat.md` (N-person messaging in the Messages surface — a group with `kind:'chat'` on its face, a name + members, per-sender bubbles; CRUD-only real-time in v1), `social/discover-card.md` (the shared discover card, D74 — one component, two apps), `social/pwa.md` (making web10-social a serious installable app — the real service worker + the install prompt at the moment of value, D72), `social/share-preview.md` (the post permalink, rich when shared — the social app's preview server renders OG/Twitter tags, the browser gets the SPA), `social/link-unfurl.md` (a pasted link, rich when read — the preview server's SSRF-guarded unfurl: the provider players + the OG card, the plain link is the floor)
 - **Media** — `media/transcoding-foundation.md` (the model), `media/transcoding.md` (the pipeline), `media/streaming.md` (the layers), `media/minio-auth-bifurcated.md` (the auth split), `media/thumbnailing.md` (the generic "picture for this doc" — `pickThumbnail` + the access-checked endpoint; the social card refactored onto it)

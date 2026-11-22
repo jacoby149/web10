@@ -391,6 +391,9 @@ test.describe('Saved collections — API floor (the app\'s exact reads/writes)',
 
 test.describe('Saved collections gauntlet — real flow through the app contract', () => {
   test('save a post → it appears on the Saved tab → open → flip public → a second account opens it', async ({ browser, request }) => {
+    // Three independent browser contexts plus real create/save/visibility and
+    // viewer reads. Per-step assertions remain bounded; this is not a30s SLA.
+    test.setTimeout(120000);
     // The owner: signup + the app contract (Origin-gated) + a post to save.
     const owner = await signupAndLogin(request, 'svdgui');
     await addSocialAppContract(request, owner.token);
@@ -408,7 +411,6 @@ test.describe('Saved collections gauntlet — real flow through the app contract
 
     // The following feed (the owner's non-discover groups' posts) shows the post.
     await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
-    await page.waitForLoadState('networkidle');
     const card = page.locator('[data-testid="post-card"]', { hasText: postText }).first();
     await expect(card).toBeVisible({ timeout: 15000 });
 
@@ -447,7 +449,6 @@ test.describe('Saved collections gauntlet — real flow through the app contract
     await settle();
 
     await page2.goto(`${SOCIAL_BASE}/u/${owner.username}?tab=saved`);
-    await page2.waitForLoadState('networkidle');
     // The collection card renders on the Saved tab.
     const savedCard = page2.locator('[data-testid="saved-collection-card"]', { hasText: colName }).first();
     await expect(savedCard).toBeVisible({ timeout: 15000 });
@@ -501,7 +502,6 @@ test.describe('Saved collections gauntlet — real flow through the app contract
     // read can lag the membership_visibility flip by a beat under CH eventual
     // consistency.)
     await page3.goto(`${SOCIAL_BASE}/u/${owner.username}?tab=saved`);
-    await page3.waitForLoadState('networkidle');
     const viewerSavedCard = page3.locator('[data-testid="saved-collection-card"]', { hasText: colName }).first();
     await expect(viewerSavedCard).toBeVisible({ timeout: 15000 });
 

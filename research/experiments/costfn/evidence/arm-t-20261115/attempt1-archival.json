@@ -1,0 +1,14 @@
+{
+  "utc": "2026-11-15T02:45:09.005663+00:00",
+  "failed_query_id": "arm-t-build-21492bcdf9df4ef882e4e3c44d4f738b",
+  "failure": "query memory 22.01 GiB > unchanged22 GiB while filling right join",
+  "failed_receipt_sha256": "6234ee467836a702d0890055bccf6c442e6a2a7fe642b6f5c9f50e5acb0d5ac3",
+  "preserved_variant": "doc_groups_t_failed_build_21492bcdf9df",
+  "variant_uuid": "fa372cd0-a544-41df-ac72-87d6bb9ec799",
+  "rows": 0,
+  "original_source_counts_unchanged": {
+    "documents": 88200300,
+    "doc_groups": 92200600
+  },
+  "scope": "archive only the failed experimental variant; no original table renamed or rewritten; no parity request ran"
+}

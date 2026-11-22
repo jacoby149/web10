@@ -1,0 +1,80 @@
+name: additive-satellite-arm
+
+on:
+  pull_request:
+    paths:
+      - research/experiments/costfn/arm_satellite*.py
+      - research/experiments/costfn/arm_f*.py
+      - research/experiments/costfn/engagement*.py
+      - research/experiments/costfn/arm_satellite_profile.compose.yml
+      - research/experiments/costfn/arm_satellite_serve.compose.yml
+      - research/experiments/costfn/ARM-SATELLITE.md
+      - research/experiments/costfn/arm_d*.py
+      - research/experiments/costfn/arm_t*.py
+      - research/experiments/costfn/research_api.py
+      - research/experiments/costfn/satellite.py
+      - research/experiments/costfn/gate15.py
+      - research/experiments/costfn/evidence/arm-t-20261115/consolidated/**
+      - research/experiments/costfn/evidence/arm-satellite-*/**
+      - api/app/v3/services/safe_query.py
+      - clickhouse-init/001-init-v3-schema.sql.template
+      - .github/workflows/arm-satellite.yml
+      - e2e/mirror-images.json
+      - e2e/mirror-images.py
+      - e2e/clickhouse-image.test.py
+      - docker-compose.yml
+      - e2e/docker-compose.yml
+      - ubuntu-deployment/docker-compose.ecosystem.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Satellite preflight (no engine execution)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned no-engine dependencies
+        run: python -m pip install ruff==0.15.22 sqlglot==30.18.0 pydantic==2.13.4 fastapi==0.139.0 clickhouse-connect==1.6.0 -r research/experiments/costfn/realism-requirements.txt
+      - name: Lint the additive preparation
+        run: python -m ruff check research/experiments/costfn/arm_satellite*.py research/experiments/costfn/arm_f*.py research/experiments/costfn/engagement*.py
+      - name: Check retained inventory and pull-first gate
+        run: |
+          python e2e/clickhouse-image.test.py
+          python research/experiments/costfn/engagement.test.py
+          python research/experiments/costfn/engagement_modern.test.py
+          python research/experiments/costfn/engagement_completion.test.py
+          python research/experiments/costfn/arm_f.test.py
+          python research/experiments/costfn/arm_f_failure.test.py
+          python research/experiments/costfn/arm_f_client.test.py
+          python research/experiments/costfn/arm_f_cloud.test.py
+          python research/experiments/costfn/arm_f_t4.test.py
+          python research/experiments/costfn/arm_f_fixture_api.test.py
+          python research/experiments/costfn/arm_f_api.test.py
+          python research/experiments/costfn/arm_f_hooks.test.py
+          python research/experiments/costfn/arm_f_startup.test.py
+          python research/experiments/costfn/arm_f_scoped.test.py
+          python research/experiments/costfn/arm_f_population.test.py
+          python research/experiments/costfn/arm_f_programme.test.py
+          python research/experiments/costfn/arm_f_read_first.test.py
+          python research/experiments/costfn/arm_f_prepare.test.py
+          python research/experiments/costfn/arm_satellite.test.py
+          python research/experiments/costfn/arm_satellite_sql.test.py
+          python research/experiments/costfn/arm_satellite_runtime.test.py
+          python research/experiments/costfn/arm_satellite_counts.test.py
+          python research/experiments/costfn/arm_satellite_metadata.test.py
+          python research/experiments/costfn/arm_satellite_reconcile.test.py
+          python research/experiments/costfn/arm_satellite_pull.test.py
+          python research/experiments/costfn/arm_satellite_profile.test.py
+          python research/experiments/costfn/arm_satellite_profile_api.test.py
+          python research/experiments/costfn/arm_satellite_batch.test.py
+          python research/experiments/costfn/arm_satellite_verify.test.py
+          python research/experiments/costfn/arm_satellite_serve.test.py
+          python research/experiments/costfn/arm_satellite_api.test.py
+          python research/experiments/costfn/arm_satellite_probe.test.py
+          python research/experiments/costfn/arm_satellite_ad_parity.test.py

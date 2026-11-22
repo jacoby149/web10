@@ -1,0 +1,27 @@
+{
+  "generated_from_merged_source_commit": "8402cd5fef88b8d36fe51a9a25faf5a9ee335574",
+  "modern_source_binding": {
+    "engagement_modern.py": "3295b92a11fad848a6e1976e7430cef1879aaae807b022d2a3dc09a0f82e6e54",
+    "engagement_native.py": "4b9a767fb80ee2fea97dcaae953fea4ffec8b98ce31939f66745ee03846f2d7a",
+    "engagement_restore.py": "8f101309986c2688594c3630ff046181c6324f85dbc4bbdea6ad6f151cd215a5",
+    "engagement_event_seed.py": "7c5e22d35d9b7256ac227d4dcb52e9d5561ba849cf2faca1bcbd1282def87ac0",
+    "engagement_composition_run.py": "fabb6272b0ccd35e9ea3b4b018e8ebd889487475cca2cea6eb6e0157a82e2f8e",
+    "engagement_events.py": "b8e6dff1f7432fffd104ba88827788860f346fc92ff81d50ab2e515155cc330a",
+    "engagement_composition_verify.py": "82ff9c40a01d0ebc5ce961c5a6684e7ca36a3298feb8ba0b6cba5d971acc7860",
+    "engagement_composition.py": "c5c95152f7cb4f91dc6d775e84705cbe3fbdf63904bfb2bb56731d8179bbb16f"
+  },
+  "row_model_directive": "Jacob Hoffman 2026-11-19 post-family maximal row-model assembly after all-fixes",
+  "row_model_source_binding": {
+    "row_model.py": "e7c8b45c022568e02e979b0e24bd8c2cf7a94a310901cc41d4a6250714b9b0ef",
+    "row_model_ingest.py": "ed9429443b1dec9936366a0c0e041af15b744c62728480de996a47e4eae781bc",
+    "row_model_sql.py": "6dc2615a55c0da03577632118daa2bca79397c91ca2d709327de882968b23656",
+    "row_model_store.py": "67ceb943dd354678135800113b3523217b4fa7ff2624ebed3deac5641cda90f1",
+    "row_model_fence.py": "9b778214c156436e2ecbf286d28601c398108f40b0707a4beb9c312adeccdd7c",
+    "row_model_cell.py": "1279a2ff1817452294cd1c924ac676ba916a944efbab9aef94471307f0c0bbd6",
+    "row_model_build.py": "69e0d16b6470fb4a0e9be717f8a6f5c413dcecc416e3c3bbac3c8d6c06414aa5",
+    "row_model_native.py": "faa15cf7139314aec2e249698171b79a1a9aa817ed9247c067c4ff4375da0dc8",
+    "row_model_actions.py": "b9dca7ed0ffa2fdc0bc4e0e712225f0a89972141d4d0811c1c6a0c16e7c5be59",
+    "row_model_worker.py": "0ab6b0d7a3e322ab0dc00d7464d0d2636877e4a741ba97fd9f7576e73cc43292",
+    "row_model_run.py": "c3c794c001b1716f6a5cc60d7f75c169c088412389d2577a8e931da85c6f144f"
+  }
+}

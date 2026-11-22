@@ -1,0 +1,9 @@
+{
+  "kind": "STOPPED_QUERY_LOG_PRESERVATION",
+  "no_engine_restart": true,
+  "previous_artifact_manifest_sha256": "a6137842acaf27cf013c4392e9b6eb9a00ad0da46e6e977c250efa9c15605145",
+  "private_only": true,
+  "available": true,
+  "bytes": 497213,
+  "sha256": "a25a19d3704e520db031458b0325ab29539e02f471a0ad2bee41ea7e27c40604"
+}

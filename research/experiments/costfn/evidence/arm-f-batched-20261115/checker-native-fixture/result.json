@@ -1,0 +1,27 @@
+{
+  "kind": "NATIVE_BATCHED_CHECKER_PREFLIGHT",
+  "outcome": "PASS",
+  "cases": [
+    {
+      "case": "positive_histories_shared_routes_same_id_authors",
+      "outcome": "PASS"
+    },
+    {
+      "case": "field_mutation",
+      "outcome": "DENIED_EXPECTED"
+    },
+    {
+      "case": "orphan",
+      "outcome": "DENIED_EXPECTED"
+    },
+    {
+      "case": "duplicate_cancels_missing",
+      "outcome": "DENIED_EXPECTED"
+    }
+  ],
+  "droplet_id": 619612240,
+  "scope": "tiny native SQL/semantic controls only; not full-store memory/parity or F performance",
+  "engine": "24.8.14.39",
+  "server_bytes": 23622320128,
+  "checker_source_sha256": "fa0df8ffc81f5d92a1d02dbdfc679697c2774833274b375036c113efd07153c8"
+}

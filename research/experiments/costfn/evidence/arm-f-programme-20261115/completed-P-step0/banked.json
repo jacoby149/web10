@@ -1,0 +1,10 @@
+{
+  "kind": "COMPLETED_ORIGINAL_P_STEP0_BANKED",
+  "droplet_id": 619625857,
+  "original_parity_receipt_sha256": "5bfb8574233934880380eb27ceb6fc37a250a6ec06fd6a08b1ac73c90dc6b5f3",
+  "private_baseline_archive_sha256": "acc1508f07b7809fa27dab09b34ad15ea1e1fba5bff3390426fd927c3d3966c9",
+  "original_source_manifest_untouched": true,
+  "F_gate_result": false,
+  "formal_T6": false,
+  "deadline_utc": "2026-11-16T00:33:47+00:00"
+}

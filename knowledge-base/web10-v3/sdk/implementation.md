@@ -1,5 +1,11 @@
 # SDK Implementation: ClickHouse SQL
 
+**Current API -> ClickHouse implementation, not replacement storage.** The
+JSON-body SQL and single `ref_value` column below remain current descriptions.
+D116 is DECIDED; D117 is DIRECTION (cell pending); D118 is DECIDED about API
+messages versus storage. [The design map](../db/design-revolution.md) owns links
+to those canonical definitions; no migration or native result is asserted here.
+
 Every SDK call triggers specific ClickHouse operations. This doc maps each SDK
 function to the SQL it executes — the "How Layer" of the v3 SDK. The surface is
 the real one (`sdk/src/v3.ts`); the SQL is the real one
@@ -290,12 +296,12 @@ a valid result.
 
 The ref filter — "give me the comments/reactions for these posts". `ref` is a
 single `doc_id` or a list. It is routed through the **safe-query engine**
-(`build_safe_query`), not a raw `WHERE` — so it carries the full boundary (group
+(`build_safe_query`), not a raw `WHERE` — so it retains API -> ClickHouse authorization (group
 filter + block/sharing/hidden anti-joins). The engine rewrites the service name
-to a boundary CTE and validates the query before execution.
+to an API-generated access-filtered CTE and validates the query before execution.
 
 ```sql
--- As written by the caller, then compiled to a boundary CTE by the engine:
+-- Caller SQL; the API supplies the access-filtered CTE before ClickHouse execution:
 SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at
 FROM comments
 WHERE ref_value = :postDocId          -- or: ref_value IN (:id1, :id2, ...)
@@ -305,13 +311,13 @@ LIMIT :limit;
 ### `w.readRefCounts(collection, { groups, ref })`
 
 The engagement-count shape — `{ ref_value: count }` for a set of posts. Same
-safe-query boundary as the ref filter, but a `GROUP BY ref_value`. The count is
+API -> ClickHouse authorization as the ref filter, but a `GROUP BY ref_value`. The count is
 exact for the reader's readable groups and never capped (the server-side
 replacement for "read a capped sample, count client-side"). A ref with no docs
 is absent (the caller treats absent as 0).
 
 ```sql
--- As written, then compiled to a boundary CTE by the engine:
+-- Caller SQL; the API supplies the access-filtered CTE before ClickHouse execution:
 SELECT ref_value, count() AS n
 FROM reactions
 WHERE ref_value IN (:id1, :id2, ...)
@@ -386,11 +392,11 @@ FROM doc_groups WHERE doc_id = :doc_id AND deleted = 0;
 Write a ClickHouse `SELECT` over your **services** and the node runs it.
 Read-only by construction: the safe-query engine rejects anything but a single
 `SELECT`, raw node tables, and table functions before anything executes. Every
-service name you reference is replaced by an API-built **boundary CTE**
+service name you reference is replaced by an API-built **access-filtered CTE**
 filtered to the groups you can read that service in — so aggregations,
 self-joins, subqueries, and your own CTEs are all fair game, and none of them
 can leak past your groups (the raw tables are unreachable — a wall, not a
-membrane). See `safe-query.md` for how the boundary works.
+membrane). See `safe-query.md` for API -> ClickHouse authorization.
 
 Each service CTE exposes: `doc_id`, `author_key`, `body` (a JSON string — use
 `JSONExtractString(body, 'field', 'value')` for fields), `ref_value`, `tags`,
@@ -400,7 +406,7 @@ The endpoint (`POST /v3/query`) runs, in order: the per-user rate limit (D65 —
 60 queries / 60 s, anon exempt), the app-contract gate (the query may only touch
 services the app's contract grants `readAll` on), `query_services` (parse +
 validate — an unsafe query is a **403** before any group lookup), the D58 read
-gate per service, `build_safe_query` (boundary CTEs injected), and
+gate per service, `build_safe_query` (access-filtered CTEs injected), and
 `execute_query` with `max_execution_time = 10`. A compiled query that then fails
 in ClickHouse is the **caller's** SQL (a column the CTE doesn't expose, a bad
 function arg) — a **400**.
@@ -983,12 +989,12 @@ ORDER BY created_at DESC;
 | `w.create(collection, body, { groups, ref_value })` | `INSERT INTO documents` + `INSERT INTO doc_groups` (N rows) |
 | `w.read(collection, { groups: ['me'] })` | reader's groups (dedup) → readable subset → discover query |
 | `w.read(collection, { groups, limit, offset })` | `documents` ⋈ `doc_groups` + blacklist/sharing/hidden anti-joins, deduped |
-| `w.read(collection, { groups, ref })` | safe-query engine: boundary CTE + `WHERE ref_value = …` |
-| `w.readRefCounts(collection, { groups, ref })` | safe-query engine: boundary CTE + `GROUP BY ref_value` |
+| `w.read(collection, { groups, ref })` | safe-query engine: API-generated access-filtered CTE + `WHERE ref_value = …` |
+| `w.readRefCounts(collection, { groups, ref })` | safe-query engine: API-generated access-filtered CTE + `GROUP BY ref_value` |
 | `w.readById(docId, collection)` | `documents` + `LEFT SEMI JOIN` membership + blacklist anti-join |
 | `w.update(docId, body, { groups })` | `INSERT INTO documents` (new version) + tombstone old `doc_groups` + new `doc_groups` |
 | `w.delete(docId)` | `INSERT INTO documents` (tombstone) + tombstone `doc_groups` |
-| `w.query(sql, { groups })` | safe-query engine: boundary-CTE SQL, `max_execution_time = 10`, `LIMIT 1000` if unbounded |
+| `w.query(sql, { groups })` | safe-query engine: API-generated access-filtered SQL, `max_execution_time = 10`, `LIMIT 1000` if unbounded |
 | `w.createGroup(name, joinPolicy, roles, members)` | `INSERT INTO group_contracts` + `INSERT INTO group_members` (per member) |
 | `w.getMyGroups()` | `group_contracts` ⋈ `group_members` (dedup) + batched member count |
 | `w.getGroupsManages()` | same + `manageRoles` filter (Python) |

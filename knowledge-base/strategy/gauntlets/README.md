@@ -1,5 +1,10 @@
 # Gauntlets — the social surface, tortured
 
+**Current app/API verification plans, not replacement storage.** JSON/ref
+examples here and in these gauntlets describe the current API. D116 is DECIDED,
+D117 is DIRECTION (cell pending), and D118 is DECIDED; see the
+[design map](../../web10-v3/db/design-revolution.md) for canonical target status.
+
 [← back to strategy](../plan.md) · [the theory this extends](../../../ai-pack/ai-use-theory/testing.md)
 
 A gauntlet is how you stop shipping the "I can't trust this button" bug.

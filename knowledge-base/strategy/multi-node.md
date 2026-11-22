@@ -2,7 +2,7 @@
 
 **Status: Phase B merged in #1351; #1360 merged; bounded H-REPLAY passes on clean merged-dev 0acc771e2efc. Evidence: `research/federation-demo/RESULTS.md`; broader gates remain OPEN.** web10 is a **federation of
 nodes**, not one node. This doc is the authoritative reference for *how* the
-nodes work together — the read model, the cross-node boundary, the security
+nodes work together — the read model, reader-app -> serving-node API authorization, the security
 invariants, and the phase sequencing. It is the "how" companion to **D84**
 (`decisions.md` — the decision + the canonical principal format) and **D7**
 (`decisions.md` — signing-key isolation remains open; live issuer certification
@@ -70,10 +70,12 @@ Consequences:
 
 ---
 
-## The cross-node boundary: the HTTP API + a verified token. Never the database.
+<a id="the-cross-node-boundary-the-http-api--a-verified-token-never-the-database"></a>
 
-**A node never queries another node's ClickHouse.** The cross-node boundary is
-the **HTTP API** with a **home-node-certified token**. Node A (or the browser, see
+## Reader app -> serving-node API authorization, never foreign-database access
+
+**A node never queries another node's ClickHouse.** At the reader-app -> serving-node API boundary,
+the serving API requires a **home-node-certified token**. Node A (or the browser, see
 the read model below) calls B's *API*; B enforces its own I3 on its own data;
 A never sees B's raw ClickHouse.
 
@@ -164,10 +166,11 @@ content it serves.
 node-ads are operator-curated, **not user-targeted**. A doesn't need to send
 alice's data to B to earn her ad revenue — A serves the ads *for her session*
 (on A). B only serves content when the user reads B's stuff; B's ads (if any)
-ride with that content. No PII crosses the boundary. That is the
-readable-by-design thesis (I4) doing monetization work: the data was never
-secret, so a node can serve a foreign viewer's reads without a privacy
-violation.
+ride with that content. Ad selection does not require forwarding a viewer
+profile from one node API to another. Reader-app -> serving-node API
+authentication still carries a token/principal; this is not a no-PII or
+anonymous-viewing guarantee. D115 (DECIDED) supersedes the old read-time ad
+selection described here; see the canonical decision ledger.
 
 **The "feel like one node" spectrum — what's winnable, what's the wall:**
 
@@ -181,14 +184,14 @@ violation.
   nodes that have them. Each node's ClickHouse fast-scans its local likes (this
   is where ClickHouse's power is real — it's an OLAP engine; "sum these up" is
   its home turf); the **API layer** does the HTTP fan-out + merge (I6 — the
-  boundary is the API, not the DB); the client shows a unified,
+  reader-app -> serving-node API boundary is used, never a foreign database connection); the client shows a unified,
   **eventually-consistent** count. This is where "feel like one node" is real
   and achievable, and it's *enabled* by readable-by-design (a privacy-first
   system couldn't do a global count without consent plumbing; web10 can,
   because the data was never secret). **Eventually-consistent is the bar** —
   ClickHouse is already eventually consistent *within* a node
   (ReplacingMergeTree dedups at merge time, not write time); across nodes it's
-  eventually consistent *and* aggregated over a boundary. A social feed's count
+  eventually consistent *and* combined from separate node API responses. A social feed's count
   is not strongly consistent anyway (Instagram's aren't), so a fast,
   accurate-enough number that settles in seconds is indistinguishable in
   practice.
@@ -233,7 +236,7 @@ Following bob on B, from home node A:
    `member_key = A/users/alice`, `role = member` (the D84 canonical format).
 4. Done. The follow is a **membership row on B**, referencing a foreign
    principal. bob's posts never leave B; only the membership reference crosses
-   the boundary.
+   the reader-app -> serving-node API boundary.
 
 The canonical format is what makes this unambiguous: `A/users/alice` and
 `B/users/alice` are distinct rows in B's followers group. Without it (today's
@@ -253,12 +256,13 @@ in Phase C — flagging now so it's not a surprise.
 The existing invariants (I1–I5, `security/overview.md`) carry over. Federation
 adds one, and the whole model is built to hold it.
 
-### I6 — the cross-node boundary is the HTTP API + a verified token; remote data is content, never control
+### I6 — reader app -> serving-node API; foreign response -> local parser is content, never control
 
 Two hard rules, together:
 
-1. **No node ever queries another node's ClickHouse.** The boundary is the
-   HTTP API + a JWKS-verified token. (See "The cross-node boundary" above.)
+1. **No node ever queries another node's ClickHouse.** Reader-app -> serving-node
+   API requests carry a verified token. Certification uses the serving-node API
+   -> home-node API exchange under the current auth contract, not a foreign SQL connection.
 2. **Remote data is content, not control.** A foreign node's response is
    *untrusted content* — the same category as a post body (already untrusted
    UGC). It is **never** query input, never a key into the local ClickHouse,

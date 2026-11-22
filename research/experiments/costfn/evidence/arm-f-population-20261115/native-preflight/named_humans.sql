@@ -1,0 +1,1 @@
+INSERT INTO users VALUES ('alice',toDateTime64('2026-11-15 00:00:00',3),0),('bob',toDateTime64('2026-11-15 00:00:00',3),0)

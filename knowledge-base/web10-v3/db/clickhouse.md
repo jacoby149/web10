@@ -2,6 +2,14 @@
 
 The data model. Every table, every index, every pattern.
 
+**Current implementation, not target DDL.** The JSON-body and single-`ref_value`
+schema below is retained as the current implementation. The canonical design
+definitions live in the [decision map's linked ledger](design-revolution.md):
+D115/D116/D118 are DECIDED, D117 is DIRECTION (cell pending), D119 is DIRECTION,
+and D120 is PRINCIPLE. Existing projection/JSON examples are not an instruction
+to preserve that physical representation in the replacement. No DDL, native
+evidence or production rollout is changed by this label.
+
 **v3 is ClickHouse-only.** FerretDB and Postgres have been removed from the stack. Every operation — auth, CRUD, groups, contracts, media, accounts — goes through ClickHouse. No MongoDB. No DocumentDB. One database, one query engine, one deployment.
 
 New API service identifiers and grant keys canonicalize to lowercase; ordinary
@@ -11,6 +19,39 @@ legacy-data migration or production rollout; see [service-names.md](service-name
 for the production inventory and migration/authorization gates.
 
 ## Schema Architecture
+
+### Runtime engine upgrade —17 November2026
+
+The operator requested a current engine. Local/E2E/ecosystem Compose now share
+the explicit mirrored server tag `26.10.4.207`, sourced from the official
+multi-platform image digest in `e2e/mirror-images.json`. This was Docker Hub's
+newest published stable server image at inspection. GitHub had just announced
+`26.10.5.57-stable`; its official image endpoint still returned404. Do not
+substitute `head` or pretend an unavailable image was installed.
+
+Publish only the new target with `ghcr-mirror`'s optional exact `target` input;
+never repoint historical24.3/24.8 tags. Source configuration/mirror publication
+is not a live deployment or proof of an in-place data upgrade. Back up the
+existing store, rehearse the supported upgrade path on a copy, verify schema,
+read/write/history/permission behavior, then approve rollout. Do not assume
+starting the old image can safely undo new-engine data-format changes.
+
+**Historical projection/engine comparison, not current run selection.** The old
+control and later modern-engine baseline/treatment results are linked from the
+[design map](design-revolution.md). New experiments follow the
+[directive precedence index](../../../research/experiments/costfn/README.md#directive-precedence-index),
+not a request to rerun a banked baseline from this paragraph. `_part_offset`
+was a proposed same-projection comparison; it is not a second admitted layout
+or the D116 (DECIDED)/D117 (DIRECTION, cell pending) target. Current history,
+full-key and policy checks remain mandatory; no offset or production acceptance
+is claimed. Historical technology reference:
+<https://clickhouse.com/docs/data-modeling/projections>.
+
+**Planned delivery architecture, not current schema:** D113 specifies a generic
+recipient-pointer table alongside canonical documents, with small-group fanout
+and large-group seek. See [group-delivery.md](group-delivery.md) for the pre-build
+shape, tombstone rules and open schema/recovery decisions. No table below is
+replaced, and this note does not claim that fanout is implemented.
 
 ```mermaid
 erDiagram
@@ -166,7 +207,7 @@ ORDER BY (author_key, doc_id);
 
 **Tombstones:** deletes are inserts with `deleted = 1`. The engine is a ReplacingMergeTree, so the live row and its tombstone COEXIST until a background merge physically compacts them — a raw `WHERE deleted = 0` therefore keeps serving the live row in that window (a deleted post "lingers" on whatever read path took the raw filter). The read contract is **dedup-then-filter**: rank the latest version per key with `row_number() OVER (PARTITION BY … ORDER BY updated_at DESC, deleted DESC)` (the deletion wins timestamp ties), take `rn = 1`, and only then apply `deleted = 0`. The board/group reads (`_board_base_sql`), the by-author read (`read_documents`), the single-doc read (`read_document_by_id` — the last raw reader, fixed 11.11.2026 after the music-social-library connected acceptance caught a deleted post lingering on a collection's items until a merge happened to run) and the media list all carry the dedup; a new read path that filters `deleted = 0` on `documents` without the `row_number()` rank is a review rejection. (No TTL — the `documents` table keeps data until explicitly deleted; the node is the user's data lake.)
 
-**`ref_value`:** the universal link. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`.
+**`ref_value` (current implementation; single-link future design superseded by D116):** the universal link. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`. The intended N-ref replacement is recorded in [the decision map](design-revolution.md), not implemented by this schema description.
 
 **`ad_mode` + `ad_target`:** the v3 ad preference (`../social/ads-dissemination.md`). `ad_mode` is `none` (the default — no ad) or `pinned` (the doc carries a specific ad); `ad_target` is the pinned ad's `doc_id`. The read serves a pinned doc with its ad inline, I3-checked. Pre-existing volumes get the columns via the boot self-heal (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`), which is why document inserts are positional and append the values last.
 
@@ -526,7 +567,7 @@ TTL ts + INTERVAL 30 DAY;
 
 | `service` | Source | How |
 |---|---|---|
-| `api` | API middleware (`app/middleware.py`) | When downstream yields a response: allowlisted method, server route template (not raw URL), status, latency and severity; body/meta/user_key/origin columns empty ([logging boundary](../security/logging.md)) |
+| `api` | API middleware (`app/middleware.py`) | When downstream yields a response: allowlisted method, server route template (not raw URL), status, latency and severity; body/meta/user_key/origin columns empty ([API handler -> operations-log contract](../security/logging.md)) |
 | `sdk` | Browser SDK via `POST /v3/logs` | Console logs tee'd from the demo app. Tagged with `user_key` + `origin` |
 | `e2e` | Playwright runner via `POST /v3/logs` | Captured browser console + network logs after each test. Tagged with `test_name` in `meta` |
 

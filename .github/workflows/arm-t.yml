@@ -1,0 +1,35 @@
+name: additive-arm-t
+
+on:
+  pull_request:
+    paths:
+      - research/experiments/costfn/arm_t*
+      - research/experiments/costfn/ARM-T.md
+      - research/experiments/costfn/evidence/arm-d-compiled-main-golden-20261109.sql
+      - research/experiments/costfn/evidence/core-feed-wire-v7.json
+      - api/app/v3/services/safe_query.py
+      - api/app/v3/service_names.py
+      - .github/workflows/arm-t.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Arm T (no engine or network execution)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install parser pinned to the API lock and offline test dependencies
+        run: python -m pip install sqlglot==30.18.0 pydantic==2.13.4 ruff==0.15.22 -r research/experiments/costfn/realism-requirements.txt
+      - name: Lint the isolated additive surface
+        run: python -m ruff check research/experiments/costfn/arm_t*.py
+      - name: Exercise admission, actual compiler, SQL structure and mocked adapters
+        run: |
+          python research/experiments/costfn/arm_t.test.py
+          python research/experiments/costfn/arm_t_probe.test.py
+          python research/experiments/costfn/arm_t_oracle.test.py

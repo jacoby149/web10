@@ -47,10 +47,20 @@ hosting is the margin, node ads are the compounding asset.
 - the wedge cohort (obtainable now): recently platform-burned
   creators in that band. they self-identify publicly (reach-collapse
   complaints, demonetization videos, announced substack/rumble
-  moves). outreach.md is the pipeline playbook.
+  moves). the creator pipeline playbook (archived:
+  strategy/archive/creator-influencer-track/outreach.md) served that track;
+  the dominant GTM is now org-to-org (strategy/org-to-org.md, D112).
 - comparable outcomes anchoring the ceiling: automattic ~$7.5B,
   shopify, substack ~$650M–1.1B raise-era, onlyfans ~$6B+/yr GMV
   with ~40 employees (the per-employee ceiling of the category).
+
+**Institutional business-scale reference (operator, 15.11.2026):** TorahAnytime's
+supplied banner reports 1,200 weekly lectures, 1.2K unique speakers, 400K Torah
+classes, 500K monthly visitors, 4M hotline calls and 18M+ hours learnt. This is a
+concrete scale of customer business we want web10 to support, not a verified
+deployment-capacity result, revenue projection or research-paper input. Metric
+definitions, unknown reporting periods and sizing assumptions are recorded in
+[`torah-anytime.md`](torah-anytime.md#business-scale-we-want-to-support).
 
 ## 4. business model + pricing (D57, 30.08.2026)
 
@@ -498,8 +508,11 @@ money here buys TIME and PROOF-VELOCITY, not survival.
 ## 10. risks (top 5, honest)
 
 1. founder sales execution (the 208 pattern): the plan's #1 risk
-   is that pitches don't get sent. mitigation: outreach.md makes
-   sending mechanical; the M0 gate has a date.
+   is that pitches don't get sent. mitigation: the archived creator
+   pipeline playbook (strategy/archive/creator-influencer-track/outreach.md)
+   made sending mechanical; the M0 gate had a date. The dominant
+   org-to-org strategy (strategy/org-to-org.md, D112) has no pipeline yet —
+   see its "Implications" section.
 2. founding creators sign but don't post (weak-commitment yes):
    mitigation: memberships live at onboarding, white-glove
    includes a first-week posting plan (start fresh — no bulk import,

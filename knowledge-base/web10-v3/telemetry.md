@@ -90,7 +90,7 @@ unchanged. Their previously recorded counting/window issues are not fixed here.
   require explicit operational inputs. No invented CAC, automatic fraud bans,
   "real human" guarantee, or winner claim from immature/tiny samples.
 
-## Content boundary and recording
+## Browser page -> PostHog capture boundary and recording
 
 Manual events pass a final schema/property allowlist. Routes are templates, not
 user/document/conversation IDs. Search, hashes, raw auth URLs, contacts, profile
@@ -100,7 +100,7 @@ never enter frontend config. Person profiles are used only for verified opaque
 identities. Public vendor ingestion remains forgeable: `capture_origin=server`
 is a provenance convention, not cryptographic vendor enforcement. Reconcile
 important claims against canonical facts; do not treat the public project key as
-an anti-fraud or payout boundary.
+an anti-fraud decision or payout-eligibility gate.
 
 **D107 (09.11.2026) supersedes the blanket exclusion below: visible by default,
 mask sensitive regions.** The operator rejects mask-everything-then-allowlist.
@@ -183,7 +183,7 @@ dimensions also survive; masking `type="text/css"` disables the stylesheet.
 Before activation, verify current legal copy, retention/deletion procedure and
 approved project access. Live vendor storage/report reconciliation, playback,
 actual signup/popup flow, multi-tab/account switching, outage/restart/quota
-behavior, Safari/physical-phone Instagram and independent boundary review remain
+behavior, Safari/physical-phone Instagram and independent browser-page -> PostHog capture review remain
 release gates. Existing source-audit scenarios in `strategy/influencer-analytics.md`
 remain useful; current plan is `strategy/posthog-migration.md`. No production
 configuration, deployment, vendor writes or vendor-account cancellation is implied

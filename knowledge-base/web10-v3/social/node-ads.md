@@ -1,5 +1,11 @@
 # Node-Level Ads (v3): The Operator's Ad Inventory
 
+**Current implementation/history, not target selection.** D115 is DECIDED;
+the [decision ledger](../../strategy/decisions.md#d115--ads-are-a-billboard-not-a-tracker-decided)
+owns the billboard model. The two-layer/read-time design below is retained as
+superseded history, not a competing future contract. Experiment results and
+production rollout remain unclaimed.
+
 > **v3 design** (30.08.2026). The node operator's ad layer — the second
 > layer of the two-layer ad model (D57). Read `ads.md` (the ad object, D55)
 > and `ads-dissemination.md` (the v3 dissemination, `pinned` | `none`)

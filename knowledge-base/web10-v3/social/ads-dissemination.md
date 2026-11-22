@@ -1,5 +1,11 @@
 # Ad Dissemination (v3): The Ad Preference on the Document
 
+**Current implementation/history, not the target.** D115 and D116 are DECIDED;
+the [decision ledger](../../strategy/decisions.md#d115--ads-are-a-billboard-not-a-tracker-decided)
+owns placement and relationship semantics. The older implementation below is
+retained as superseded context. It does not prescribe new read-time selection,
+claim measured remodel acceptance or authorize production changes.
+
 > **v3 design** (27.08.2026). How a document's ad gets chosen in v3 — **mad
 > simple**: `pinned` | `none`. The creator pins an ad to a post, or doesn't. The
 > full curation engine (`round_robin` / `greedy` / `random`, the node-level
@@ -60,7 +66,7 @@ independent live alternate-group grants survive. See the
 Other readers' tie ordering, production lifecycle and broader ad policy remain OPEN.
 
 **Hidden-creative evidence (07.11.2026):** current membership and attachment
-do not establish moderator visibility. The actual query boundary excludes a
+do not establish moderator visibility. The API -> ClickHouse query authorization excludes a
 creative hidden in its sole readable group, while pinned-ad enrichment still
 delivers/signs it in the synthetic replay. [Six-case evidence](../../security/scans/2026-11/h01-pinned-hidden-proof.md)
 retains newer unhide, unrelated hides and independent uploaders. Runtime is

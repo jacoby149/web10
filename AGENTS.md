@@ -6,8 +6,9 @@ This file is the only root-level doc you need. Read it top to bottom.
 Everything else is a read you choose to make when relevant.
 
 **Browse `knowledge-base/strategy/` before responding.** It is the project's
-brain — the plan, the execution lanes, the design standard, the decisions,
-the manifesto, the timeline. These are root-level docs that define what the
+brain — the plan, the execution lanes, the dominant strategy
+(`org-to-org.md`), the design standard, the decisions, the manifesto, the
+timeline. These are root-level docs that define what the
 project is, where it's going, and how work is organized. The read is NOT
 optional and NOT skippable for greetings — do not greet first and read
 later. Greeting behavior (below) governs how you sound AFTER the read, not
@@ -30,7 +31,7 @@ you from reimplementation due to misalignment. The KB is the root of trust — k
  apply.
 
 **Load `ai-pack/ai-security-theory/README.md` before doing security work**
-(hardening, scanning, or any PR that touches a trust boundary — auth, tokens,
+(hardening, scanning, or a PR changing app -> API credentials or API -> ClickHouse authority — auth, tokens,
 the DB read gate, federation, the SDK's credential surface). Security is
 *coverage, not convergence*: **orient first** (read
 `knowledge-base/security/learnings.md` — onboarding, recession, the obvious gap),
@@ -88,7 +89,8 @@ The tour, in this order:
    - `web10-v3/` — the implementation details (db, auth, security, telemetry,
      groups). We're on v3.
     - `strategy/` — the plan, decisions, design standard, manifesto,
-      timeline, execution lanes.
+      timeline, execution lanes, and the dominant GTM (`org-to-org.md`;
+      the creator track lives in `archive/creator-influencer-track/`).
     - `changelogs/` — what shipped and why, newest first.
     - `security/` — written security (WS): the invariants (I1–I6), the security
       record, the big-picture backlog, and the scan records.
@@ -241,12 +243,23 @@ ban (100% delivery by architecture) — and the protocol exists to make that
 ownership possible. Protocol/feature decisions are judged by whether they
 make the creator platform better. Read THE STORY at the top of
 `knowledge-base/strategy/plan.md` before touching product surfaces; the fan-
-facing voice lives in `knowledge-base/strategy/manifesto.md`, the creator pitch
-in `knowledge-base/strategy/outreach.md`. **Read `knowledge-base/strategy/thesis.md`
+facing voice lives in `knowledge-base/strategy/manifesto.md`, the dominant
+GTM frame in `knowledge-base/strategy/org-to-org.md` (org-to-org, D112), and
+the creator pitch is archived at
+`knowledge-base/strategy/archive/creator-influencer-track/outreach.md`. **Read `knowledge-base/strategy/thesis.md`
 before any product or security call** — web10 is a data-policy platform,
 not a privacy platform (D41): the node is readable by design (discovery /
 search / auditability), there is no default e2e, and the client is a PWA,
 not a native app.
+
+**Dominant GTM since 15.11.2026 (D112): org-to-org.** Organizations run
+nodes — their brand, their community, their content policy — and the network
+grows node by node, old-internet style ("getting the world online"). The
+customer is an organization with something positive to spread and no
+in-house social media capability, not a banned influencer. The creator/
+influencer track is archived, not erased, at
+`knowledge-base/strategy/archive/creator-influencer-track/`. Frame:
+`knowledge-base/strategy/org-to-org.md`.
 
 **D107 replay policy (09.11.2026): visible by default, mask sensitive regions.**
 The operator explicitly rejects mask-everything-then-allowlist. Normal UI and
@@ -301,6 +314,353 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
     shaped, video + streaming).
 
 ## How the data model works
+
+**19 November design revolution — intent, not shipped storage (D115–D120):**
+The canonical definitions/statuses live in `knowledge-base/strategy/decisions.md`:
+D115 DECIDED, D116 DECIDED, D117 DIRECTION (cell pending), D118 DECIDED,
+D119 DIRECTION, D120 PRINCIPLE. Read the navigation/evidence links in
+`knowledge-base/web10-v3/db/design-revolution.md`; do not copy its linked
+reports' numbers into new guidance. The current JSON/`ref_value` implementation
+is NOT the target or a permanent hybrid. Retain canonical JSON for experimental
+source/oracle/fallback until replacement proof; source machinery is not native
+acceptance or production migration. Old `ref_sorted` receipts remain history.
+
+“Make all the fixes, then do the experiments”: prepare row-model source before
+spending; bank all-fixes measurements before row-model assembly measurements.
+`research/experiments/costfn/README.md` owns directive precedence. No documentation
+entry grants code/native/cloud action or upgrades a pending gate. The older
+execution notes below remain historical, not instructions to reopen a lease.
+
+**Writing rule:** name the two systems in a complete sentence, for example
+“At the API -> ClickHouse boundary, the API supplies authorized SQL.” See
+`knowledge-base/strategy/interface-language.md`. D121 (DECIDED) paper strategy,
+projected dates and fallback live only in `knowledge-base/strategy/paper-submission.md`.
+
+**20 November layout/clock ruling (D122):** platform analytics physical layout is
+ours to choose, including production intent; event values stay frozen. The new
+admitted research attempt clones every live column into day-partitioned events
+with existing doc/reader order, one sorted rebuild and old/new all-column per-day
+hash/count census before atomic exchange. Other measured layouts stay frozen.
+After separate fix merge/source controls, one fresh all-fixes→row-model lease
+uses a24-hour self-kill backstop; the programme has$1,000 and costs are receipted.
+No production migration, guardian or old-lease reopening follows. Current
+precedence/admission: `research/experiments/costfn/README.md`.
+
+**22 November D124 pin amendment, source only:** the isolated composition now
+coalesces agreeing full creative(target_author,target_id) pins per full-key post;
+different targets refuse and author wins among agreeing placements. Every
+eligible pin validates first; existing canonical eligibility exclusions/current
+creative authority remain unchanged, as do zero-pin/no-ad and shared campaigns.
+The independent oracle/ads gate name the deliberate semantics amendment; it is
+not a parity-preserving optimization or a retroactive native verdict. Banked
+338-document/950-link fixtures are unchanged. Workstream A merges separately
+before B's uniform read reorder; no cache/native run/lease follows and uniform
+measurement stays behind the row-model run. Contract:
+`research/experiments/costfn/PIN-AGREEMENT-AMENDMENT.md`.
+
+**22 November Workstream B successor:** after A/#1608, the isolated pin reader
+now selects complete current winners using named skinny canonical columns, then
+materializes only exact full-key survivors under rechecked eligibility and D124.
+No cache/truncation or creative-fetch change; separate pin_selection and
+pin_materialization costs remain. Source controls are not native acceptance.
+The operator explicitly authorizes B→green checks→merge→one combined experiment
+with five-minute monitoring, superseding the earlier separate-row-first
+measurement restriction only for this fresh run. Contract:
+`research/experiments/costfn/PIN-SELECT-MATERIALIZE.md`.
+
+**22 November row identity source repair, native pending:** generated IDs use
+the pinned driver's true per-call query_id parameter, not transport headers;
+log comments remain correlation. Insert metadata and each receipt observation
+have distinct true AUX identities with explicit receipt scope. Submit-once,
+native limits, treatment and bridge checks remain; known mismatches fail without
+remapping history or abandoning genuinely live native work on a client cap.
+Source controls are not a rerun: attempt7's STOP/full-family NOT BANKED/six stages
+NOT RUN remain. Uniform inventory separately finds the10GB read is canonical pin
+discovery after page selection, requiring the documented body-input/bound fork;
+no uniform reorder/cache/native result is implemented. Row native proof stays
+first. `research/experiments/costfn/ROW-MODEL-RUN.md` and
+`research/experiments/costfn/UNIFORM-PREPARATION-INVENTORY.md` own details.
+
+**Latest native composition,22 November UTC:** merged PR#1605 banks full
+construction/four gates/three parity responses and real D123 decomposition PASS;
+budgets FAIL. The row bridge accepts and starts its worker, but receipt transport
+sends query_id as an ordinary HTTP header:39 client-complete claims match zero
+native IDs while57 actual server UUIDs finish. No active row-data query remains;
+agent stops the worker, preserves original RUNNING plus supervisor STOP, without
+ID remapping/source retry. Full-family build NOT BANKED; six assembly stages
+NOT RUN, D117 pending. Off-host state/native custody and owned cleanup verify,
+snapshot retained, admission closed. Report:
+`research/experiments/costfn/evidence/all-fixes-reconciled-20261122/RESULTS.md`.
+
+**21 November measurement-policy reconciliation (D123), source implementation:**
+research audits admit only the exact parsed, bounded current-reader delivery
+history lookup as `delivery_dedup_raw_read`, retaining all native costs and the
+original stage. Raw metric fallbacks and existing retired-query/digest/identity
+guards remain denied. Offline replay of all410 attempt6 captured statements
+preserves additive actuals; attempt6's INCOMPLETE decomposition and NOT RUN row
+outcomes remain history. No production API/gate/budget/oracle/row-bridge change,
+lease/native action or admission. See the costfn contract and D123.
+
+**Latest batched proof,20–21 November UTC:** merged PR#1603 passes489 all-time
+batches over2,000,001 document IDs, exact1.6B reconciliation and all four formal
+composition gates. Uniform K20/paired P/F responses retain exact parity and
+budget FAIL. Statement auditing rejects the raw delivery-history max(seen_at)
+read; decomposition stays INCOMPLETE and row-model measurements do not run.
+The diagnostic query inventory retains that cost, not a retroactive audit PASS.
+Receipts/native parts verify off-host before owned cleanup; snapshot retained,
+admission closed. Report:
+`research/experiments/costfn/evidence/all-fixes-batched-20261120/RESULTS.md`.
+
+**Earlier layout/views run,20 November UTC:** PR#1602's merged source passes full
+1.6B old/new event count/hash identity and all319 day slices, with exact1.6B day
+reconciliation. The one-shot all-time MergeState derivation stops241 at22GiB;
+formal parity, feed and row-model measurements remain blocked. State/native
+receipts verify off-host, owned resources are cleaned and the snapshot retained.
+Bounded4096-document historical all-time backfill is a source repair, not native
+fit proof or a new paid admission. Report:
+`research/experiments/costfn/evidence/all-fixes-layout-20261120/RESULTS.md`.
+
+**Earlier banked views run,20 November UTC:** day slices are PARTIAL at the retained
+service bound:293 controller-PASS/294 native finishes, exact partial day counts,
+no full1.6B reconciliation/all-time derivation/formal parity/feed/row timing.
+Native read amplification is reported, not a failure gate; observed slice memory
+fits22GiB but does not prove full completion. Owned resources are cleaned,
+snapshot retained, admission closed. Source-only all-time diagnostic label
+repair is not deployed to the stopped run. Report/319-slice native CSV:
+`research/experiments/costfn/evidence/all-fixes-two-grain-20261120/RESULTS.md`.
+
+**Views amendment,19 November (research source, native pending):** retain raw
+platform events and the day-grained `content_events_aggregated` analytics table;
+add `content_events_aggregated_all_time` for feed reads. Both MVs consume raw
+inserts, then the quiescent seed builds day slices and derives coarse states
+with MergeState, never a second raw seed or summed distinct counts. Both grains
+need named raw-oracle parity before timing. Logical1.6B event reconciliation is
+separate from measured native rereads. No production integration or app writes.
+Contract: `research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md`.
+
+**Latest D114 evidence,19 November directive/20 November UTC:** the stdin-fixed
+attempt completes native exact-value checks over all20 actual paired roots in
+all five domains, with off-host SQL-hash/native-finish audit. That closes the
+missing-root proof gap described historically below. Formal composition gates
+stay BLOCKED after aggregate seed241/22GiB; no feed/row measurements or production
+acceptance. Owned resources are cleaned, snapshot retained, admission closed.
+Report: `research/experiments/costfn/evidence/all-fixes-stdin-20261119/RESULTS.md`.
+
+**Generic tallying (D114), operator18 November2026 (historical run statuses below):** tallying belongs in the
+fanout family as a generic platform-maintained satellite; meanings are named
+recipes/data, not social-specific node columns. The isolated admitted tally
+experiment builds/verifies canonical scope-qualified `counting_numbers` values
+on the migrated store and redirects only displayed feed counts. Every engagement
+contributes to its root and distinct finer target; root-wide versus direct-post
+reaction kinds remain separate so the existing oracle is unchanged. Live write
+maintenance/invalidation/protocol/production implementation is not admitted.
+Contract: `knowledge-base/web10-v3/db/tallies.md`; new run and verdict live in
+the existing engagement task block. PR#1590/F FAILs remain banked; raw views,
+preparation and unclassified are separate remainders, not the tally verdict.
+The first tally lease620898285 is now cleaned up. Ordinary count-stage collapse
+and exact ordinary response parity are measured, but full tally acceptance is
+OPEN: all20 actual paired roots were omitted from five legacy-page verification
+domains, hidden by zero defaults. Source target selection/domain refusal is
+repaired; it is not retroactive native proof. Preserve raw PASS flags and qualified
+numbers, do not claim the paired gate passed, and do not start a new paid run
+without fresh admission. Audit/results:
+`research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md`.
+The later coverage-repair lease was operator-cancelled and cleaned up; it did
+not close that gap. Current precedence/state is in the costfn README and linked
+contracts. D114 full acceptance stays OPEN on the paired gate. Neither repaired
+source nor the committed run machinery is proof that the missing native gate ran.
+
+**Costfn execution override — Jacob Hoffman,18 November2026:** for all future
+costfn experiment runs, including completion work, the governing policy is
+`research/experiments/costfn/README.md` “Governing execution directive”. No
+experiment row-count stop (`max_rows_to_read`/code158); measurement statements
+have a600s bound whose timeout/partial actuals are results, not run aborts.
+Native-completion polling must not abandon running work at fixed client caps.
+The13 November$40 programme compute ceiling is retired; receipt per-run costs.
+500ms/25MB are success lines only, not future abort conditions. Preserve the
+oracle/adversarial fixtures/claim discipline,32/28/22GiB comparison frame and
+agent~300s/self-kill/no-guardian supervision. Explicit operator run admission
+remains; no new host or reopened lease follows from policy capture. Conflicting
+limits/byte stops below and in older task blocks are historical, not governing
+future execution. The admitted engagement completion now has native results in
+`research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md`;
+other research entry points still require explicit harness alignment before use.
+Production query limits are unchanged.
+
+**Planned group delivery (D113), not implemented:** the operator chose built-in
+generic hybrid distribution for every group-published document: under 2,000
+members fan out recipient pointers; at/over 2,000 use group/time seek by default. Canonical
+documents remain the sole content source; canonical attachments/grants/policies
+still decide access. Resolve latest versions/tombstones before serving; stale
+pointers are never authority. Operator-approved research shape/DDL/recipient,
+history and recovery contract: `knowledge-base/web10-v3/db/group-delivery.md` and
+`research/experiments/costfn/ARM-F-DESIGN-CLOSURE.md`. Publish classification and
+recipients come from one canonical `group_members` pass; no membership counter
+or recipe (`counting_numbers` stays engagement-only). Fanout inserts are append-only,
+never re-rank the reader; logical200 cap is read-time plus amortized background trim.
+Write-path delivery maintenance is unconditional, independent of read usage;
+the cutoff still bounds recipient expansion. Query-engine/read queries must be
+explicitly written to exploit the layouts; arbitrary queries are not auto-optimized.
+No production/capacity or paid experiment admission follows from this intent.
+Separate research admission is now granted in the closure record: one fresh
+isolated four-hour/$2 DO run, unchanged32/28/22GiB/24.8.14.39/10s/>10M stop,
+mandatory concurrent R+W, layered cleanup; actual host/deadline still must be bound.
+T7 requires separate admission. Settings range is deferred, not a research gate.
+The isolated `arm_f*.py` source prototype is not a platform implementation:
+the15 November run stopped in P transpose reconciliation/native241 at22GiB,
+before serving or any F native gate. Count T1 alone passed; owned resources were
+cleaned up early. Failure/cleanup receipts live in the existing closure file and
+`evidence/arm-f-20261115/P-setup-stop/`; no current paid/native continuation grant.
+Subsequent operator approval permits a new online batched-checker run, not old-
+lease reuse: DO619612240 through15 November23:24:56UTC, same four-hour/$2 caps.
+Tiny native checker controls pass under22GiB; full-store fit/F gates remain open.
+That retry was operator-cancelled at20:14UTC with owned cleanup verified20:16UTC.
+The replacement DO619625857 is admitted through16 November00:33:47UTC in the
+same four-hour/$2 shape. Isolated full-population seed/rebuild source now exists
+in `arm_f_population*.py`: early F gates first, canonical small-group membership,
+newest200 full identities/all routes per human, bounded statements and native
+rehearsal, then populated T6/T5/R+W. Native/full-store proofs remain OPEN; the
+original P-stage launcher did not supply later F gate drivers. The6.21.0 research
+source adds `arm_f_programme.py` and real lifecycle/load/fenced-rebuild drivers,
+with132 passing no-engine controls; current-source native rehearsal now passes
+at fixture scale, while actual F gates remain OPEN. Future launches use `arm_f_run.py --programme`; the existing
+worker is not updated merely by committing source.200M identities is not a
+physical-route-row ceiling, and no production-equivalence claim follows.
+The new native fixture passes402 logical routes/36 statements before archive
+retrieval; receipts: `evidence/arm-f-population-20261115/native-preflight/` under
+the costfn directory. This is not full-population fit or any F performance gate.
+At22:09UTC the merged2ca24da5c2c0 continuation starts separately on the same lease:
+old P Step0 parity PASS is banked,996 continuation source hashes verify, and its
+updated native rehearsal passes49 population/shadow statements. Build preparation
+uses a fresh trial copy; original P source/store remain intact. T4 and later
+gates were not reached: Build passes23:23UTC, then T4 stops before its first
+publish because deferred FastAPI router hooks were not discovered. Owned provider
+cleanup verifies16 November00:35:30UTC (103.557s late, no billing guarantee).
+The operator's next run is scoped to F gates only, citing banked PR#1572 P rather
+than remeasuring Step0. Real-dispatch hook repair/fail-fast boot and a separately
+guarded actual-deploy/authorized-publish rehearsal precede any gates clock.
+Rehearsal DO619676674 completes real API boot/all nine hooks and an authorized
+ten-recipient publish at16 November02:40:56UTC; nine native write receipts have
+zero exceptions. The209.694ms single write is not feed latency/p95. Original
+failed attempts/forensics remain intact; owned cleanup verifies02:45:33UTC.
+Fresh F-only DO619706349 runs02:47:54→T4 STOP03:52:17UTC, with banked P cited rather
+than remeasured. Build passes;60 F publishes reconcile pointers and20-sample write
+p95s are228.992/267.406/276.930ms at10/500/999 members. Periodic trim latches
+`ProgrammingError`;1,999/2,000 F writes, final T4 native validation and every read/
+later gate are unreached. This is a maintenance-path rehearsal escape, not a feed
+latency result or arm PASS. Raw/source/stopped native query-log receipts are banked
+at `evidence/arm-f-gates-only-20261116/` (raw private); owned cleanup verifies
+04:02:28UTC before original06:47:54. No restart/extension; further native/paid work
+needs fresh admission after source-only trim diagnosis and maintenance-covering
+rehearsal.165 pinned controls/Ruff and separate actual-lifespan-owner cap controls
+pass, not full native acceptance. Explicit
+bounded-spot infrastructure labels do not claim new full parity. The research
+startup guard preserves only the lifespan owner's caught code16 CREATE warning;
+HTTP/background/native caps still stop. The16 November operator directive in
+`task-block-fanout-arm.md` revokes the independent guardian/watchdog prerequisite,
+including PR#1576: agent supervision about every300s and droplet self-kill timers
+are the approved model; do not activate or build external supervision. Evidence
+collection/checkpoints remain required. Safety apparatus must cost less than the
+loss prevented; no further hardening layers without explicit operator approval.
+Fresh F-only DO620048100 passes deployed trim and100 treated writes, including
+1,999/2,000-member cases. Original final-validator ParseError remains preserved;
+validation-only repair passes1,560 original native rows without repeating writes.
+The separate same-lease continuation stops at T2's required fixture-coverage
+guard before any serving sequence: setup clock was forwarded only for explicit
+IDs. Explicit fixture IDs have a source-only repair, not native acceptance.
+Feed-read/population/R+W remain unreached; no read-cost/whole-arm PASS. Full
+private receipts/stopped native parts are retained and owned cleanup verifies
+17 November00:35:55UTC, before02:03:51UTC; estimated compute$0.63363, not invoice.
+Admission closed, no automatic retry. Final receipt lives under
+`evidence/arm-f-directive-20261116/` in the existing costfn directory.
+Gates retain four hours/$2 and all
+original limits/trials/order; the operator's$20 overall safety ceiling does not
+authorize automatic retries/extensions or T7/production.
+Subsequent17 November direction explicitly authorizes persistent Config F
+fix/run/300-second-check iterations to obtain the read measurements, without
+asking again at each routine harness repair. This supersedes admission-per-repair
+blockers for that task, not historical STOPs or cleanup receipts. Each fresh lease
+still binds its own four-hour/$2 window inside the existing$20 overall ceiling;
+never weaken the oracle/native limits, disguise a repeated attempt as a fresh
+trial, or expand into production/§8/P1/T7. Full current directive and receipts:
+`research/experiments/costfn/task-block-fanout-arm.md`.
+That persistent run now obtains native fixture parity, a retained prepared
+snapshot255003176 and real complete-read measurements. Ordinary K20 F is
+4,702.160ms/3,734,802 rows/286,693,122 logical bytes with exact parity/positive
+views;500ms/25MB FAIL. The predeclared byte stop prevents further trials and
+population/R+W, so no p95/full T6/arm PASS. Owned cleanup verifies17 November
+06:47:54UTC before06:58:36; compute estimate$0.95546/not invoice, snapshot storage
+separate/restore speed unmeasured. Preserve all earlier failures; receipts:
+`research/experiments/costfn/evidence/arm-f-persistent-20261117/`.
+The separately approved17 November engagement experiment now implements one
+skinny `ref_sorted` projection, uniform root refs on a disposable document copy,
+and diagnostic-first insert aggregation of `content_events` (events do not move).
+Engagement schema/runtime integration stays off. The operator separately requests
+an engine upgrade: active local/E2E/ecosystem Compose now pins the mirrored
+26.10.4.207 official image (newest published image observed; the just-announced
+26.10.5.57 tag was not yet published). Historical24.8 receipts/pins remain intact;
+Jacob's subsequent17 November directive LIFTS the engagement engine freeze and
+admits a fresh26.10.4.207 A–D run with a same-engine untreated baseline, projection,
+independent views diagnostic/aggregate, exact semantics migration/full HTTP reads
+and a fat-engagement cell. The26.x DO620491569 lease is now closed: projection
+coverage88,200,363/88,200,363 and nine-check/32-batch migration parity pass;
+independent raw→aggregate views98.62→46.22MB retain exact parity, no sampled
+latency win. Full400k hot computation passes thread/per-target/views parity at
+1,847.902ms/47.16MB, budget FAIL. Untreated complete baseline is missing; C
+ordinary/paired requests select canonical_fallback/uncertified_generation and
+stop158 before execution (92.20M estimate, zero actual native rows/bytes).
+This is not intended-treatment cost or a complete-feed PASS. All failed states/
+sources/stopped native parts verify off-host; owned cleanup18 November04:41:06UTC
+precedes05:43:57. Complete-path/generation refresh and baseline-ordering acceptance
+remain OPEN; no new paid/native admission follows. One stage stopping must not
+silently skip independent stages. Full receipts:
+`research/experiments/costfn/evidence/engagement26-20261118/RESULTS.md`.
+The separately admitted18 November completion DO620548967 is also now closed.
+It fixes keyword/native-finish/baseline-order/generation encoding and refresh,
+with one explicit initial K20 setup exception and no later counter rebuild.
+The untreated modern baseline and stopped treated attempts are banked in the
+completion report linked below, with exact parity/budget qualifications and
+selection-estimate versus actual-read distinctions. No treated full-feed PASS or
+counter retirement followed from that stopped attempt.
+All current-copy9/32 gates pass; B/D are not repeated. Owned cleanup06:59:08UTC
+precedes09:42:45; compute estimate$0.31827/not invoice. Full receipts:
+`research/experiments/costfn/evidence/engagement-completion-20261118/RESULTS.md`.
+The old OPEN/missing-baseline statements above describe that earlier lease, not
+the new banked baseline. Further design/preparation/native work needs new admission.
+The separately admitted18 November treated-completion DO620634285 now closes
+with exact complete-response parity in all four cells, budget FAIL. The banked
+modern baseline/B/D/lossless proof are cited, not repeated. Exact captured-query
+and separately request-tagged auxiliary actuals live in the linked treated-
+completion report, not duplicated here. Its count decomposition is non-additive;
+the old preparation statement's actuals are not selection estimates. Preserve
+original pinned-driver startup failures and the separate transport-only
+continuation; no SQL redesign/setup/counter/projection/B/D repeat. All454 captured
+read statements reconcile to native600s settings/zero exceptions. Checkpoints
+and stopped native parts verify off-host; owned cleanup12:55:15UTC precedes
+15:02:47, estimated compute$0.468647/not invoice. No p95/capacity/F-arm PASS,
+counter retirement, production/§8 or automatic new paid admission. Full costs,
+accounting scopes and provenance:
+`research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md`.
+Mirror/CI/in-place upgrade and production rollout are distinct gates; no live
+deployment is implied. Consider `_part_offset` only as a separately measured
+replacement for the same projection, never extra authority or a second layout.
+Native24.8 requires projection rebuild
+on deduplicating merges; the original344 failure remains preserved. Source and
+small-fixture checks do not establish full-data optimizer/parity/performance.
+Exact distinct reach is merged across day/insert states, never summed; insert
+aggregates do not subtract expired raw events, so TTL reconciliation remains a
+separate production gate. Scope/admission/results:
+`research/experiments/costfn/task-block-engagement-ref-redesign.md`.
+Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
+Config F, passing all required response/performance/write/lifecycle/rebuild and
+separately admitted stress gates before proposing broader platform integration.
+Keep ordinary runtime/schema/deployment unchanged during proof; main-only speed
+is insufficient, and experiment success is not automatic deployment approval.
+The default `fanout_member_cutoff=2000` is a design parameter, distinct from
+benchmark K (groups followed per reader); its write cost remains unproven.
+Plan to expose it as a persisted node-wide admin setting in Node Settings, with
+validated bounds and safe lane transitions/backfill; not implemented. At non-default
+values the recipient bound is cutoff minus one, not a fixed 1,999.
 
 Service-name safety: API service fields and new grant/role keys canonicalize
 ASCII case to lowercase. Ordinary names are 1–64 letters/digits/`-`/`_`, start
@@ -568,6 +928,20 @@ Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version
 
 ## Operator code words — recognize instantly, never treat as banter
 
+- **`persist` / `persevere`** → stay with the active task. For a running job,
+  sleep about300 seconds, inspect progress/logs/errors and remaining budget,
+  fix what broke, continue or run the corrected attempt, then repeat. Healthy
+  jobs keep running while you keep checking; a status update, green unit tests,
+  or an opened PR is not the finish line when measurements/results were asked
+  for. Preserve failed attempts and bind each repair to its executing source;
+  do not silently retry a failure into a PASS. Do not ask again for routine
+  repairs/re-runs already authorized by the operator. Stay inside the task's
+  explicit budget, deadlines, native/parity gates and production scopes;
+  persistence is not unlimited spending, a weakened oracle or permission to
+  change the treatment. Use the agent's watch loop and existing self-kill timers,
+  not a new guardian/watchdog subsystem. Stop only on completion, cancellation,
+  a real gate result, exhausted authorized bounds, or a genuinely external blocker.
+
 - **`web10web10!`** (any number of `!`s) → run the full ritual defined in
   `knowledge-base/strategy/AGENTS-RITUALS.md`. In short: SHIP FIRST — gather
   state (dangling PRs, dev batch), gate + promote dev→main if clean (fix
@@ -601,14 +975,14 @@ been shipped.
 
 ## Debugging: log everything, keep it in
 
-**Security boundary:** diagnostic density does not permit credentials or private
+**At the API-request-handler -> operations-log boundary,** diagnostic density does not permit credentials or private
 HTTP content in logs. Automatic API request logging is metadata-only; follow
 `knowledge-base/web10-v3/security/logging.md` rather than the payload-dumping
-guidance below for that boundary. Keep useful safe signal, not secret copies.
+guidance below for API-handler -> operations-log writes. Keep useful safe signal, not secret copies.
 
 This is an open-source project — copious logging is a feature, not noise.
 When debugging, add `console.log` at every decision point, state
-transition, and message boundary. Prefix logs so they're filterable:
+transition, and message send/receive. Prefix logs so they're filterable:
 `[wapi]` for SDK, `[auth-ui]` for the authenticator UI, `[demo]` for demo
 apps, etc.
 

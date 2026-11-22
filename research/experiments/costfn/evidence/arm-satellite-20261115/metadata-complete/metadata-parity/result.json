@@ -1,0 +1,77 @@
+{
+  "kind": "SATELLITE_METADATA_INDEPENDENT_PARITY",
+  "outcome": "PASS",
+  "checks": {
+    "identities": {
+      "mismatches": 0,
+      "native": {
+        "query_id": "satellite-p-151d7c659a834dd4aab6b1959f21dc07",
+        "type": "QueryFinish",
+        "query_duration_ms": "138336",
+        "read_rows": "177400600",
+        "read_bytes": "23058173103",
+        "memory_usage": "2980480643",
+        "exception_code": 0
+      }
+    },
+    "profiles": {
+      "mismatches": 0,
+      "native": {
+        "query_id": "satellite-p-e1adf25eeabc4de4ab00b07fadde5ca8",
+        "type": "QueryFinish",
+        "query_duration_ms": "3404",
+        "read_rows": "177400600",
+        "read_bytes": "10675730503",
+        "memory_usage": "641748536",
+        "exception_code": 0
+      }
+    },
+    "references": {
+      "mismatches": 0,
+      "native": {
+        "query_id": "satellite-p-5d736ab9a3214cc8a775be72502de8eb",
+        "type": "QueryFinish",
+        "query_duration_ms": "5782",
+        "read_rows": "177400600",
+        "read_bytes": "13961724783",
+        "memory_usage": "16915481",
+        "exception_code": 0
+      }
+    },
+    "inventory": {
+      "mismatches": 0,
+      "native": {
+        "query_id": "satellite-p-941c47772c7c4e3b9204a2eefd1eb15f",
+        "type": "QueryFinish",
+        "query_duration_ms": "72829",
+        "read_rows": "269601500",
+        "read_bytes": "17969951198",
+        "memory_usage": "21476564968",
+        "exception_code": 0
+      }
+    },
+    "time": {
+      "mismatches": 0,
+      "native": {
+        "query_id": "satellite-p-0328a2691d274efa9f7bdd6b62330a0c",
+        "type": "QueryFinish",
+        "query_duration_ms": "7418",
+        "read_rows": "92200300",
+        "read_bytes": "9964736503",
+        "memory_usage": "2232481331",
+        "exception_code": 0
+      }
+    }
+  },
+  "droplet_id": 619510510,
+  "started_utc": "2026-11-15T13:44:21.410272+00:00",
+  "envelope": {
+    "container_bytes": 30064771072,
+    "engine": "24.8.14.39",
+    "server_bytes": 23622320128
+  },
+  "metadata_sha256": "591e8667c7372e21d2345395cc151909ccbdd79faa5dd7eda0c7c5578ae32d42",
+  "T2": "NOT_RUN",
+  "canonical_generation": "661ca1829c7895e044b98ca431b4f9e0280cf0e4e09143e9989db4b4e4419c2c",
+  "completed_utc": "2026-11-15T13:48:13.539579+00:00"
+}

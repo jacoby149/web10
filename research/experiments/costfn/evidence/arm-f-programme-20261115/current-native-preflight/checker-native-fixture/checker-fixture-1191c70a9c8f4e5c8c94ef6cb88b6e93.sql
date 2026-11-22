@@ -1,0 +1,1 @@
+ALTER TABLE doc_groups_t UPDATE tags=['wrong'] WHERE doc_id='edited' SETTINGS mutations_sync=2

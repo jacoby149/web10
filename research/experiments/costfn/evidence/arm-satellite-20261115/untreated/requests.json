@@ -1,0 +1,50 @@
+[
+  {
+    "request_id": "77373ece00ec42b68af758a54eea4a13",
+    "kind": "main",
+    "phase": "inventory",
+    "reader_index": 1,
+    "status": 400,
+    "error": "http_or_decode_failure",
+    "client_start_monotonic": 2270.601417527,
+    "correlated": true,
+    "client_ms": 11321.021219999693,
+    "client_end_monotonic": 2281.922440189
+  },
+  {
+    "request_id": "d249e6813608451eb6ca1989c93007ce",
+    "kind": "reactions",
+    "phase": "inventory",
+    "reader_index": 1,
+    "status": 400,
+    "error": "http_or_decode_failure",
+    "client_start_monotonic": 2281.923258905,
+    "correlated": true,
+    "client_ms": 12760.574590000033,
+    "client_end_monotonic": 2294.683834617
+  },
+  {
+    "request_id": "055bea81e9f64582995e19512be56403",
+    "kind": "comments",
+    "phase": "inventory",
+    "reader_index": 1,
+    "status": 400,
+    "error": "http_or_decode_failure",
+    "client_start_monotonic": 2294.684753955,
+    "correlated": true,
+    "client_ms": 10119.162853000034,
+    "client_end_monotonic": 2304.803917449
+  },
+  {
+    "request_id": "b615aaacdbb34fd9b61a4377b5f95c5a",
+    "kind": "views",
+    "phase": "inventory",
+    "reader_index": 1,
+    "status": 200,
+    "error": null,
+    "client_start_monotonic": 2304.804637764,
+    "correlated": true,
+    "client_ms": 70426.19571600016,
+    "client_end_monotonic": 2375.230834362
+  }
+]

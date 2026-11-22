@@ -1,0 +1,182 @@
+[
+  {
+    "utc": "2026-11-15T04:17:35.864306+00:00",
+    "parts": [
+      {
+        "table": "app_contracts",
+        "parts": "1",
+        "rows": "20000",
+        "marks": "3"
+      },
+      {
+        "table": "content_events",
+        "parts": "11",
+        "rows": "1600000021",
+        "marks": "195330"
+      },
+      {
+        "table": "doc_groups",
+        "parts": "1",
+        "rows": "92200600",
+        "marks": "11256"
+      },
+      {
+        "table": "doc_groups_t",
+        "parts": "1",
+        "rows": "92200600",
+        "marks": "11256"
+      },
+      {
+        "table": "documents",
+        "parts": "1",
+        "rows": "88200300",
+        "marks": "10768"
+      },
+      {
+        "table": "group_contracts",
+        "parts": "3",
+        "rows": "1000001",
+        "marks": "127"
+      },
+      {
+        "table": "group_members",
+        "parts": "9",
+        "rows": "152340270",
+        "marks": "18610"
+      },
+      {
+        "table": "logs",
+        "parts": "1",
+        "rows": "33",
+        "marks": "2"
+      },
+      {
+        "table": "users",
+        "parts": "1",
+        "rows": "1000000",
+        "marks": "124"
+      }
+    ],
+    "merges": []
+  },
+  {
+    "utc": "2026-11-15T04:17:46.627666+00:00",
+    "parts": [
+      {
+        "table": "app_contracts",
+        "parts": "1",
+        "rows": "20000",
+        "marks": "3"
+      },
+      {
+        "table": "content_events",
+        "parts": "11",
+        "rows": "1600000021",
+        "marks": "195330"
+      },
+      {
+        "table": "doc_groups",
+        "parts": "1",
+        "rows": "92200600",
+        "marks": "11256"
+      },
+      {
+        "table": "doc_groups_t",
+        "parts": "1",
+        "rows": "92200600",
+        "marks": "11256"
+      },
+      {
+        "table": "documents",
+        "parts": "1",
+        "rows": "88200300",
+        "marks": "10768"
+      },
+      {
+        "table": "group_contracts",
+        "parts": "3",
+        "rows": "1000001",
+        "marks": "127"
+      },
+      {
+        "table": "group_members",
+        "parts": "9",
+        "rows": "152340270",
+        "marks": "18610"
+      },
+      {
+        "table": "logs",
+        "parts": "1",
+        "rows": "33",
+        "marks": "2"
+      },
+      {
+        "table": "users",
+        "parts": "1",
+        "rows": "1000000",
+        "marks": "124"
+      }
+    ],
+    "merges": []
+  },
+  {
+    "utc": "2026-11-15T04:17:57.463471+00:00",
+    "parts": [
+      {
+        "table": "app_contracts",
+        "parts": "1",
+        "rows": "20000",
+        "marks": "3"
+      },
+      {
+        "table": "content_events",
+        "parts": "11",
+        "rows": "1600000021",
+        "marks": "195330"
+      },
+      {
+        "table": "doc_groups",
+        "parts": "1",
+        "rows": "92200600",
+        "marks": "11256"
+      },
+      {
+        "table": "doc_groups_t",
+        "parts": "1",
+        "rows": "92200600",
+        "marks": "11256"
+      },
+      {
+        "table": "documents",
+        "parts": "1",
+        "rows": "88200300",
+        "marks": "10768"
+      },
+      {
+        "table": "group_contracts",
+        "parts": "3",
+        "rows": "1000001",
+        "marks": "127"
+      },
+      {
+        "table": "group_members",
+        "parts": "9",
+        "rows": "152340270",
+        "marks": "18610"
+      },
+      {
+        "table": "logs",
+        "parts": "1",
+        "rows": "33",
+        "marks": "2"
+      },
+      {
+        "table": "users",
+        "parts": "1",
+        "rows": "1000000",
+        "marks": "124"
+      }
+    ],
+    "merges": []
+  }
+]

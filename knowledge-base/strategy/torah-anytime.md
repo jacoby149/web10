@@ -26,6 +26,131 @@ of D95's general creator-onboarding direction. Do not resurrect the retired
 importer. The current `marketing-importing/` Instagram workflow is a reference
 for resumability/deduplication, not a Torah Anytime connector or petabyte pipeline.
 
+## Marketing proposition — an organization's positive spread: hygienic but connected
+
+Operator direction, 15.11.2026:
+
+> web10 for torah anytime, if you look at the markdowns, that is a completely
+> different marketing proposition than the bannned influencers, you have
+> something positive to spread, want a node that sscales to 1M to do it, but
+> also be compatible with other conversations, this is interoperable with
+> reform jews for example that want to pull. in a little torah into their
+> feed, but dont want the 100% blast
+
+Operator clarification, 15.11.2026:
+
+> we were talking about influencers that got banned, this is different, this
+> is organizations looking to spread a positive message but dont have in
+> house social media capabilities, they dont want to be mixed up with the
+> ick of current social media, helps keep a hygenic but connected technology
+> approach for them
+
+**The customer is an organization, not an influencer.** The creator track
+(archived: `archive/creator-influencer-track/outreach.md`; `thesis.md`,
+`business-plan.md`) sells escape for people the
+big platforms burned — banned or deplatformed, audience held in a landlord's
+house. This track is a completely different proposition. The customer is an
+organization that wants to spread a positive message (for this partner:
+Torah) — not someone fleeing a burn event, choosing a cleaner house.
+
+**What the organization lacks: in-house social media capability.** Building
+and running a social layer — accounts, feeds, follow/delivery, media
+playback, moderation, scale — is not their job, and they would not hire a
+team to do it. The offer is the capability itself: a node that runs the
+social experience under their brand, so the organization can spread its
+message the way big platforms are supposed to — reliably, at scale — without
+owning the platform engineering.
+
+**What the organization avoids: the ick of current social media.** Their
+audience and their message do not want to sit next to other platforms'
+content, ad machinery, engagement traps and moderation failures. A
+purpose-built, Torah-only node keeps that out: the community's feed is the
+mission, not a mixed-content firehose. The hygiene is the point, not a side
+effect — it is why an institution would pick this over adding a forum or
+buying ads.
+
+**Scale target: a node that scales to 1M.** The operator wants the node to
+scale to 1M to do the spreading. That sits next to — not replacing — the
+supplied banner metrics in the business-scale section below (500K monthly
+visitors). Both are operator-stated design targets to carry into later
+catalog/search, speaker-page, publishing, playback and operating-cost
+planning; they are not measured capacity of any present deployment and not a
+claim the current stack supports them. TA0 confirms definitions and peak
+workload before sizing or promising.
+
+**Connected, not sealed: compatible with other conversations.**
+The hygienic node does not have to be a walled garden. On its side the
+Torah-only node stays Torah-only (the policy section below is unchanged:
+unapproved material does not enter its feeds, search or discovery). On the
+other side the network is interoperable by design (D41: the node is readable;
+discovery and public content are the product). A member of an adjacent
+community — the operator's example is a Reform Jew on their own node/feed —
+can follow a few Torah speakers and pull a little Torah into their own mixed
+feed. They do not get the 100% blast: cross-node reads go through the server
+mixer, which keeps a per-source fetch weight ("a horizontal knob for how much
+to fetch from each," `federated-feed-mixer.md`), and the reader's other
+follows rank alongside. Only publicly readable content crosses (speaker
+groups with the usual `anyone`/`authenticated` read grants, D58); nothing
+private travels by following. For the partner conversation this is a growth
+argument: the spread reaches people who would never join a 100% Torah
+platform, without diluting the core node.
+
+**The one-liner for this track:** hygienic but connected — the organization
+gets a clean, on-mission social platform at the scale it wants, and the
+message can travel to other conversations at the dose the reader chooses.
+The banned-influencer track's frame (escape, deplatforming, landlord) must
+not be used with this customer; it is a different story, and mixing the
+frames cheapens both.
+
+**Scope.** This is marketing voice and planning direction, recorded with
+the partner brief; it authorizes no implementation, outreach send, deployment
+or capacity promise. It does not claim cross-node federation is deployed: the
+mixer queue (`federated-feed-mixer.md`), separate-node key provisioning and
+connected two-node verification remain open. It does not change the first demo
+(existing web10-social policy, branded, gated), the role/permission work (TA2)
+or the catalog-sync scope (TA3). No new `api/` surface is implied: the pull is
+expressed through existing universal primitives — public readable grants,
+source-qualified reads and the server mixer — so the same pull works for any
+node/community pair, not just this partner (D60).
+
+## Business scale we want to support
+
+Operator direction, 15.11.2026: record the supplied TorahAnytime metric banner
+as **the scale of business web10 should aim to support**, not as research-paper
+data or a claim that the present deployment already supports it.
+
+| Metric shown | Figure shown |
+|---|---:|
+| Weekly lectures | 1,200 |
+| Unique speakers | 1.2K |
+| Torah classes | 400K |
+| Monthly visitors | 500K |
+| Hotline calls | 4M |
+| Hours learnt | 18M+ |
+
+Source: operator-provided screenshot received 15.11.2026. These are the banner's
+reported figures, not independently audited measurements; its source URL,
+publication date and metric definitions were not supplied. Preserve the stated
+units and rounded K/M values. The timeframes for hotline calls and hours learnt
+are not shown; do not label them monthly, annual or lifetime totals by inference.
+
+This is an institutional library, an ongoing publishing operation and a large
+audience—not just a small branded demo. The operator's 15.11.2026 marketing
+direction adds a 1M scale target for the node that carries the spread (see the
+marketing-proposition section above), alongside these banner figures. Use it
+to guide later catalog/search, speaker-page, publishing, playback and
+operating-cost planning. Monthly visitors
+are not a supplied MAU, registered-account, concurrent-user or requests/second
+figure. Classes and learning hours do not determine storage bytes or media
+egress without formats, bitrates and usage data. Hotline calls describe another
+delivery channel, not an approved web10 telephony integration.
+
+TA0 should confirm the definitions, reporting windows, catalog/media inventory,
+peak concurrency and playback mix before sizing or promising capacity. The
+first demo stays small and bounded. These business targets do not alter frozen
+research inputs, benchmark workloads, paper claims or the separately approved
+experiment resource limits.
+
 ## Sent email to Shimon — authoritative offer
 
 Operator reports this email was sent (recorded 11.11.2026; send date not separately verified):
@@ -221,6 +346,61 @@ branding must not obscure the actual operator, issuer or consent destination.
 Use the shared product, not an unmaintainable partner fork. Read `design.md`
 before future UI implementation; require desktop and 375px captures.
 
+### Reusable media tabs — duplicate, rename and rebrand
+
+Operator direction, 15.11.2026: a white-label operator should be able to
+duplicate an existing media tab and rename/rebrand each instance for its own
+catalog or genre. Music and Podcasts can coexist using the same audio browsing
+and player behavior; Videos can become Kids' Shows, or coexist with a separate
+Kids' Shows tab using the same video experience. The same principle applies to
+music videos, Shorts and other supported media experiences.
+
+**Duplicate the configured experience, not the code or media.** Each tab instance
+selects a supported base experience, has its own label/branding and content
+selection, and reuses the shared renderer/player. Renaming an existing tab and
+adding another instance must both be supported; this is more than two names for
+the same unfiltered catalog. Genres/categories can separate their content without
+inventing a new media format or requiring duplicate uploads.
+
+**TABS1 — configurable media-tab contract and implementation scoping.** Inventory
+navigation, media classification/querying and player consumers; define persisted
+per-instance identity, label/branding, base experience and catalog/genre selection.
+Give each instance a stable deep link independent of its display name, with
+refresh/back/forward and tab/filter state preserved. Settle classification,
+overlapping catalog membership and rename/removal behavior in the contract before
+implementation. Keep shared layouts and playback behavior in product code; do not
+fork components per partner or add social-specific concepts to the generic API.
+Coordinate settings/configuration and social owners before assigning bounded
+runtime changes. Acceptance must cover Music + Podcasts and Videos + Kids' Shows
+with distinct selections, save/reload, rename without broken links, shared player
+parity and desktop/375px navigation in both themes. A category label is not access
+control or a child-safety/moderation guarantee; existing authorization still applies.
+
+**Later-stage enhancement, not needed for the demo.** The operator's TorahAnytime
+sidebar reference shows destinations such as StoryAnytime and MusicAnytime;
+**this is precisely the motivation for duplicable tabs:** partners already
+organize media into branded destinations that need not each be a new product.
+MusicAnytime could use a renamed Music instance; StoryAnytime could use an
+audio or video instance according to its actual content. Separate Clips/Shorts
+or audience/category destinations could similarly reuse a suitable supported
+experience with their own content selection. These are proposed mappings, not
+verified equivalents of TorahAnytime's functionality. Duplication/rebranding
+would let us offer those kinds of destinations without rebuilding the player
+and browsing experience for each one. The screenshot demonstrates the use case,
+not a requirement to reproduce its entire sidebar: Topics, Speakers, Series,
+Organizations, History and other destinations may need different capabilities
+and are not automatically delivered by duplicating a media tab.
+
+This is not a request to reproduce that sidebar or its full feature set for
+the showcase. Keep TABS1
+out of the demo's critical path; execution requires a separate later-stage
+priority/ownership decision.
+
+This is reusable white-label product scope, not a TorahAnytime-only fork.
+Planning capture only; no configurable tabs are shipped by this update.
+It extends the earlier fixed-navigation constraints below: supported
+tab instances and names become configurable, not arbitrary layouts or behavior.
+
 ### Serious appearance controls — exact partner colors and typography
 
 Operator follow-up, 11.11.2026:
@@ -249,11 +429,13 @@ expose general configuration or credentials through this response.
 The API describes the brand; each client maps supported fields into its own
 semantic tokens/components. Do not return executable CSS, arbitrary selectors
 or remote font-loader instructions. Separate flexible brand/theme data from
-fixed product structure: navigation, layout and interaction behavior stay in
-shared product code. Start operator controls with brand colors/fonts and a
+fixed product structure: layout and interaction behavior stay in shared product
+code; supported navigation instances/labels are separately scoped in TABS1 above,
+not arbitrary theme CSS or a theme-editor responsibility. Start operator controls
+with brand colors/fonts and a
 coherent visual preset; derive coordinated states with optional validated
 advanced overrides, rather than require every token to be edited manually.
-THEME1 must settle the fixed/themeable/editable boundary before building the
+THEME1 must distinguish fixed structure, themeable tokens and editable settings before building the
 editor; a representative TorahAnytime feed/profile/login exploration validates
 whether colors/fonts alone suffice or a quieter visual treatment is needed.
 
@@ -310,7 +492,7 @@ its current default palette/fonts; no global rebrand or per-account theme sync.
 reference/approved fallback and THEME1's contract, split generic configuration/
 validation, node-settings editor, social rendering and authenticator rendering
 into bounded owner-assigned changes. Follow the security method for future
-configuration write-boundary changes. Require exact hex round trips, font and
+configuration writes across the admin UI -> API boundary. Require exact hex round trips, font and
 configuration failure recovery, reset/cancel/save, node isolation, no theme flash
 with available saved configuration, and unchanged System/Light/Dark behavior.
 Inspect desktop/375px captures in both modes, keyboard/focus and actual computed
@@ -370,7 +552,7 @@ primitives. Grants are additive: a restricted member role cannot subtract an
 `anyone` or `authenticated` create grant. Inventory default/public grants and
 self-owned publishing paths before claiming restrictions. Hiding compose
 buttons is not enforcement; direct API calls, alternate clients, delegated
-identities and revoked roles need denial tests at the real boundary. Keep the
+identities and revoked roles need denial tests at the app -> API publication boundary. Keep the
 API generic (D60), never hardcode Torah concepts in `api/`.
 
 ### Torah-only platform, not merely a filtered Discover tab
@@ -383,7 +565,7 @@ implementation rather than assuming every video is pre-reviewed. A keyword block
 not a guarantee of Torah-only content. Existing D59 board hiding alone is
 insufficient: hidden content can still be accessible elsewhere.
 
-Define the policy boundary across feeds, search, profiles, groups, direct/share
+Define policy enforcement for API -> app/UI delivery across feeds, search, profiles, groups, direct/share
 links, comments, reposts, previews, embeds, recommendations, ads and enabled
 media surfaces. General-network discovery/server mixing must not silently
 introduce unapproved material; external sources are off unless explicitly
@@ -437,7 +619,7 @@ still precede demo execution.
 3. **TA2 — role and Torah-only publication contract.** Map every enabled
    surface/write path to existing grants, review lifecycle and bypass-denial
    tests; resolve broad grants and outside-source exposure. Gate: TA0 and
-   partner approval. Future trust-boundary work follows the security method.
+   partner approval. Future admin UI -> API configuration-write changes follow the security method.
 4. **TA3 — bounded catalog-sync design and trial.** Specify source mapping,
    reconciliation, integrity, sample/bandwidth/storage limits, rollback and
    measured cost. Gate: TA0 authorized sample, approved limits and explicit

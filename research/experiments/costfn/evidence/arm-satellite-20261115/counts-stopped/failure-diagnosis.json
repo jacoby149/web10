@@ -1,0 +1,80 @@
+{
+  "kind": "SATELLITE_COUNT_SETUP_FAILURE_DIAGNOSIS",
+  "utc": "2026-11-15T12:38:25.867695+00:00",
+  "droplet_id": 619510510,
+  "envelope": {
+    "container_bytes": 30064771072,
+    "engine": "24.8.14.39",
+    "server_bytes": 23622320128
+  },
+  "failed_label": "build_reactions_1",
+  "native": {
+    "query_id": "satellite-p-ca04567173624cb28230c04e54322cb6",
+    "type": "ExceptionWhileProcessing",
+    "query_duration_ms": "15547",
+    "read_rows": "125362176",
+    "read_bytes": "16850322290",
+    "memory_usage": "16863490897",
+    "exception_code": 241,
+    "exception": "Code: 241. DB::Exception: Memory limit (total) exceeded: would use 22.26 GiB (attempt to allocate chunk of 4350909 bytes), maximum: 22.00 GiB. OvercommitTracker decision: Query was selected to stop by OvercommitTracker.: While executing MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder). (MEMORY_LIMIT_EXCEEDED) (version 24.8.14.39 (official build))",
+    "sql_sha256": "ea2304ad611eef402ae8f68809320f06f73726266b49099624e7d7490ffacae5",
+    "external_sort_parts": "4",
+    "external_aggregation_parts": "0"
+  },
+  "counting_parts": [
+    {
+      "name": "all_1_1_0",
+      "rows": "451600",
+      "bytes_on_disk": "17747467"
+    }
+  ],
+  "clickhouse_container_state": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 10802,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-11-15T11:50:53.055390156Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+  },
+  "T1": "NOT_ESTABLISHED",
+  "T2": "NOT_RUN",
+  "new_build_started": false,
+  "partial_main_comparisons": [
+    {
+      "counter": "reactions:like",
+      "targets": 26,
+      "parity": "PASS",
+      "canonical": {},
+      "stored": {}
+    },
+    {
+      "counter": "reactions:dislike",
+      "targets": 26,
+      "parity": "PASS",
+      "canonical": {},
+      "stored": {}
+    },
+    {
+      "counter": "comments",
+      "targets": 26,
+      "parity": "PASS",
+      "canonical": {},
+      "stored": {}
+    },
+    {
+      "counter": "reposts",
+      "targets": 26,
+      "parity": "PASS",
+      "canonical": {},
+      "stored": {}
+    }
+  ],
+  "partial_main_values_note": "all checked main-scope values are zero; positive and shared-attachment fixtures not reached",
+  "fanout": false,
+  "lease_extended": false
+}

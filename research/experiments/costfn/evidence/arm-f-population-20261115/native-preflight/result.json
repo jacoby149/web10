@@ -1,0 +1,17 @@
+{
+  "kind": "NATIVE_FULL_POPULATION_BUILDER_REHEARSAL",
+  "outcome": "PASS",
+  "cases": [
+    "cap200_shared_routes_same_id_authors_deleted_document_removed_link_removed_member",
+    "deterministic_idempotent_reseed",
+    "cutoff2000_zero_pointers",
+    "duplicate_batch_refused"
+  ],
+  "droplet_id": 619625857,
+  "engine": "24.8.14.39",
+  "builder_sha256": "debb02fbfbb7df2acb9d8f0c192f8fa16dfc4340ca833159434d77bf32f7a3c0",
+  "fixture_sha256": "f7065635deb576b5ee179274104def94783c6b25d777f61d2ca60fa4b881984b",
+  "primitives_sha256": "3c257f0b07a9ee8647f5f3656c44d75020999f32b0576376ffdcbfd05693d194",
+  "runtime_sha256": "113d6da614351cca02202542ff3cbec5cab813dc0ea5097e043b636c7f254a8b",
+  "logical_routes": 402
+}

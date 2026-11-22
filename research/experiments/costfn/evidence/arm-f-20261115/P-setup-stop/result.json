@@ -1,0 +1,10 @@
+{
+  "kind": "CONFIG_F_PROGRAMME_STEP0",
+  "outcome": "STOP",
+  "stage": "P_satellite_setup",
+  "droplet_id": 619583249,
+  "deadline_utc": "2026-11-15T21:23:23+00:00",
+  "native_F_gates": "NOT_RUN",
+  "failure_class": "CalledProcessError",
+  "updated_utc": "2026-11-15T18:33:52.230952+00:00"
+}

@@ -1,0 +1,264 @@
+{
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619583249,
+  "reader": "rd42-u0980001",
+  "groups": [
+    "api.localhost/groups/users/rd42-u0000000/followers",
+    "api.localhost/groups/users/rd42-u0000001/followers",
+    "api.localhost/groups/users/rd42-u0000002/followers",
+    "api.localhost/groups/users/rd42-u0000003/followers",
+    "api.localhost/groups/users/rd42-u0000004/followers",
+    "api.localhost/groups/users/rd42-u0000005/followers",
+    "api.localhost/groups/users/rd42-u0000006/followers",
+    "api.localhost/groups/users/rd42-u0000007/followers",
+    "api.localhost/groups/users/rd42-u0000008/followers",
+    "api.localhost/groups/users/rd42-u0000009/followers",
+    "api.localhost/groups/users/rd42-u0000010/followers",
+    "api.localhost/groups/users/rd42-u0000011/followers",
+    "api.localhost/groups/users/rd42-u0000012/followers",
+    "api.localhost/groups/users/rd42-u0000013/followers",
+    "api.localhost/groups/users/rd42-u0000014/followers",
+    "api.localhost/groups/users/rd42-u0000015/followers",
+    "api.localhost/groups/users/rd42-u0614008/followers",
+    "api.localhost/groups/users/rd42-u0614009/followers",
+    "api.localhost/groups/users/rd42-u0614010/followers",
+    "api.localhost/groups/users/rd42-u0614011/followers",
+    "api.localhost/groups/users/rd42-u0980001/followers"
+  ],
+  "reference_page": [
+    {
+      "doc_id": "73855328-0b10-1606-ef9a-fd16e24f4a4a",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "5ccefb1a-d112-685b-264c-a9fca19337bf",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "67569b90-14ef-0cfe-bf74-73d4606ad8ba",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "8adfb89a-e243-d124-eca7-62e9852af8b8",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "69cba28e-7b0d-c1fc-310a-57a7ea7486bb",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "5001f91f-ec7b-9e16-ae86-aac47ae0d1de",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "79e0c2e1-b349-5ed1-5c86-1173db56110e",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "79aa3c87-d203-ff06-89e5-a8235b7fe52d",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "4691a418-697b-7d3a-d209-dd42bfb6a608",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "fe53701f-931d-f7d1-339d-310c7954bd30",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "524e1c0f-c5e6-1392-4a75-b014e4374bde",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "e42e3397-f570-d9eb-4c41-27555540f6b5",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "2c13eeae-1809-f7e0-2bdc-a0102b8148a4",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "9f45f71b-b24d-05be-a19d-67ed389e793b",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "056d71ab-ecfd-411c-bf3e-0aa29b993871",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "8e169aff-3cd4-6b0d-13ea-696efec6c106",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "5cb79eb0-9b63-1177-96e9-e9bee40dbafe",
+      "author_key": "rd42-u0000000"
+    }
+  ],
+  "actual_readable_by_kind": {
+    "main": {
+      "profile": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers"
+      ],
+      "posts": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers"
+      ],
+      "reactions": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers"
+      ],
+      "comments": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers"
+      ]
+    },
+    "reactions": {
+      "reactions": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers",
+        "api.localhost/groups/web10/discover"
+      ]
+    },
+    "comments": {
+      "comments": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers",
+        "api.localhost/groups/web10/discover"
+      ]
+    }
+  },
+  "satellite_builds_started": false,
+  "scope": "real authenticated gate/compiler LIMIT0 setup; not untreated/performance evidence"
+}

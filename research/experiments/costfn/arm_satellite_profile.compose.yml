@@ -1,0 +1,13 @@
+# One untreated observation run only; never a frozen cell or production overlay.
+services:
+  api:
+    volumes:
+      - ${SATELLITE_OPERATION:?new own-host approval required}:/satellite-operation.json:ro
+      - ${SATELLITE_SCOPES_DIR:?private scope receipt directory required}:/satellite-scopes
+    environment:
+      SATELLITE_OPERATION: /satellite-operation.json
+      SATELLITE_SCOPES_DIR: /satellite-scopes
+      COSTFN_ARM_D: "0"
+      COSTFN_SATELLITE: "0"
+      COSTFN_VIEWS_TREAT: "0"
+    command: ["uv", "run", "uvicorn", "arm_satellite_profile_api:application", "--host", "0.0.0.0", "--port", "80", "--no-access-log"]

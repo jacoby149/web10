@@ -1,7 +1,7 @@
 # The Flexible Read (Query Engine)
 
-[implemented] · **the security boundary is built and wired** — see
-`safe-query.md` (how the boundary CTE + AST redirect works and why the
+[implemented, current v3] · **the API -> ClickHouse authorization boundary is wired** — see
+`safe-query.md` (how API-generated access-filtered CTEs + AST redirection work and why the
 guarantee holds; code in `api/app/v3/services/safe_query.py`). The caller
 writes a ClickHouse `SELECT` over service names; the node compiles it through
 the engine and runs it. Exposed as `POST /v3/query` + the SDK's `w.query()`.
@@ -9,19 +9,25 @@ This doc is the wider discussion: how far to take the power (joins,
 aggregations, raw SQL), the query-language fork (resolved: SQL subset), and
 the phasing.
 
+**Read the tense.** The JSON documents and `ref_value` column below are current
+implementation, not the new storage target. D116 is DECIDED; D117 is DIRECTION
+with its proving cell pending. Their [canonical decision map](db/design-revolution.md)
+does not claim a production migration. Earlier design alternatives remain
+labelled discussion, not a second description of the implemented SQL interface.
+
 How far do we let an app query the node? v2 let an app run any Mongo query
-inside a user's collection. v3 has one shared ClickHouse table and a group
-boundary. This doc is the discussion of how to restore v2's query power —
+inside a user's collection. v3 has one shared ClickHouse table and group-based
+authorization. This doc discusses how to restore v2's query power —
 flexible filters, **self-joins across services**, aggregations — without
-breaking the group security boundary.
+breaking group authorization at the API -> ClickHouse boundary.
 
 ## The Problem
 
 **v2 (Mongo):** each user had their own collection. The app ran any Mongo query
 inside it — `db.posts.find({ ref: X, tags: Y })`, projections, aggregations.
-The collection *was* the security boundary: you own it, query it freely.
+The API authorized app access per user collection before querying MongoDB.
 
-**v3 (ClickHouse):** one shared `documents` table. The boundary is **groups**
+**v3 (ClickHouse):** one shared `documents` table. API -> ClickHouse reads are authorized by **groups**
 (`doc_groups` + `group_members` + roles). The current read is a fixed shape:
 
 ```
@@ -36,9 +42,9 @@ The gap: v2 apps queried their data flexibly; v3 apps can't. We want that power
 back — "let people do anything" — but secure: a caller only sees docs in the
 groups they can read.
 
-## The Security Boundary (the invariant)
+## The API -> ClickHouse authorization boundary (the invariant)
 
-The boundary is the **group-membership JOIN**, not a column predicate:
+The API -> ClickHouse authorization boundary applies the **group-membership JOIN**, not merely a column predicate:
 
 ```
 documents d
@@ -54,11 +60,11 @@ simple `WHERE col = x`). That one fact drives the design:
 - **ClickHouse RLS / account permissions don't fit.** RLS is for static row
   predicates. "Docs in the groups I'm *currently* a member of with readAll on
   this service" is a moving JOIN a per-user ClickHouse role can't express. The
-  boundary can't live in ClickHouse.
+  API -> ClickHouse authorization cannot be delegated to that static account model.
 - **Raw SQL passthrough is unsafe.** Give an app raw ClickHouse and it drops
-  the group JOIN and reads everyone. The boundary is gone.
+  the group JOIN and reads everyone, bypassing API -> ClickHouse authorization.
 
-**Therefore the boundary is injected by the API, never written by the caller.**
+**The API supplies the API -> ClickHouse authorization restrictions; the app cannot write or remove them.**
 The API is the gatekeeper; ClickHouse is the execution engine (run as one
 service account with full table access).
 
@@ -68,7 +74,7 @@ The read endpoint accepts a **structured query spec** (not raw SQL). The API
 validates it against a schema, compiles it to parameterized ClickHouse SQL, and
 **always injects the group-membership filter on every table, alias, and
 subquery the query touches.** The caller controls the shape; the API controls
-the boundary.
+authorization of the SQL sent to ClickHouse.
 
 **What the caller (app) can specify:**
 - **service(s)** — which collections to read (gated by the app contract:
@@ -92,7 +98,7 @@ the boundary.
 
 **The self-join power is the payoff.** An app joins `documents` (service
 `posts`) to `documents` (service `comments`) on `ref_value = doc_id`, and to
-`documents` (service `media`) on the media ref — all inside the group boundary.
+`documents` (service `media`) on the media ref — all with API -> ClickHouse group authorization.
 "Join documents of one service to documents of another" is exactly what
 ClickHouse is for, and it stays safe because every alias carries its own group
 filter.
@@ -100,7 +106,7 @@ filter.
 ## Why Not the Alternatives
 
 - **ClickHouse account permissions / RLS** — doesn't fit a dynamic JOIN-based
-  boundary (above). The API's compilation is the boundary.
+  authorization rule (above). The API's compiler controls SQL sent to ClickHouse.
 - **Raw SQL passthrough** — unsafe (the caller drops the group filter).
 - **Fixed read shapes only** (the current model, one shape at a time) — safe
   but doesn't reach "do anything"; every new shape is a new endpoint. The
@@ -112,13 +118,13 @@ filter.
    group read, routed through the engine. Fixed the social-app + trending-page
    engagement reads.
 2. **Done — the full engine.** The caller writes a ClickHouse `SELECT` over
-   service names; the engine compiles it (boundary CTEs + block/sharing/hidden)
+   service names; the engine compiles it (access-filtered CTEs + block/sharing/hidden)
    and runs it. Exposed as `POST /v3/query` + `w.query()`. Filters, joins,
    aggregations, subqueries, and caller CTEs all work — the "do anything"
    power, safe because the raw tables are unreachable.
 3. **Done — joins + aggregations.** The self-join power (the payoff): an app
    joins `posts` to `comments` on `ref_value = doc_id`, aggregates, sorts — all
-   inside the group boundary.
+   with group authorization on the API -> ClickHouse query.
 4. **The prepare pass (read + resolve).** The engine optionally **mints** the
    result rows after the SELECT — presigned media URLs, per-reader HLS sigs,
    ad attachment, and the author's face — so a single `w.query()` returns
@@ -133,16 +139,16 @@ filter.
 - **Max rows.** An unbounded query gets `LIMIT 1000` appended server-side
   (`build_safe_query(max_limit=…)`); a caller-supplied `LIMIT` is honored as-is.
 - **Query timeout.** `max_execution_time = 10` is passed to ClickHouse.
-- **The boundary CTE is the data bound.** A query can only scan the caller's
-  readable groups, so the worst case is bounded by the caller's own data — not
-  the whole node.
+- **The access-filtered CTE defines the readable data set.** It restricts returned
+  content to the caller's readable groups. This logical authorization rule does
+  not guarantee physical scan pruning or arbitrary-query speed (D120, PRINCIPLE).
 - **Per-user rate limiting (D65, v1).** `/v3/query` is rate-limited per user,
   keyed on the verified `user_key` from the token (not IP — the node sits behind
   a proxy, so XFF is spoofable; D49). In-memory, per-worker (the recovery
   idiom); a user over budget gets a 429. This is the abuse-prevention bound —
-  **origin/app approval is curation, not a security boundary** (D64): a scripted
+  **origin/app approval is curation, not app -> API authentication** (D64): a scripted
   caller forges `Origin` freely, so the node can't rely on it to stop abuse. The
-  real boundary is the user's token + app contract (user-centric).
+  app -> API authentication uses the user's token and app contract (user-centric).
 
 ## Readable-set resolution: the per-group vs. batched cost (the access layer's scaling)
 
@@ -210,7 +216,7 @@ default OFF so production behavior is unchanged unless one is set:
   return a fixed N-row synthetic result instead of running the compiled SQL,
   isolating the policy layer from the engine.
 - `QUERY_EVAL_NO_POLICY` — **line A**: skip readable-set resolution + the
-  boundary-CTE scoping (run the caller's SQL unscoped) — the credited
+  access-filtered CTE scoping (run the caller's SQL unscoped) — the credited
   ClickHouse baseline the causal overhead (B−A) is computed against. It also
   exempts the D42 explicit-group membership 403 (the baseline is unscoped by
   definition).
@@ -219,7 +225,7 @@ default OFF so production behavior is unchanged unless one is set:
    override follows production; explicit per-group always calls the reference
    loop, not the now-configurable production helper.
 
-These are **test-mode only**: A bypasses the I3 boundary and C returns
+These are **test-mode only**: A bypasses API -> ClickHouse read authorization (I3), and C returns
 synthetic rows, so neither may be enabled on a public node. The production
 algorithm setting never enables either flag. Tests pin ordinary default batching,
 explicit rollback and research precedence; the read-gate parity record is
@@ -259,12 +265,12 @@ those minting passes live on the read endpoints (`/read`, and the now-retired
 `/feed`) as post-query transforms. The prepare pass moves them **into the
 engine**, so a single `w.query()` returns render-ready rows.
 
-**Required authority boundary (currently incomplete).** The prepare pass mints
+**Query-result -> capability-minter authority (currently incomplete).** The prepare pass mints
 *capabilities* (a presigned URL grants access to the media; an HLS sig grants
 access to the stream). A capability-minter on a query surface is only as safe
-as the boundary that fed it:
+as the API -> ClickHouse authorization and canonical provenance checks that feed it:
 
-- Boundary CTEs authorize input documents, not arbitrary output projections.
+- Access-filtered CTEs authorize input documents, not arbitrary output projections.
   Literal/expression aliases can fabricate `posted_by`, `author_key` and `body`.
    The previous prepare pass treated these fields as canonical documents. An
    offline real-compiler/HTTP/signer reproduction issued a synthetic foreign-key
@@ -337,7 +343,7 @@ shape, but the passes need to find the doc's `body.media_refs` + `author_key`
    uses DB doubles; actual ClickHouse tuple/aggregate execution and connected
    person/group rendering remain unverified.
 
-**Engine change:** the boundary CTE's exposed columns include `posted_by`
+**Engine change:** the access-filtered CTE's exposed columns include `posted_by`
 (the uploader for group-authored documents), `ad_mode` +
 `ad_target` (the ad-attach pass reads them off the row) and `group_id` (the
 group the doc row belongs to — the join key for group metadata; a doc in N
@@ -374,12 +380,12 @@ synthetic evidence does not close the failed million-author concurrency gate.
 joining attachments before document ranking produced sparse gains but broad/
 dense regressions, including historical-version amplification with overlapping
 groups. Both unrestricted and single-group prototypes were removed; no new
-compiler flag or execution path ships. The existing ordinary read boundary and
+compiler flag or execution path ships. Existing API -> ClickHouse read authorization and
 Q01 exact-ID preparation remain unchanged. [Findings and limits](../security/scans/2026-11/query-readable-join.md).
 
 ## Group metadata (QE-A)
 
-The engine now supports an opt-in `group_meta` boundary CTE that exposes group
+The engine now supports an opt-in `group_meta` access-filtered CTE that exposes group
 metadata — `member_count`, `join_policy`, `discoverable` — alongside content.
 The caller references `group_meta` in its SQL (e.g. `JOIN group_meta gm ON
 p.group_id = gm.group_id`) and sets `withGroupMeta: true` on the request.
@@ -416,8 +422,8 @@ result. The node hardcodes nothing — the app's query names the `profile`
 service (the app knows its own face).
 
 **The query** (the app's; the engine wraps `posts` / `reactions` / `comments`
-/ `profile` in boundary CTEs). It is the feed SQL with the board base replaced
-by the `posts` boundary CTE and the engagement subqueries reading the
+/ `profile` in access-filtered CTEs). It is the feed SQL with the board base replaced
+by the `posts` access-filtered CTE and the engagement subqueries reading the
 `reactions` / `comments` service CTEs:
 
 ```sql
@@ -454,11 +460,11 @@ in practice for the following feed:
 
 - **Engagement counts are group-scoped.** The old SQL counted reactions/comments
   across *all* groups; the query counts them in the reader's *readable* groups
-  (the boundary CTE). Reactions/comments default to the discover group (D62,
+  (the API-generated access-filtered CTE). Reactions/comments default to the discover group (D62,
   readable by all), so the count is identical in practice — and a reaction
   attached only to a group the reader can't read no longer over-counts for them.
 - **The author face is group-scoped.** The old `get_author_profiles` read the
-  `profile` service across all groups; the query JOINs the `profile` boundary
+  `profile` service across all groups; the query JOINs the `profile` access-filtered
   CTE (readable groups). The following feed shows posts from users the reader
   *follows* — following = a membership in the author's followers group — so the
   reader can read the author's profile and the JOIN returns it. Identical in
@@ -492,8 +498,8 @@ at the source, not as an empty feed downstream.
 
 - **Query language: a SQL subset.** The caller writes ClickHouse `SELECT`; the
   engine parses it (sqlglot), validates every table reference, and rewrites the
-  services to boundary CTEs. Not a DSL (caps the power), not raw passthrough
-  (unsafe) — the rewriting layer is the boundary, and it's a *wall* (the raw
+  services to access-filtered CTEs. Not a DSL (caps the power), not raw passthrough
+  (unsafe) — the rewriting layer enforces the API -> ClickHouse authorization boundary (the raw
   tables are unreachable), so the parser only has to be complete about table
   refs, not about every SQL construct.
 - **Join validation: any join, each alias carries its own filter.** A join is
@@ -506,12 +512,11 @@ at the source, not as an empty feed downstream.
   an ungranted service is a 403.
 - **The "do anything" ceiling:** full ClickHouse `SELECT` (read-only). The
   ceiling is "any read over your groups" — DML/DDL/table-functions/raw-tables
-  are rejected. The line doesn't need to move; the boundary is structural.
+  are rejected. The API -> ClickHouse authorization boundary is structural, not a caller-supplied filter.
 
 ## The One Assumption
 
-The group-membership JOIN is the **only** security boundary, and it is **always
-injected by the API.** Every choice above flows from that: the more power we
-give the caller, the more the compiler must guarantee the boundary is applied
-to every table, every join, every subquery. The power is the goal; the boundary
-is non-negotiable.
+The API must **always supply** group authorization at the API -> ClickHouse
+boundary. Every choice above flows from that: the more query power the caller
+has, the more the compiler must retain those checks on every table, join and
+subquery. Caller-authored SQL cannot replace those authorization checks.

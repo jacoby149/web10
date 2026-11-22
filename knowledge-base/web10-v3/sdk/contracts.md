@@ -1,5 +1,10 @@
 # Contract Schemas
 
+**Current API record shapes.** JSON examples describe app -> API inputs and
+API -> app/UI responses, not a requirement to store JSON. D118 is DECIDED;
+D116 is DECIDED and D117 is DIRECTION (cell pending) for the storage target.
+See the [design map](../db/design-revolution.md).
+
 Two concerns. Two contracts. One model.
 
 1.  **App Contracts:** "What can this app do with my data?" Per-app, per-service permissions. Contract with the app.
@@ -23,7 +28,7 @@ v4: 3 apps + infinite services with schema versions = still 3 contracts
 
 Services are free. Apps are the gate. Schemas are the shape.
 
-Service identity is canonical lowercase at the API boundary: `Posts` means
+Service identity is canonical lowercase at the app -> API boundary: `Posts` means
 `posts`. Ordinary names are 1–64 ASCII letters/digits/`-`/`_`, starting with a
 letter; infrastructure names are reserved. New permission-map keys normalize
 the same way, but maps containing both `posts` and `Posts` are rejected, never

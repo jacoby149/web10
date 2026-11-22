@@ -39,7 +39,13 @@ Original V2 generators, input files and receipts are not rewritten.
   remains available only as the named sensitivity case. Admission always
   reports `pilot_ready: false` until the remaining connected/review/budget gates.
 
-**Still open:** a source-matched Parquet-to-node restore/selected-cohort adapter,
+**First connected diagnostic:** [REALISM-SMOKE.md](REALISM-SMOKE.md) scopes the
+operator-approved retained-host serial baseline smoke. `restore_realism.py`
+imports the manifest-selected cohort into a fresh node; `smoke_realism.py`
+checks one ordinary reader independently. This is not the full runner,
+alternate-cohort restore, lifecycle gate or pilot admission.
+
+**Still open:** full source-matched Parquet-to-node/selected-cohort integration,
 connected exact live-delivery delta receipts, complete runner integration and
 the other RD2–RD4 gates. A passing local file validator is not actual node
 execution, deployed parity, cache residency or permission/lifecycle assurance.

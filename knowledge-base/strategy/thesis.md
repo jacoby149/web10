@@ -4,7 +4,9 @@ the one answer to "what is this thing, actually?" read this before
 touching a product surface. it supersedes the old "privacy platform"
 framing (D41 reverses D6/D16–D19). if a feature doesn't serve this,
 it's a no. the fan-facing version of the same idea is `manifesto.md`;
-the creator pitch is `outreach.md`. this is the internal spine.
+the creator pitch is archived at
+`archive/creator-influencer-track/outreach.md`; the dominant GTM frame
+(org-to-org, D112) is `org-to-org.md`. this is the internal spine.
 
 ## the one-liner
 

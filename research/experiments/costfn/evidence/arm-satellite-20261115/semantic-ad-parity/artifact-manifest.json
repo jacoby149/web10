@@ -1,0 +1,21 @@
+{
+  "files_sha256": {
+    "README.md": "8ccdc3908a53583e042092bb0bcf0f7e9c6e920a55e2b9f977b2c347caea3b45",
+    "ad-ruling.json": "d285a601df19145186919c19f20f556d7fb81d5577bb2f8fe160eda5500f6fd3",
+    "cleanup.json": "4a8a20739099898d6f64ee576abeb1577d5bb520bbbd3286dd5452fa914595de",
+    "driver.py": "53a6eb9979a347e1db51edbd560fd02c48c1157929908a7adba31647b52c1609",
+    "evidence/query-ledger.jsonl": "02b60c8b49c139f5264e2fbf89b4c0e75e5631284fe0d7d5c0ca9b14ea605293",
+    "executing-source/arm_satellite_ad_parity.py": "1ca6ff43b1704aef030db56508f571bd054fa3e13c69c4163678c76e7b6b2e41",
+    "executing-source/arm_satellite_api.py": "e9b71f99c336149fe84fc64723beb4fc53892b94b69ac55e6c5eff523ad2f9ed",
+    "executing-source/arm_satellite_probe.py": "e290a8f406d8ef1991bffc419acbdd750ad041b30868af0edcc6e4727032a799",
+    "executing-source/arm_satellite_serve.compose.yml": "71055481ca8746ad1ced1dd9ccdf0af2cb69a236d21e7a5a8c20511effa09348",
+    "executing-source/arm_satellite_serve.py": "b51f94c2f54ce84f9cc9bb0755f83956b365f0c793af880d88ec255ffd3a869c",
+    "executing-source/core_feed.py": "9cc2fd817dd946e68455a91834f0a67a5987ff1c846e2a8590a9d9a00ee5501a",
+    "executing-source/smoke_realism.py": "d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5",
+    "serve-probe/config-p.json": "e0cc0892a137ed2a62aa096bfcf5e864948313b4e0db1b034215280b8ad2af8d",
+    "serve-probe/feeds-with-native.json": "f18f5ba00b03869ba58d0dfef34a9aa0e4f03083ccb1705715363bede415f01f",
+    "serve-probe/feeds.jsonl": "938bdbe97e6660880fa1141a053e5d148e0b2fbc8966dfffd818ae917c5547e3",
+    "serve-probe/requests.json": "c0d4278f47a3078a234a542c0bb71eb4006da0e47b77a7fc0a9cc5d766241bf6",
+    "serve-probe/summary.json": "c98e99e3173a754fdb71d53e8247657be7084e5afbd77dd1d5d126fce9d3af35"
+  }
+}

@@ -32,7 +32,10 @@ try {
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(`${base}?screen=posts-following`, { waitUntil: 'networkidle' });
       const mobile = width < 768;
-      const dock = page.getByRole('navigation', { name: 'Primary mobile', exact: true });
+      const dock = page.locator('nav[aria-label="Primary mobile"]');
+      const expectedDock = ['nav-feed-mobile', 'nav-video-mobile', 'nav-shorts-mobile', 'nav-music-mobile', 'nav-more-mobile'];
+      const dockItems = () => dock.locator('button').evaluateAll(buttons => buttons.map(button => button.dataset.testid));
+      assert.deepEqual(await dockItems(), expectedDock);
       const header = page.getByTestId(mobile ? 'topbar-mobile' : 'topbar-desktop');
       assert.equal(await header.isVisible(), true);
       assert.equal(await header.evaluate(el => getComputedStyle(el).backdropFilter.includes('blur')), true);
@@ -160,9 +163,35 @@ try {
         await page.goto(`${base}?screen=shorts-lens`, { waitUntil: 'networkidle' });
         await page.getByTestId('short-slide-0').waitFor();
         assert.equal(await dock.isVisible(), false, 'immersive Shorts keeps dock hidden');
-        await page.goto(`${base}?screen=appearance&anon=1`, { waitUntil: 'networkidle' });
-        assert.equal(await page.getByTestId('nav-more-mobile').count(), 0);
+      }
+      await page.goto(`${base}?screen=appearance&anon=1`, { waitUntil: 'networkidle' });
+      assert.deepEqual(await dockItems(), expectedDock, 'signed-out dock matches signed-in order');
+      if (mobile) {
         assert.equal(await page.getByTestId('nav-appearance-anon').isVisible(), true);
+        for (const id of ['nav-feed-mobile', 'nav-video-mobile', 'nav-shorts-mobile', 'nav-music-mobile']) {
+          const button = page.getByTestId(id);
+          await button.click();
+          await page.locator(`[data-testid="${id}"][aria-current="page"]`).waitFor();
+          assert.equal(await button.getAttribute('aria-current'), 'page', `${id} navigates anonymously`);
+          const target = await button.boundingBox();
+          assert.ok(target.width >= 44 && target.height >= 44);
+        }
+        await capture(page, `glass-anon-music-${mode}-${width}`);
+        await page.getByTestId('nav-more-mobile').click();
+        const sheet = page.getByTestId('more-sheet');
+        assert.deepEqual(await sheet.locator('button[data-testid]').allTextContents(), ['People', 'Appearance']);
+        assert.equal(await page.getByTestId('nav-more-messages-badge').count(), 0);
+        await capture(page, `glass-anon-more-${mode}-${width}`);
+        await page.getByTestId('nav-people-mobile').click();
+        await page.locator('[data-testid="nav-more-mobile"][aria-current="page"]').waitFor();
+        assert.equal(await sheet.count(), 0);
+        assert.equal(await page.getByTestId('nav-more-mobile').getAttribute('aria-current'), 'page');
+        await page.getByTestId('nav-more-mobile').click();
+        await page.getByTestId('nav-appearance-mobile').focus();
+        await page.keyboard.press('Enter');
+        await page.getByTestId('appearance-settings').waitFor();
+      } else if (width === 1440) {
+        await capture(page, `glass-anon-${mode}-${width}`);
       }
       assert.deepEqual(errors, []);
       receipts.push({ width, mode, navigation: true, focus: true, mobileClearanceAndFallbacks: mobile, errors });

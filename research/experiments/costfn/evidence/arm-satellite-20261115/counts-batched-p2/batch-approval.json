@@ -1,0 +1,14 @@
+{
+  "kind": "SATELLITE_BATCH_SETUP_RETRY",
+  "approved_by": "Jacob",
+  "quote": "great, batch and proceed please!",
+  "approved_utc": "2026-11-15T12:47:39.715622+00:00",
+  "droplet_id": 619510510,
+  "attempt": "p2",
+  "deadline_utc": "2026-11-15T15:38:32+00:00",
+  "previous_result_sha256": "7343d7aebe0f811b4ea47faab72609ae6ebcc1d9324402e68015a22fa66d867a",
+  "batches": 8,
+  "fanout": false,
+  "higher_limits": false,
+  "lease_extended": false
+}

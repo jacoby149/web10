@@ -1,0 +1,74 @@
+{
+  "kind": "CANONICAL_PREPARED_SETUP_REFERENCE",
+  "rows": 21,
+  "inventory_candidates": 20,
+  "rows_sha256": "f976151dd4d229683d30817d750d6fbeb6ae73e67058d7d4390bc7319c0ad809",
+  "compiled_sha256": "ad2339d812f04d40e58522df87c5826f860edb570329a8856046816bd8e205c0",
+  "canonical_bounded_reference_sha256": "76721ec934f89e350ff11bdf530ad9fc8e93373dc68b14015d3b4cb1aa835080",
+  "reference_identities_from": "canonical tables only; no satellite or treatment result",
+  "native_queries": [
+    {
+      "query_id": "5f4d8d75-e65f-4cda-98c4-4a90dc5e62de",
+      "sql_sha256": "c931859e2c4a27cb785b08083493f0cc3526d4f56817076e3550965ae1548703",
+      "read_rows": 180400900,
+      "read_bytes": 18437096707
+    },
+    {
+      "query_id": "ca4a0ab6-ece8-4751-8390-510e07669720",
+      "sql_sha256": "76721ec934f89e350ff11bdf530ad9fc8e93373dc68b14015d3b4cb1aa835080",
+      "read_rows": 993174008,
+      "read_bytes": 113427361074
+    },
+    {
+      "query_id": "b0e79589-3542-4f84-8471-a6ec05153b5a",
+      "sql_sha256": "77df5e466d5e4dd70ee6c03b819f02d5b20b4f2cbbca4791c88dcdc284a44bea",
+      "read_rows": 180400900,
+      "read_bytes": 15601689098
+    },
+    {
+      "query_id": "a4cd9529-a73e-495e-83fa-2d920f0bc1c3",
+      "sql_sha256": "bd79d37c3ab73d61b0827ddf447c1fbd63a8d8c191d01f3ed7548a92d09db5c2",
+      "read_rows": 303104,
+      "read_bytes": 48313383
+    },
+    {
+      "query_id": "008bcf0e-6ff5-45e3-8c82-9196c33eec30",
+      "sql_sha256": "ae78f0b6a631156c5b1314c3539b553507fc206cead4981e1e61b2213ba2a9a9",
+      "read_rows": 78943340,
+      "read_bytes": 4908481991
+    },
+    {
+      "query_id": "e0621410-e76b-4e04-a642-a7d2595599f3",
+      "sql_sha256": "3a7c0fbd22d1feb5ab959f815eb39d8c4b7498a50ba07cc905538b86de12ef1a",
+      "read_rows": 78943340,
+      "read_bytes": 2658525063
+    },
+    {
+      "query_id": "ff072d5b-40e8-45e3-b472-ada6fb98e574",
+      "sql_sha256": "93d7a0bbe4ca1d7e583e31712e0b3d2eb0f82aceb845d74ca1910e3168cfa7f9",
+      "read_rows": 78943340,
+      "read_bytes": 4880084793
+    },
+    {
+      "query_id": "38beeaf4-6b90-4896-bb0f-7e6a16703671",
+      "sql_sha256": "34ef4882bf996f8f296f4e001f04851be60d5ce12c8059f176ff6ea0ed0c8161",
+      "read_rows": 78943340,
+      "read_bytes": 4886966193
+    },
+    {
+      "query_id": "58758f96-2502-4295-b353-0b94bb305892",
+      "sql_sha256": "fd12f8fa87328a71fadef5ba8024ae9bf1fd1b1b85810d73b8e0541b89c4d546",
+      "read_rows": 0,
+      "read_bytes": 0
+    },
+    {
+      "query_id": "3aca44a9-66e2-48cc-9704-4db3c7998d37",
+      "sql_sha256": "fd12f8fa87328a71fadef5ba8024ae9bf1fd1b1b85810d73b8e0541b89c4d546",
+      "read_rows": 0,
+      "read_bytes": 0
+    }
+  ],
+  "serving_measurement": false,
+  "setup_query_seconds": 900,
+  "serving_limits_changed": false
+}

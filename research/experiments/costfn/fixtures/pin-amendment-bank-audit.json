@@ -1,0 +1,21 @@
+{
+  "source_only": true, "native_execution": false, "legacy_oracle_sha256": "9c487178fe8518840817b208190e53c3681518af5885633ccf717b37e6def336", "pin_semantics": "D124_FULL_CREATIVE_AGREEMENT_AUTHOR_FIRST", "original_packets_modified": false,
+  "attempts": [
+    {"attempt": "attempt6", "setup_sha256": "e4f409b048a24004f7dd241c5e43da42b89dfe9cd05ba2f987da63ba75111c14", "posts": 42, "pins": 32, "duplicate_pin_roots": 0, "fixture_documents": 338, "fixture_links": 950, "changed_fixture_verdicts": 0, "comparisons": [
+      {"cell": "uniform-K20", "phase": "warmup", "posts": 21, "same_expected_response": true, "expected_response_sha256": "386cda87a450dc6dcba53ccc00f18dbaf77596d272ac62b114a2a6f0fcb1473d"},
+      {"cell": "uniform-K20", "phase": "measured", "posts": 21, "same_expected_response": true, "expected_response_sha256": "386cda87a450dc6dcba53ccc00f18dbaf77596d272ac62b114a2a6f0fcb1473d"},
+      {"cell": "paired-P", "phase": "warmup", "posts": 21, "same_expected_response": true, "expected_response_sha256": "fb6b47d870108f376c62bcfc2d5452a7d7d3801f59f1e250e4b41091e57da493"},
+      {"cell": "paired-P", "phase": "measured", "posts": 21, "same_expected_response": true, "expected_response_sha256": "fb6b47d870108f376c62bcfc2d5452a7d7d3801f59f1e250e4b41091e57da493"},
+      {"cell": "paired-F", "phase": "warmup", "posts": 21, "same_expected_response": true, "expected_response_sha256": "fb6b47d870108f376c62bcfc2d5452a7d7d3801f59f1e250e4b41091e57da493"},
+      {"cell": "paired-F", "phase": "measured", "posts": 21, "same_expected_response": true, "expected_response_sha256": "fb6b47d870108f376c62bcfc2d5452a7d7d3801f59f1e250e4b41091e57da493"}
+    ]},
+    {"attempt": "attempt7", "setup_sha256": "e4f409b048a24004f7dd241c5e43da42b89dfe9cd05ba2f987da63ba75111c14", "posts": 42, "pins": 32, "duplicate_pin_roots": 0, "fixture_documents": 338, "fixture_links": 950, "changed_fixture_verdicts": 0, "comparisons": [
+      {"cell": "uniform-K20", "phase": "warmup", "posts": 21, "same_expected_response": true, "expected_response_sha256": "386cda87a450dc6dcba53ccc00f18dbaf77596d272ac62b114a2a6f0fcb1473d"},
+      {"cell": "uniform-K20", "phase": "measured", "posts": 21, "same_expected_response": true, "expected_response_sha256": "386cda87a450dc6dcba53ccc00f18dbaf77596d272ac62b114a2a6f0fcb1473d"},
+      {"cell": "paired-P", "phase": "warmup", "posts": 21, "same_expected_response": true, "expected_response_sha256": "fb6b47d870108f376c62bcfc2d5452a7d7d3801f59f1e250e4b41091e57da493"},
+      {"cell": "paired-P", "phase": "measured", "posts": 21, "same_expected_response": true, "expected_response_sha256": "fb6b47d870108f376c62bcfc2d5452a7d7d3801f59f1e250e4b41091e57da493"},
+      {"cell": "paired-F", "phase": "warmup", "posts": 21, "same_expected_response": true, "expected_response_sha256": "fb6b47d870108f376c62bcfc2d5452a7d7d3801f59f1e250e4b41091e57da493"},
+      {"cell": "paired-F", "phase": "measured", "posts": 21, "same_expected_response": true, "expected_response_sha256": "fb6b47d870108f376c62bcfc2d5452a7d7d3801f59f1e250e4b41091e57da493"}
+    ]}
+  ]
+}

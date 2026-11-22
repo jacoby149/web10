@@ -18,6 +18,12 @@ name: ghcr-mirror
 
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: Exact manifest target to publish (empty mirrors all)
+        required: false
+        default: ""
+        type: string
   schedule:
     # Weekly refresh so `:latest`-sourced images (minio, static-web-server)
     # track upstream. Manual dispatch is the primary path.
@@ -54,20 +60,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Mirror every image in the manifest
+        env:
+          MIRROR_TARGET: ${{ inputs.target || '' }}
         run: |
           set -euo pipefail
-          MANIFEST=e2e/mirror-images.json
-
-          # Emit "<source>\t<target>" lines from the manifest.
-          mapfile -t PAIRS < <(python3 -c "
-          import json
-          m = json.load(open('$MANIFEST'))
-          for i in m['images']:
-              print(i['source'] + '\t' + i['target'])
-          ")
+          # Emit approved "<source>\t<target>" lines from the manifest.
+          PAIRS_TEXT=$(python3 e2e/mirror-images.py --target "$MIRROR_TARGET")
+          mapfile -t PAIRS <<< "$PAIRS_TEXT"
 
           if [ "${#PAIRS[@]}" -eq 0 ]; then
-            echo "No images in $MANIFEST — nothing to mirror."
+            echo "No approved images in e2e/mirror-images.json — nothing to mirror."
             exit 0
           fi
 

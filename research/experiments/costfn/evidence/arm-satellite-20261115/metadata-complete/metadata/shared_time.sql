@@ -1,0 +1,1 @@
+INSERT INTO timestamps SELECT unhex('706f737473'),created_at,author_key,doc_id,updated_at FROM documents FINAL WHERE deleted=0 AND collection_name=unhex('706f737473') AND NOT has(tags,'ad') AND NOT has(tags,'product')

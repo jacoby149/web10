@@ -1,0 +1,27 @@
+{
+  "verdict": "PASS_COMPLETED_NATIVE_EVIDENCE_AUDITED_OFF_HOST",
+  "formal_composition_stage": "BLOCKED_PRE_MEASUREMENT_VERIFICATION",
+  "new_native_work": false,
+  "actual_paired_roots": 20,
+  "actual_roots_sha256": "211e1d8c5cebc6de81acc9539333a23300644c585abba02f13fef7983b8f9317",
+  "domains": [
+    {"domain": "main:reactions", "queried_ids": 101, "actual_roots": 20, "missing_actual_roots": 0, "canonical_value_keys": 0, "stored_value_keys": 0, "exact_values": true, "oracle_query_id": "fanout-f-69c94fdbf9b64a5bba8d94bb4710f767", "stored_query_id": "fanout-f-be79295bdeb0400190ef70b0074f9865", "original_sql_hashes_reconstructed": true},
+    {"domain": "main:comments", "queried_ids": 101, "actual_roots": 20, "missing_actual_roots": 0, "canonical_value_keys": 0, "stored_value_keys": 0, "exact_values": true, "oracle_query_id": "fanout-f-0e5d0040e59540749143d066cc5c9237", "stored_query_id": "fanout-f-43f573d7ac7a478d9b2870b05772feca", "original_sql_hashes_reconstructed": true},
+    {"domain": "main:posts", "queried_ids": 101, "actual_roots": 20, "missing_actual_roots": 0, "canonical_value_keys": 0, "stored_value_keys": 0, "exact_values": true, "oracle_query_id": "fanout-f-88520b567a514646ba2e0d5723d7810e", "stored_query_id": "fanout-f-df66e6c8bc3a4c169ffc64f39d3cfb2e", "original_sql_hashes_reconstructed": true},
+    {"domain": "reactions:reactions", "queried_ids": 101, "actual_roots": 20, "missing_actual_roots": 0, "canonical_value_keys": 128, "stored_value_keys": 128, "exact_values": true, "oracle_query_id": "fanout-f-a1d4b9d3f1e94be5a74bfbdbdc869004", "stored_query_id": "fanout-f-03bc04c6c19141968876e42c8ea1ea2c", "original_sql_hashes_reconstructed": true},
+    {"domain": "comments:comments", "queried_ids": 101, "actual_roots": 20, "missing_actual_roots": 0, "canonical_value_keys": 32, "stored_value_keys": 32, "exact_values": true, "oracle_query_id": "fanout-f-732f74f7d7d84060882b9bcf31cbef53", "stored_query_id": "fanout-f-c4b1cabb6dd341b6aa03c93eddbc089a", "original_sql_hashes_reconstructed": true}
+  ],
+  "ordinary_fat_store_sample": "PASS",
+  "deterministic_sample_roots": 60,
+  "fat_parity": "PASS",
+  "source_binding": {
+    "engagement_pairs.py": "67fb88c982d87374fcd09136bff601e4dc8f8133aebdcdc1d92866d4ec4282c6",
+    "engagement_billboard_reads.py": "5064c79084e8bd9ac557010b91f56122c430aee97718c1ef3138c7045f7c6b41",
+    "engagement_billboards.py": "9c487178fe8518840817b208190e53c3681518af5885633ccf717b37e6def336",
+    "engagement_composition_verify.py": "6f6613e26b383994e11dd271bf0235107fbb11b0ac60a4c90f4bfa9c4a7c55fd",
+    "engagement_composition_api.py": "9973c25472d0664002be0ae9e3e1f289361bfffb9494345708f7d02664396784",
+    "engagement_events.py": "1d3d7f07011db80a0e3b1acbe35145313e89c8329838d723a186a93ad89c4dd0",
+    "engagement_tally_sql.py": "0cb46eda71284617a5777b981c4d4bee7ae935889a75facc20a2150d4a0cef26",
+    "engagement_tally_build.py": "43e50d7bc0ff4fe864aabc7ba4f3df09b69979f17395d28060227fc71c1185d9"
+  }
+}

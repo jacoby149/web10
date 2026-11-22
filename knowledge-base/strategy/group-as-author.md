@@ -1,5 +1,10 @@
 # Group as Author — post as the group, the group is an identity
 
+**Current app/API identity composition; storage examples are not the target.**
+D116 is DECIDED, D117 is DIRECTION (cell pending) and D118 is DECIDED; see the
+[canonical design map](../web10-v3/db/design-revolution.md). This does not change
+the current acting-author authority or imply storage deployment.
+
 **01.11.2026 scope correction:** `acting-identity.md` supersedes the composer-only
 picker decision and A4 UX below. Selection is now app-wide and per tab; drafts
 keep their originating identity. The old `getMyGroups(member_key=...)` assumption
@@ -158,7 +163,7 @@ the column is at the end of the table).
 **The read paths** (`_board_base_sql`, `_group_docs_query`,
 `_group_docs_ranked_query`, the single-doc read) add `p.posted_by` to the
 SELECT + the row mapper. The safe-query engine passes it through automatically
-(it's a column on the `documents` table — the boundary CTEs select `*` from
+(it's a column on the `documents` table — the API-generated access-filtered CTEs select `*` from
 the deduped subquery). The media resolution rule is uniform: **use
 `posted_by` as the media owner** (no fallback — the backfill guarantees it's
 populated).
@@ -309,7 +314,7 @@ LEFT JOIN (SELECT author_key, body FROM web10_social_group_identity
 ...
 ```
 
-Wait — the safe-query engine maps service names to boundary CTEs. The service
+Wait — the safe-query engine maps service names to API-generated access-filtered CTEs. The service
 name `web10-social-group-identity` has a hyphen — the safe-query engine's
 identifier parser may not accept it. Let me check.
 
@@ -318,7 +323,7 @@ service name is used as a table alias. Hyphens in identifiers need quoting.
 The engine may already handle this (the social app uses `web10-social-group-identity`
 as a service name in reads). Let me verify.
 
-Actually — the safe-query engine's boundary CTEs are built by the API (the
+Actually — the safe-query engine's access-filtered CTEs are built by the API (the
 `run_query` endpoint), not by the caller. The caller's SQL references service
 names, and the engine replaces them with CTE references. The CTE name is
 derived from the service name. If the engine already handles hyphenated service

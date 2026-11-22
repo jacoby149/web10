@@ -1,0 +1,158 @@
+{
+  "kind": "CONFIG_F_READ_FIRST_SETUP_STOP_AND_CLEANUP",
+  "outcome": "STOP_BEFORE_FIXTURE_COVERAGE",
+  "directive": "Jacob Hoffman 2026-11-16 read-first/prepared-snapshot",
+  "droplet_id": 620093795,
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "approved_utc": "2026-11-17T01:07:38+00:00",
+  "deadline_utc": "2026-11-17T05:07:38+00:00",
+  "banked": {
+    "P": "PR#1572 CITED_NOT_REMEASURED",
+    "trim_first": "PR#1577 CITED_NOT_REMEASURED",
+    "T4": "PR#1577 CITED_NOT_REMEASURED"
+  },
+  "original_setup_stop": {
+    "failure_class": "ValueError",
+    "failure_message": "dedicated disposable project required",
+    "sha256": "357d79c7ee373088aa1365258eee4d2147500c8a75b71f7f3c78197d0558697f",
+    "before_import": true,
+    "preserved": true
+  },
+  "local_provisioning_timeout": {
+    "seconds": 120,
+    "before_worker": true,
+    "sha256": "4330ecd0b578d9ae0db9f43e3198380ffaf1662f768e0b1e5c8681a8b39ebc14",
+    "same_host_continuation": true
+  },
+  "setup_continuation": {
+    "same_admission": true,
+    "original_stop_preserved": true,
+    "failed_fixture_or_treatment_retried": false,
+    "verified_download_and_unchanged_tiny_native_fixture_reused": true,
+    "source_files": 1390,
+    "source_manifest_sha256": "daa2af44ac03c98e7d4cb9aafdc036479b35fa36274e0ef3db0ac40e191eccca",
+    "source_archive_sha256": "afd4aac638f02e65af4d3c9bb6370a2077dab18c64cd3eeb6fec2a4d1717d399"
+  },
+  "restore": {
+    "node_import_complete": true,
+    "preparation_seconds": 1260.321,
+    "imports": {
+      "users": {
+        "rows": 1000000,
+        "seconds": 2.09
+      },
+      "group_contracts": {
+        "rows": 1000001,
+        "seconds": 2.794
+      },
+      "group_members": {
+        "rows": 152340270,
+        "seconds": 40.731
+      },
+      "app_contracts": {
+        "rows": 20000,
+        "seconds": 0.865
+      },
+      "documents": {
+        "rows": 88200300,
+        "seconds": 77.457
+      },
+      "doc_groups": {
+        "rows": 92200600,
+        "seconds": 66.796
+      },
+      "content_events": {
+        "rows": 1600000000,
+        "seconds": 948.971
+      }
+    }
+  },
+  "fixture_stop": {
+    "failure_class": "ReadTimeout",
+    "stop_sha256": "1ac75b359c7ebce5fe6ebec091c36c92b2b011f2f46510236949056d18f0ed39",
+    "path": "/v3/groups/create",
+    "request_id": "19d2a3ccabba46da9591e38fd13dea00",
+    "started_utc": "2026-11-17T01:38:48.339702+00:00",
+    "ended_utc": "2026-11-17T01:39:53.373384+00:00",
+    "client_timeout_seconds": 65,
+    "client_elapsed_ms": 65033.66009999991,
+    "server_status": 200,
+    "server_asgi_ms": 69893.20802800011,
+    "stage": "real authorized 2000-member group create, before fixture posts",
+    "successful_small_group_creates": 2,
+    "fixture_posts_created": 0,
+    "membership_cardinality": "NOT_INDEPENDENTLY_VERIFIED",
+    "server_200_is_not_fixture_or_coverage_PASS": true,
+    "original_failure_preserved": true
+  },
+  "gates": {
+    "fixture_clock_native": "UNVERIFIED",
+    "canonical_fixture_coverage": "UNREACHED",
+    "prepared_snapshot": "UNREACHED",
+    "T2_F": "UNREACHED",
+    "T6_F": "UNREACHED",
+    "population": "UNREACHED",
+    "populated_feed_read": "UNREACHED",
+    "R_plus_W": "UNREACHED",
+    "T3_F": "UNREACHED",
+    "T5_F": "UNREACHED",
+    "T8_F": "UNREACHED",
+    "boundaries": "UNREACHED"
+  },
+  "complete_F_read_samples": 0,
+  "feed_read_comparison": "UNREACHED_NOT_A_COST_RESULT",
+  "phase0_budget_verdict": "UNREACHED",
+  "private_archive": {
+    "bytes": 2791646,
+    "sha256": "79dd3c761040fa2389bccadd1c87159e91b52ec8e8464f5a0c59e29748a00662",
+    "verified_locally_before_cleanup": true,
+    "stopped_native_parts": [
+      {
+        "trial": "rf0",
+        "bytes": 4158023
+      }
+    ],
+    "full_tracebacks_and_request_metadata": true,
+    "engine_restarted": false
+  },
+  "containers": [
+    {
+      "project": "web10-costfn-frozen-satellite-f-620093795-rf0",
+      "service": "api",
+      "status": "exited",
+      "exit_code": 143,
+      "oom_killed": false
+    },
+    {
+      "project": "web10-costfn-frozen-satellite-f-620093795-rf0",
+      "service": "clickhouse",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    },
+    {
+      "project": "web10-costfn-frozen-satellite-f-620093795-rf0",
+      "service": "minio",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    }
+  ],
+  "cleanup": {
+    "droplet_id": 620093795,
+    "cleanup_verified": true,
+    "cleanup_utc": "2026-11-17T01:45:40.275463+00:00",
+    "deadline_utc": "2026-11-17T05:07:38+00:00",
+    "elapsed_compute_usd_estimate": 0.1584913515879048,
+    "estimate_not_invoice": true,
+    "private_archive_verified_before_cleanup": true,
+    "no_snapshots_created": true,
+    "no_guardian_started": true
+  },
+  "production_changes": false,
+  "guardian_started": false,
+  "frozen_archive_mutated": false,
+  "retained_input_volume_mutated": false,
+  "admission_closed": true,
+  "automatic_retry_authorized": false
+}

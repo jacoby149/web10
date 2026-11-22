@@ -1,0 +1,36 @@
+name: additive-arm-d
+
+on:
+  pull_request:
+    paths:
+      - research/experiments/costfn/arm_d*.py
+      - research/experiments/costfn/ARM-D*.md
+      - research/experiments/costfn/arm_t_rewrite.py
+      - research/experiments/costfn/smoke_realism.py
+      - research/experiments/costfn/evidence/arm-d-realism-20261115/**
+      - research/experiments/costfn/evidence/arm-d-attachment-checked-20261115/**
+      - research/experiments/costfn/evidence/arm-d-compiled-main-golden-20261109.sql
+      - .github/workflows/arm-d.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Arm D (no engine execution)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned parser and offline test dependencies
+        run: python -m pip install sqlglot==30.18.0 pydantic==2.13.4 ruff==0.15.22 -r research/experiments/costfn/realism-requirements.txt
+      - name: Lint the additive probe and repair
+        run: python -m ruff check research/experiments/costfn/arm_d_realism*.py research/experiments/costfn/arm_d_attachment_repair*.py
+      - name: Replay the original shortcut and attachment-repair controls
+        run: |
+          python research/experiments/costfn/arm_d_rewrite.test.py
+          python research/experiments/costfn/arm_d_realism.test.py
+          python research/experiments/costfn/arm_d_attachment_repair.test.py

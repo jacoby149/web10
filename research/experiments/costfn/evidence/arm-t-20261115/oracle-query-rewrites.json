@@ -1,0 +1,14 @@
+[
+  {
+    "old_sql_sha256": "51f60d412139984922126c7341a62bef9f305384ddf16fe2241c741f89267b57",
+    "bounded_sql_sha256": "ae52d6b382e8bd012ae63b8b268823153ea05c6c625bc61795b9a387fc2c9ee9",
+    "scope": "outside measured feed requests",
+    "full_store_reader_scope_exact_equal": true
+  },
+  {
+    "old_sql_sha256": "4f66e949965075e2f942976dede0e29f502d3ebc646eb740a743ffe31cc10396",
+    "bounded_sql_sha256": "9eba713f2cdb8ce62d23d3a7f498c69fd39b7bb2597b651460c38a0e5654034f",
+    "scope": "outside measured feed requests",
+    "discover_scope": "exact set-intersection rewrite; r0 global oracle timeout retained"
+  }
+]

@@ -1,5 +1,11 @@
 # Comments — threaded replies + comment likes
 
+**Current implementation/API examples, not replacement storage.** `ref_value`
+and JSON-body assumptions below remain current. D116 (DECIDED) defines N-ref
+relationships; D117 (DIRECTION, cell pending) defines typed-row storage. JSON
+API messages do not prescribe physical storage under D118 (DECIDED). See the
+[canonical design map](../db/design-revolution.md).
+
 A comment is a fan talking at a post. A reply is a fan talking at another
 fan. A comment like is a fan saying "this comment deserves eyes." This doc
 defines what a comment *is* on the wire, how a thread is built from one read,
@@ -309,11 +315,11 @@ ever have for that comment, until a refetch).
 - **No escalation** — a comment like is a content-free `reactions` doc
   keyed to a comment the reader can already see (the thread read proved it).
   Liking a comment grants nothing the thread read did not.
-- **The `parent_id` is not a security boundary** — it is a render hint.
+- **The `parent_id` does not grant API -> ClickHouse read access** — it is a render hint.
   Access is decided by the group + `ref_value` read, never by the body.
 - **Edit/Delete are enforced by the node, not the client.** The `isOwn` gate
   (the Edit/Delete actions only render on the reader's own comments) is a UX
-  affordance, not the boundary. The node's `/v3/update` + `/v3/delete`
+  affordance, not app -> API write authorization. The node's `/v3/update` + `/v3/delete`
   enforce `updateOwn` / `deleteOwn` on the `comments` service (the app
   contract grants them) and scope the write to the token's own `author_key` —
   a reader cannot update or delete another user's comment even if the client

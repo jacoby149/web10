@@ -1,5 +1,9 @@
 # Discover gauntlet — the public board, tortured
 
+**Current app/API test plan, not target storage.** D116 is DECIDED, D117 is
+DIRECTION (cell pending), and D118 is DECIDED; see the
+[design map](../../web10-v3/db/design-revolution.md).
+
 [← back to the gauntlet doctrine](./README.md)
 
 Discover is the public board: the node-default discover group

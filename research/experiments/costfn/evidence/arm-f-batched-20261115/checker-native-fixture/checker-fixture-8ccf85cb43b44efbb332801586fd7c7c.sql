@@ -1,0 +1,1 @@
+SELECT count() AS n FROM (SELECT group_id, author_key, doc_id, count() AS copies FROM (SELECT * FROM doc_groups_t WHERE cityHash64(doc_id) % 2 = 1) AS doc_groups_t GROUP BY group_id, author_key, doc_id HAVING copies > 1) FORMAT JSON

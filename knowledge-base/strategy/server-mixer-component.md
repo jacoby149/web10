@@ -168,7 +168,7 @@ People is a directory, not a post board. The November 12 extension reuses the
 server source rack with simple creation-date/audience sorting, not post ranking;
 see `../web10-v3/social/directory-mixer.md`.
 
-Fresh scoped review reproduced two boundary bugs: a retained approval callback
+Fresh scoped review reproduced two app -> foreign-node approval/credential-transport bugs: a retained approval callback
 resurrected removed consent, and URL normalization/percent encoding bypassed the
 credential-echo guard. Actual hook/reader regressions fail before repair and pass
 after generation/sequence ownership and normalized/decoded URL checks. Receipts:

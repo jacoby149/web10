@@ -1,0 +1,65 @@
+{
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "validation_sha256": "5d7dabb6e4e322d5a76bed630d053b2340d34e5e5016682ad8bdb175c6afdd94",
+  "complete": true,
+  "node_import_complete": true,
+  "connected_correctness": false,
+  "pilot_ready": false,
+  "project": "web10-costfn-frozen-satellite-fstep0a2",
+  "api": "http://127.0.0.1:6098",
+  "api_port": 6098,
+  "overlay": "/opt/fanout/attempt2/restore.overlay.json",
+  "counts_before": {
+    "users": 0,
+    "group_contracts": 1,
+    "group_members": 1,
+    "app_contracts": 0,
+    "documents": 0,
+    "doc_groups": 0,
+    "content_events": 0
+  },
+  "imports": {
+    "users": {
+      "rows": 1000000,
+      "seconds": 1.966
+    },
+    "group_contracts": {
+      "rows": 1000001,
+      "seconds": 3.238
+    },
+    "group_members": {
+      "rows": 152340270,
+      "seconds": 40.137
+    },
+    "app_contracts": {
+      "rows": 20000,
+      "seconds": 0.874
+    },
+    "documents": {
+      "rows": 88200300,
+      "seconds": 78.693
+    },
+    "doc_groups": {
+      "rows": 92200600,
+      "seconds": 73.098
+    },
+    "content_events": {
+      "rows": 1600000000,
+      "seconds": 963.275
+    }
+  },
+  "preparation_seconds": 1204.985,
+  "sources": {
+    "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+    "api_lock_sha256": "ecaa9988e333b039c47ba7e7ef0284c6af5ad03259b766eb122d30783ed38ea8",
+    "research_compose_sha256": "6cc1c347614af76dd3c08f03a8da2ae223eb3c7b9e4d8cbd66ffa9b308883b96",
+    "harness_python_sha256": "d077d0b1d6ac2efa16fb3e616bce73ae74a436e166337048f078845d9bbcf059",
+    "pagination_capture_sha256": "7f3d33be819bae9ac1b6edf372897c06e1df473615e87d03eb726d2c3bd77a42",
+    "wire_sha256": "2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd"
+  },
+  "envelope": {
+    "container_bytes": 30064771072,
+    "clickhouse_server_bytes": 23622320128,
+    "sensitivity": false
+  }
+}

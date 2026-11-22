@@ -1,0 +1,1 @@
+CREATE TABLE group_members (group_id String,member_key String,updated_at DateTime64(3),deleted UInt8) ENGINE=ReplacingMergeTree(updated_at) ORDER BY (group_id,member_key)

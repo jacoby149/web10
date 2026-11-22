@@ -8,6 +8,7 @@ vi.mock('lucide-react', () => lucideMock);
 
 // Mock data layer (same shape as videoEditor.test.tsx)
 const uploadMediaMock = vi.fn().mockResolvedValue({ _id: 'media-1', url: 'http://test.com/clip.mp4' });
+const createPostMock = vi.fn().mockResolvedValue({ _id: 'post-1' });
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
@@ -17,7 +18,7 @@ vi.mock('@/data', async (importOriginal) => {
     readProfile: vi.fn().mockResolvedValue(null),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
     uploadMedia: (...args: unknown[]) => uploadMediaMock(...args),
-    createPost: vi.fn().mockResolvedValue({ _id: 'post-1' }),
+    createPost: (...args: unknown[]) => createPostMock(...args),
     readMyAds: vi.fn().mockResolvedValue({ ads: [], albums: [] }),
     fanOutToFollowers: vi.fn().mockResolvedValue(undefined),
   };
@@ -412,5 +413,33 @@ describe('PostComposer video thumbnail pick (creator cover-frame control)', () =
     expect(await draft.media[0].thumbnail!.text()).toBe('frame-2');
     expect(draft.media[0].thumbnail!.type).toBe('image/webp');
     expect(uploadMediaMock).not.toHaveBeenCalled(); // the queue owns the upload
+  });
+});
+
+// ── The doc tags are the machine's vocabulary and they ADD (shorts.md +
+//    music.md). The exclusive `isShort ? ['short']` branch silently dropped
+//    the music tag from 9:16 videos marked as music — they reached the Shorts
+//    tab but never the Music tab (the prod report: the Sam Hanks performance
+//    videos carry only ['short']). ──────────────────────────────────────────
+describe('PostComposer doc tags (the additive short+music write)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    objectUrlCounter = 0;
+  });
+
+  it.each([
+    { width: 1080, height: 1920, marked: true, tags: ['short', 'music'] },
+    { width: 1080, height: 1920, marked: false, tags: ['short'] },
+    { width: 1920, height: 1080, marked: true, tags: ['music'] },
+    { width: 1920, height: 1080, marked: false, tags: undefined },
+  ])('a %sx%s video with markAsMusic=%s ships tags %o', async ({ width, height, marked, tags }) => {
+    getVideoInfoMock.mockResolvedValue({ duration: 10, width, height });
+    await attachVideo();
+    if (marked) fireEvent.click(screen.getByRole('checkbox', { name: 'Mark as music' }));
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(createPostMock).toHaveBeenCalled());
+    const created = createPostMock.mock.calls[0][0] as { tags?: string[] };
+    if (tags === undefined) expect(created.tags).toBeUndefined();
+    else expect(created.tags).toEqual(tags);
   });
 });

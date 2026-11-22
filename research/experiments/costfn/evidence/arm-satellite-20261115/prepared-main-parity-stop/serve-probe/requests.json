@@ -1,0 +1,14 @@
+[
+  {
+    "request_id": "4022c7ea34e4475784f19fd6be5ec67c",
+    "kind": "main",
+    "phase": "warmup",
+    "reader_index": 1,
+    "status": 200,
+    "error": null,
+    "client_start_monotonic": 11429.4552841,
+    "correlated": true,
+    "client_ms": 4197.709324000243,
+    "client_end_monotonic": 11433.652995158
+  }
+]

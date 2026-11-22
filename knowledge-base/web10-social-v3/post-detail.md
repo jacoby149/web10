@@ -1,5 +1,10 @@
 # Post Detail
 
+**Historical app-design/API examples.** These JSON/ref descriptions do not
+prescribe replacement storage. Current v3 lives in `../web10-v3/`; D116
+(DECIDED), D117 (DIRECTION, cell pending) and D118 (DECIDED) are linked from the
+[design map](../web10-v3/db/design-revolution.md).
+
 Single post view. Content, reactions, comments, share options.
 
 > The engagement model — where comments/reactions live (discover default +

@@ -1,0 +1,1 @@
+INSERT INTO doc_groups_t SELECT * FROM doc_groups_t WHERE doc_id='shared' AND author_key='a' AND group_id='g1'

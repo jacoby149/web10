@@ -72,8 +72,9 @@ self-possession. The brand is confident and quiet; it never begs.
    device by default, with remembered System / Light / Dark choices (D108).
    Both palettes are built from tokens; media stages retain dark controls.
 - **Voice.** Declarative, restrained, no gush. The fan-facing voice
-  lives in `manifesto.md`, the creator pitch in `outreach.md` — match
-  them. Never claim what isn't built. Headlines state facts:
+  lives in `manifesto.md`, the dominant GTM frame in `org-to-org.md`,
+  the archived creator pitch in
+  `archive/creator-influencer-track/outreach.md` — match them. Never claim what isn't built. Headlines state facts:
   Your audience. beats "Unlock the future of social!!"
 - **Never fake it.** No stock photos of smiling people, no invented
   testimonials, no logos of companies that don't use us. Real
@@ -501,10 +502,12 @@ autoplay needs a play action, not a silent fallback to muted. Changing mute
 never resumes paused media. Shorts tiles hide the still play badge whenever
 the real preview controls are shown, including touch-dwell—not CSS hover alone.
 
-Signed-in phone navigation (operator, 13.11.2026): Posts, Video, Shorts, Music,
-More. Messages moves into More, retaining its unread count both on the More
+Phone navigation (operator correction, 14.11.2026): signed-in and signed-out
+readers share Posts, Video, Shorts, Music, More in that order. People and
+Appearance stay reachable in More for everyone; personal/account actions remain
+signed-in-only. Desktop navigation is unchanged.
+Messages moves into More, retaining its unread count both on the More
 entry and its Messages row, direct routes and active destination indication.
-Desktop and signed-out navigation retain their existing destinations.
 More begins with a distinct personal profile card: resolved profile photo (or
 initial fallback), name, username and View profile, before Appearance or utility
 rows. The header avatar opens a profile-first menu; Change posting identity is

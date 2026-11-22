@@ -1,0 +1,180 @@
+{
+  "observed_complete_sequences": {
+    "P_DOCUMENT_STREAM_V1": [
+      {
+        "phase": "warmup",
+        "elapsed_ms": 4225.087484999676,
+        "read_rows": 2140109,
+        "read_bytes": 140626163,
+        "parity": "PASS",
+        "below_500ms": false,
+        "below_25MB": false
+      },
+      {
+        "phase": "measured",
+        "elapsed_ms": 3267.8237660002196,
+        "read_rows": 2140109,
+        "read_bytes": 140626163,
+        "parity": "PASS",
+        "below_500ms": false,
+        "below_25MB": false
+      }
+    ],
+    "F_DOCUMENT_STREAM_V1": [
+      {
+        "phase": "warmup",
+        "elapsed_ms": 2711.2561850008206,
+        "read_rows": 2139341,
+        "read_bytes": 140546167,
+        "parity": "PASS",
+        "below_500ms": false,
+        "below_25MB": false
+      },
+      {
+        "phase": "measured",
+        "elapsed_ms": 2931.0224229993764,
+        "read_rows": 2139341,
+        "read_bytes": 140546167,
+        "parity": "PASS",
+        "below_500ms": false,
+        "below_25MB": false
+      }
+    ]
+  },
+  "formal_T6": false,
+  "comparators": {
+    "baseline_rows": 361000000,
+    "baseline_bytes": 24320000000,
+    "Arm_T_rows": 1720000,
+    "Arm_T_bytes": 156500000,
+    "Arm_T_scope": "MAIN_ONLY",
+    "P_complete_ms_approx": 3300,
+    "P_complete_bytes_approx": 484000000,
+    "P_status": "BANKED_CITED_NOT_REMEASURED"
+  },
+  "research_only": true,
+  "scope": {
+    "kind": "PAIRED_VERIFIED_FIXTURE_PAGE_DIAGNOSTIC",
+    "groups": 3,
+    "canonical_page_rows": 21,
+    "collision_authors": 2,
+    "main_contract": "DOCUMENT_STREAM_V1",
+    "measured_sequences_per_mode": 1,
+    "warmups_per_mode": 1,
+    "not_formal_K20_T6": true,
+    "not_p95": true,
+    "not_production": true,
+    "historical_comparators_are_different_scopes_and_cited_only": true
+  },
+  "droplet_id": 620121703,
+  "source_manifest_sha256": "6b11a8f1d4752c2a2341a5fbdc967ff01af68aeb36d555d4875da75efc7f6b52",
+  "independent_parity": "PASS_BOTH_MODES_COMPLETE_SEQUENCES",
+  "phase0_cost_targets": "MISSED_IN_BOTH_MODES_ON_THIS_DIAGNOSTIC",
+  "per_mode_measured_stage_totals": {
+    "P_DOCUMENT_STREAM_V1": {
+      "unclassified": {
+        "read_rows": 887766,
+        "read_bytes": 38677613,
+        "native_ms_sum_not_wall": 85,
+        "queries": 12
+      },
+      "generation_or_envelope": {
+        "read_rows": 30,
+        "read_bytes": 2166,
+        "native_ms_sum_not_wall": 13,
+        "queries": 6
+      },
+      "candidates": {
+        "read_rows": 1280,
+        "read_bytes": 137281,
+        "native_ms_sum_not_wall": 25,
+        "queries": 3
+      },
+      "metadata_identities": {
+        "read_rows": 64,
+        "read_bytes": 7232,
+        "native_ms_sum_not_wall": 4,
+        "queries": 1
+      },
+      "counts_embedded_in_resolution": {
+        "read_rows": 208128,
+        "read_bytes": 15231325,
+        "native_ms_sum_not_wall": 141,
+        "queries": 1
+      },
+      "preparation": {
+        "read_rows": 871321,
+        "read_bytes": 71037176,
+        "native_ms_sum_not_wall": 381,
+        "queries": 29
+      },
+      "counts": {
+        "read_rows": 7680,
+        "read_bytes": 817920,
+        "native_ms_sum_not_wall": 57,
+        "queries": 2
+      },
+      "views": {
+        "read_rows": 163840,
+        "read_bytes": 14715450,
+        "native_ms_sum_not_wall": 20,
+        "queries": 1
+      }
+    },
+    "F_DOCUMENT_STREAM_V1": {
+      "unclassified": {
+        "read_rows": 887766,
+        "read_bytes": 38677613,
+        "native_ms_sum_not_wall": 69,
+        "queries": 12
+      },
+      "generation_or_envelope": {
+        "read_rows": 30,
+        "read_bytes": 2166,
+        "native_ms_sum_not_wall": 13,
+        "queries": 6
+      },
+      "candidates": {
+        "read_rows": 512,
+        "read_bytes": 57285,
+        "native_ms_sum_not_wall": 14,
+        "queries": 2
+      },
+      "metadata_identities": {
+        "read_rows": 64,
+        "read_bytes": 7232,
+        "native_ms_sum_not_wall": 4,
+        "queries": 1
+      },
+      "counts_embedded_in_resolution": {
+        "read_rows": 208128,
+        "read_bytes": 15231325,
+        "native_ms_sum_not_wall": 123,
+        "queries": 1
+      },
+      "preparation": {
+        "read_rows": 871321,
+        "read_bytes": 71037176,
+        "native_ms_sum_not_wall": 366,
+        "queries": 29
+      },
+      "counts": {
+        "read_rows": 7680,
+        "read_bytes": 817920,
+        "native_ms_sum_not_wall": 22,
+        "queries": 2
+      },
+      "views": {
+        "read_rows": 163840,
+        "read_bytes": 14715450,
+        "native_ms_sum_not_wall": 22,
+        "queries": 1
+      }
+    }
+  },
+  "private_checkpoint": {
+    "bytes": 1626228,
+    "sha256": "38c6abb6fe3c175fd37046d77933288f94d2e323a75772bda28504bf04ae81d3",
+    "contains_raw_oracle_and_request_source_bindings": true
+  }
+}

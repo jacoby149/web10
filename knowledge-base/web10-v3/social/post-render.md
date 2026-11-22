@@ -53,7 +53,7 @@ This kills the "showing it in multiple ways" question: it is not multiple
   something the full post doesn't have, and the full post never contradicts the
   teaser.
 - **The truncation is honest.** A teaser that cuts the content shows an
-  ellipsis (or a hard clip at a word boundary), never a mid-word cut. The
+  ellipsis (or a hard clip between complete words), never a mid-word cut. The
   teaser is a *preview* of the full post, and a preview that lies (a cut-off
   word, a truncated sentence that reads wrong) breaks the "zoom" — the user
   clicks expecting the rest and gets a different shape.
@@ -194,10 +194,10 @@ How each density cuts the content. The rule is **honest truncation** (the
 
 - **The teaser** (tile / thumbnail): the title only (or the first line,
   caption-only). No body. A title longer than the tile's measure clips at a
-  word boundary with an ellipsis (the quote card's `line-clamp`). The teaser
+  complete-word break with an ellipsis (the quote card's `line-clamp`). The teaser
   never shows a partial sentence that reads wrong on its own.
 - **The summary** (card): the body is `line-clamp`'d (a fixed number of lines,
-  the card's height budget). The clamp cuts at a word boundary + an ellipsis.
+  the card's height budget). The clamp cuts between complete words + an ellipsis.
   A clamped body is *clickable* → the full post (the "read more" seam). The
   clamp is the invitation, not the end.
 - **The full** (detail): **no truncation** — the whole post, at a reading
@@ -243,7 +243,7 @@ model, made checkable):
 2. **Monotonic.** Teaser ⊂ Summary ⊂ Full. A surface never shows content the
    full post lacks; the full post never contradicts the teaser. The teaser is a
    *subset* of the full post, not a different thing.
-3. **Honest truncation.** A cut is a word-boundary ellipsis, never a mid-word
+3. **Honest truncation.** An ellipsis follows a complete word, never a mid-word
    cut or a sentence that reads wrong alone. The teaser is a preview, and a
    preview that lies breaks the zoom.
 4. **Lands.** Every teaser / summary is clickable to the full post, and the full

@@ -1,5 +1,9 @@
 # Fast browsing, explicit deep search — planning only
 
+**Planning over the current app/API model, not replacement storage.** JSON/ref
+examples do not override D116 (DECIDED), D117 (DIRECTION, cell pending), or
+D118 (DECIDED); use the [design map](../web10-v3/db/design-revolution.md).
+
 ## Direction and reference
 
 People should browse quickly, then deliberately narrow a deeper search when
@@ -16,7 +20,7 @@ not unsupported YouTube-specific features or branding. The operator subsequently
 settles the product direction: “for feed performance doesnt go back > than 1
 month. for discover” and “if you want to see older need to go advanced mode, and
 might lag”. **Normal Discover has a transparent one-month eligibility window;
-ranking remains tunable within it.** Exact calendar-month/rolling-day UTC boundary
+ranking remains tunable within it.** Exact calendar-month/rolling-day UTC cutoff
 and cursor encoding are AS1 details to settle before code. A 100,000-candidate
 cap and automatic exclusion of zero-engagement posts are not selected defaults.
 
@@ -73,7 +77,7 @@ For pure Newest, test selecting the exact authorized current post page **before*
 optional engagement/profile/media enrichment. Do not compute global engagement
 ranking merely to sort by timestamp. Preserve service grants, exclusions, group
 multiplicity, stable tie-breaking/cursors and delivery accounting; no N+1
-enrichment or arbitrary LIMIT on raw histories before the read boundary.
+enrichment or arbitrary LIMIT on raw histories before API -> ClickHouse read authorization.
 
 ### Filters and weighted ranking are different
 
@@ -259,12 +263,12 @@ authorized here; IX-DATE remains the first storage investigation.
 |---|---|---|
 | **AS1: filter/budget contract** | Planning KB; coordinate search/feed/media owners | Encode approved one-month normal Discover + explicit older Advanced mode; settle exact cutoff/URL/source/sparse behavior, metadata/ranking and any separate 100k proposal. Preserve screenshot reference; no runtime work. |
 | **AS2: advanced-filter UI/data** | Social `components/Search/`, `data/search.ts`, focused tests; route/board seams reserved with owners | URL-owned apply/reset/cancel/history and login return; true authorized server-side filtering beyond the 50-row preview; supported fields only; tokens/states/accessibility and desktop/375px inspected screenshots under design.md. Depends on AS1 and existing primitives; missing generic capability is a separately scoped handoff. |
-| **FB1: bounded feed candidate/page strategy** | Social `data/feed.ts`, feed/board adapters and focused tests; API boundary only by separately claimed bite | AS1/product sign-off; exact Newest page-first and justified mixed-ranking behavior; date/budget boundaries, old/zero-count/sparse nodes and cursor ties; live grants/tombstones; measure native scans/windows/joins plus client latency and existing accounting. Keep rejected Q02 out; 100k is not an accepted threshold. |
+| **FB1: bounded feed candidate/page strategy** | Social `data/feed.ts`, feed/board adapters and focused tests; API -> ClickHouse changes require a separately claimed bite | AS1/product sign-off; exact Newest page-first and justified mixed-ranking behavior; date/budget cutoffs, old/zero-count/sparse nodes and cursor ties; live grants/tombstones; measure native scans/windows/joins plus client latency and existing accounting. Keep rejected Q02 out; 100k is not an accepted threshold. |
 | **IX-DATE: recent Discover range-read feasibility** | Isolated ClickHouse/API research/tests + social query seam reservation + KB | First storage investigation: current-version-safe date predicate/index/projection with actual old-block skipping. Test old-heavy/recent-heavy/mixed granules, full aggregate/profile work, top-k/cursors/access parity and read-first latency/concurrency. No production migration or fresh paid run without approval. |
 | **IX1: generic access-path feasibility** | Isolated API/ClickHouse tests/research + KB, coordinated storage/security owners | EXPLAIN indexes/parts/granules, actual rows/bytes, CRUD/ingest/storage/merge costs, declared-path/JSON compatibility, history/security and sparse/broad/overlap parity. Compare current engine and an explicitly approved upgrade experiment separately. No app-specific API/table or production migration. |
 | **AS3: deep-search execution budget** | Generic execution primitive only if needed, separately claimed backend/SDK and client-status bites | AS1 plus real filters; explicit bounded long-running semantics, cancellation, fairness, current credentials/visibility and response completeness. Default-off until independently reviewed; no broad timeout relaxation. |
 
-All bites retain normal PR checks; trust-boundary code/test units stay within the
+All bites retain normal PR checks; API -> ClickHouse authority-changing code/test units stay within the
 existing ≤500-line gate. No runtime implementation, screenshots of a fake feature,
 new host purchase, input publication or production change is part of this plan.
 The frozen K=1,000 study remains unchanged: its January 2026 timestamps would all

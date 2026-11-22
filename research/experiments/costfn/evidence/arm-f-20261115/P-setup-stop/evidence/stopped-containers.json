@@ -1,0 +1,23 @@
+[
+  {
+    "name": "web10-costfn-frozen-satellite-fstep0a2-api-1",
+    "status": "exited",
+    "exit_code": 143,
+    "oom_killed": false,
+    "memory_limit_bytes": 2147483648
+  },
+  {
+    "name": "web10-costfn-frozen-satellite-fstep0a2-clickhouse-1",
+    "status": "exited",
+    "exit_code": 0,
+    "oom_killed": false,
+    "memory_limit_bytes": 30064771072
+  },
+  {
+    "name": "web10-costfn-frozen-satellite-fstep0a2-minio-1",
+    "status": "exited",
+    "exit_code": 0,
+    "oom_killed": false,
+    "memory_limit_bytes": 536870912
+  }
+]

@@ -1,0 +1,1 @@
+TRUNCATE TABLE f_seed_members

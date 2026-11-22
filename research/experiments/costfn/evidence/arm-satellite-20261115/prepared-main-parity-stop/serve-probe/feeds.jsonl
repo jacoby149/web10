@@ -1,0 +1,1 @@
+{"index": 0, "phase": "warmup", "success": false, "started": "2026-11-15T14:49:29.296006+00:00", "completion_ms": 4197.900391000076, "ended": "2026-11-15T14:49:33.493934+00:00", "failure_class": "semantic_failure", "semantic_error": "Config P full prepared main differs from independent canonical reference"}

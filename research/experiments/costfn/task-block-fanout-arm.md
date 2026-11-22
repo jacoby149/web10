@@ -1,0 +1,538 @@
+# Task block — the Fanout Arm (Config F)
+
+**18 November execution-policy supersession:** read Jacob's
+[governing costfn directive](README.md#governing-execution-directive--18-november-2026)
+before using the earlier instructions below. Future admitted experiments have
+no row-count stop; measurement statements have a600s bound and timeout/partial
+actuals are results, not run aborts. Fixed client caps must not abandon native
+work.500ms/25MB are success lines only; the paper-era$40 programme ceiling is
+retired. Historical byte/row/deadline STOPs and cleanup remain intact. The oracle,
+fixtures,32/28/22GiB comparison frame, agent300s/self-kill/no-guardian supervision
+and explicit run admission remain. This record starts no run and changes no code.
+
+## Persistent execution result —17 November2026
+
+The requested comparison now exists. Paired verified fixture P/F (one warm-up
++one measured complete sequence each) has exact parity; measured P3,267.824ms/
+2,140,109 rows/140,626,163 bytes, F2,931.022ms/2,139,341 rows/140,546,167 bytes.
+The ORIGINAL ordinary-K20 F workload also completes with exact parity and21
+positive view/reach docs:4,702.160ms/3,734,802 rows/286,693,122 bytes measured,
+after a separate4,132.601ms warm-up. All57 native queries succeed; max1,114,133
+rows/query. Both500ms/25MB lines FAIL; the predeclared byte gate stops further
+trials/dependent gates. No p95/full T6/population/R+W/arm PASS. This is an actual
+cost result, not another harness-only stop or a reason to raise the limits.
+
+Every setup/prepare/dispatch/scope/OS interruption is preserved with source/native
+bindings. Unattended-upgrade restarted the controller during K20 prep; six actual
+committed setup queries were recovered by QueryFinish/SQL/generation, never
+reinserted or called a new trial. Final archive SHA`690c505c…89f27` verifies before
+owned cleanup06:47:54UTC, before06:58:36, estimated compute$0.95546/not invoice.
+No owned compute/firewall/key remains. Snapshot255003176 is retained as the
+earlier prepared image; ongoing storage is separate, restore speed unmeasured.
+Final receipts: `evidence/arm-f-persistent-20261117/` (paired diagnostic,
+ordinary-K20 read/cleanup, native fixture proof and provider snapshot).
+
+## Persistent execution override —17 November operator direction
+
+> i need you to fix run fix run stop asking me permission, and get these measurements
+>
+> sleep 300 monitor if anything broke, if not great keep sleep 300ing, if broke fix, sleep 300 monitor
+> in fact put something in the markdowns as this as a direction, kind of being persistent or persevering? if told to persevere or persist, this is what i mean
+
+This explicitly authorizes the repair/run/check loop for this task without a new
+permission question at every harness failure. About every300 seconds the agent
+checks progress/errors, saves evidence, repairs the evidenced break and continues
+with a separately source-bound attempt. Do not stop at diagnosis or a green PR.
+Preserve every failed fixture/treatment as a failure, never relabel or weaken its
+oracle. Record resumed/repeated work honestly instead of calling it a fresh trial.
+Same frozen input, P/trim/T4 citations, read-first priority, native/parity gates,
+four-hour/$2 per lease and existing$20 overall safety ceiling; keep cumulative
+estimates, no larger envelope/production/§8/P1/T7. Agent supervision/self-kill
+only, no guardian. A real measured gate failure remains a result, not permission
+to change the limits until it passes. Earlier admission-per-repair blockers are
+superseded for this explicitly authorized loop; old failures/cleanup remain true.
+
+## Next-lease override — Jacob Hoffman,16 November2026
+
+The operator explicitly admits one fresh lease under the existing four-hour/$2
+discipline. The earlier directive's guardian revocation, proportionality,
+agent supervision (~300s) and droplet self-kill model remain binding.
+
+P parity (#1568–#1570/#1572), deployed trim-first205/cap200 and T4's100 treated
+publishes including1,999/2,000 (#1577) are **banked, cited, not remeasured**.
+The explicit-ID fixture-clock repair is source-only until this lease verifies it.
+
+The read takes priority: restore/setup and seed the real fixtures; preserve a
+separate PREPARED-store snapshot, leaving frozen `2d6bbc4d…` untouched; verify
+both collision authors, shared route and mixed-lane winner on the independent
+canonical page immediately, before dependent cells. The launcher additionally
+checks this coverage before the long satellite build, without changing the
+oracle or page. Failed coverage stops immediately, with private/hash-bound
+evidence and no re-seed/retry or use of the lease for unrelated cells.
+
+Then T2-F (both complete P/F serving modes on that page) → T6-F → full-population
+backfill → populated feed-read → R+W → T3-F → T5-F → T8-F → Boundaries, as time
+honestly permits. Three full-restore trials/100 measured sequences and all native
+caps remain unchanged. P-mode correctness/contract observations are not a new P
+baseline. Report F complete latency/rows/bytes beside cited P against500ms/25MB,
+baseline~361M rows/24.32GB, Arm T **main-only**1.72M/156.5MB and parity-valid P
+complete~3.3s/~484MB. Failures remain failures, never silently retried.
+
+Use one account-private provider snapshot of the stopped prepared store, not a
+new backup subsystem. Retain its provider ID/source/fixture/restore bindings as
+a new artifact; future restore speed remains unproven until observed. No guardian,
+production,§8 integration, P1/T7, regenerated dataset or expanded envelope.
+This override governs over the historical orders/admissions retained below.
+
+**Execution receipt,17 November:** DO620093795's fresh import completes in
+1,260.321s, but the real2,000-member fixture group-create exceeds the unchanged
+65s setup HTTP deadline (client65,033.660ms; same-request server200/69,893.208ms
+in stopped logs). Zero fixture posts, no canonical coverage/clock verification,
+snapshot or P/F read comparison; later gates UNREACHED. Preserve the earlier
+pre-import project-name STOP and its source-bound same-lease continuation too.
+No failed fixture retry or engine restart. Full private archive SHA`79dd3c76…00662`
+is verified before owned cleanup01:45:40UTC, ahead of05:07:38; estimated compute
+$0.15849/not invoice. Admission is closed, read acceptance is not satisfied.
+Next is source-only large-group setup deadline diagnosis/repair and offline
+controls; fresh explicit paid/native admission is required for another attempt.
+Public receipt: `evidence/arm-f-read-first-20261117/setup-stop-and-cleanup.json`.
+
+## Governing run directive — Jacob Hoffman,16 November2026
+
+This directive supersedes earlier cleanup requirements here and in PR#1576.
+The independent cleanup guardian gate is revoked: do not activate, configure,
+build or wait for a guardian. Agent supervision (roughly300-second checks) and
+droplet self-kill timers are the approved cleanup model. Receipt/checkpoint/archive
+collection remains required and separate from supervision; preserve every failure.
+
+**Standing proportionality rule:** safety and supervision apparatus must cost less
+than the loss it prevents. Do not build machinery whose development cost rivals
+the failure insured against. The operator accepts a few dollars of droplet overrun
+if away; no further safety/hardening layers without explicit operator approval.
+
+**Fresh admission granted:** execute F gates only in the existing four-hour/$2
+shape, unchanged frozen `2d6bbc4d…` dataset, independent oracle,32/28/22GiB envelope,
+24.8.14.39, ten-second reads and >10M-row stop. Cite banked P/deploy/native-trim
+receipts, do not remeasure P. Run deployed trim-first, full T4 including1,999/2,000,
+then the existing gate order through full-population seed, populated feed-read and
+R+W. Unstick routine transport/setup stalls without silently retrying a failed
+treatment or bypassing parity/caps. No independent watcher/external controller.
+The MinIO archive and retained volume are untouched. No production,§8 integration,
+P1/T7 or paper work. Each requested cell ends with receipt-backed numbers or a
+preserved stop and explicit downstream-unreached status. Compare feed-read with
+500ms/25MB, baseline~361M rows/24.32GB, Arm T main1.72M/156.5MB and parity-valid
+P complete~3.3s/~484MB; these are research comparators, not production numbers.
+
+**Final execution receipt for this directive:** DO620048100 passes deployed trim
+and all100 treated write recipient checks, including both cutoff cases. Original
+T4 final-validator ParseError is preserved; a narrow validation-only repair
+checks1,560 original native rows with zero exceptions/no repeated writes. The
+separate same-lease continuation stops at T2's required fixture-coverage guard
+on17 November00:27:37UTC, before either serving mode: unmarked setup posts lacked
+explicit IDs, so `create_as` did not forward their fixed insert clock. Their later
+timestamps displaced the required collision/shared/mixed-lane fixtures.
+
+The setup-only explicit-ID repair has two passing no-engine controls, not native
+acceptance. Coverage/oracle/order stay intact; no F read-cost sample or500ms/25MB
+comparison exists, and population/R+W are unreached behind T2. Both STOPs/private
+oracle/stopped native parts are archived and hash-verified before owned cleanup
+at00:35:55UTC, ahead of02:03:51; elapsed SKU estimate$0.63363, not invoice. No
+guardian or archive/retained-volume/production change. This admission is closed,
+not a paid retry grant. Full source-bound receipts and the next fixture acceptance
+gate live in the existing closure/queues and `evidence/arm-f-directive-20261116/`.
+
+Operator direction, 15 November 2026. Retained, structured transcription of the
+corrected task block supplied in this session; not a measurement receipt.
+**Subsequent operator approval/corrections govern:** canonical membership
+single-pass count/recipients (no membership counter); append-only insertion with
+read-time logical cap/amortized background trim; research coordinator approved;
+settings range deferred. Exact artifacts, approval and granted four-hour/$2
+admission live in the linked closure file. No fifth planning document is needed.
+**Current execution status:** the admitted15 November run stopped in P transpose
+reconciliation with native241 at the22GiB cap, before any full-response sample
+or F native build. Owned resources were cleaned up at18:45UTC. The closure file
+contains the source-bound failure/cleanup receipts; this admission is closed.
+No retry, F/P1 cell or broader integration is implied by the source prototype.
+Architecture: [D113](../../../knowledge-base/web10-v3/db/group-delivery.md).
+Approval worksheet: [ARM-F-DESIGN-CLOSURE.md](ARM-F-DESIGN-CLOSURE.md).
+
+**Operator amendment,15 November2026:** cancel the active batched-checker run,
+implement the attached full-population fanout backfill and rerun under the same
+four-hour/$2/32-28-22GiB envelope. DO619612240 stopped at20:14:57UTC in P setup;
+owned resource cleanup verified20:16:19UTC. Private raw receipts are preserved;
+this is cancellation, not a native failure or F result. A replacement is a fresh
+guarded lease, never renewal of the cancelled one.
+
+## Why
+
+Config P's bounded native count/metadata checks and semantic complete-response
+parity passed. Preserve the earlier exact-creative failure: 300 node-ad inventory
+records share one timestamp. Its three serial complete-sequence observations
+were 3,323 / 3,606 / 3,287 ms and approximately 484 MB logical reads, missing the
+500 ms / 25 MB targets. These are diagnostic observations, not formal T6/p95 or
+capacity evidence. They motivate this proposed write-side arm; they do not waive
+design closure or provide fresh operational admission.
+
+The supplied block's 37k DAU / approximately 23 loads per second and approximately
+11 GB/s arithmetic are sizing hypotheses, not measured sustained throughput. Its
+structural conclusion and the proposed v7 headline remain hypotheses to test.
+
+## Settled design
+
+- Canonical documents remain the sole content source. Canonical attachments,
+  grants/policies and events/follows retain their separate authority.
+- The physical table is **`fanout`**: generic delivery infrastructure shared by
+  every app, no app-specific columns. It holds recipient/document pointers,
+  not bodies or cached permissions. The minimal sketch is
+  `(reader_key, created_at, doc_id)`; D113 requires full-key identity and route
+  provenance to be resolved before executable DDL.
+- Every document published into a group invokes group-contract delivery
+  maintenance; there are no document-type exceptions or first-read triggers.
+- One declared `fanout_member_cutoff`, default **2,000 members**, controls routing.
+  Below the cutoff: one pointer per entitled recipient. At/above it: zero
+  recipient pointers; seek through `doc_groups_t`. The 1,999 default bound is
+  **per small-group publication**, not across all groups attached to a document.
+- Approximately **200 logical pointers per reader**, enforced logically at read
+  and by amortized background trim. Foreground inserts are append-only and never
+  re-rank a reader's existing list; per-insert ranking is a build defect. Cap
+  changes storage, not eligibility; older/filtered/refill fallback is required.
+- Follow of a small group backfills its recent documents up to the cap in the
+  same session. Follow of a large group writes no pointers; time the first seek.
+  Unfollow removes that group's contribution without deleting another valid route.
+- Merge recipient pointers and seek slices; multi-group documents appear once
+  in the intended document stream. Full-key identity, generic query multiplicity
+  and exact oracle ordering must be reconciled explicitly in design closure.
+- Keep Config P satellites unchanged. Counts retain exact scopes; resolve
+  bodies/profiles canonically. Views **treatment** stays OFF; do not omit the
+  original view path from complete-response cost or delivery checks.
+- Pointers never authorize. Resolve current canonical versions, attachments and
+  permissions; reject deleted/revoked/denied candidates and refill.
+- Rebuild from canonical documents, attachments, grants/policies and actual
+  subscription/event sources, never from another satellite as the root of truth.
+- Publish classification and recipients come from **one complete canonical
+  `group_members` pass**, using the returned recipient set's length for the lane.
+  **No membership counter/recipe**: `counting_numbers` stays engagement-only.
+  Up-crossing 2,000 stops new fanout; existing pointers age out and seek covers
+  reads. Down-crossing reuses bounded follow-backfill. Do not invent a separate
+  crossing system; specify durable scheduling and race handling for these paths.
+
+## Programme and admission
+
+### Scoped continuation — operator direction,15 November2026
+
+Execution update16 November: actual-deploy rehearsal passes02:40:56UTC on
+DO619676674 (real API/all nine hooks/authorized publish/ten stored pointers/nine
+native write receipts with zero exceptions).209.694ms is a single rehearsal write,
+not feed latency/p95. Prior failed attempts/forensics are preserved and owned
+cleanup verifies02:45:33UTC. Fresh F-only DO619706349 is admitted02:47:54→06:47:54UTC,
+unchanged four-hour/$2 shape after source-bound proof verification. It passes
+Build, then stops at T4's periodic background-trim `ProgrammingError` before
+any1,999-member F publish.60 correct-pointer F writes yield partial20-sample
+p95s228.992/267.406/276.930ms at10/500/999 members. T4 is not established; all
+read/later gates remain unreached. Owned cleanup verifies04:02:28UTC before the
+original deadline; the admission is closed, no retry/extension. PR#1572 P remains
+cited, never remeasured. Source/native/cleanup receipts and the maintenance-path
+rehearsal escape are retained in the existing closure/evidence stack.
+
+The next admission is **F gates only**. DO619625857 completed F Build, then
+stopped at T4 startup at23:26:09UTC: the real API refused to boot with
+`real membership routes not installed; no synthetic substitute`. No T4 publish
+or F read-performance sample ran. Preserve this failure, not a fanout cost verdict.
+
+Before starting the gates lease, repair hook installation and prove the **actual
+deploy path** on a short-lived isolated host: real F API boot, installed-hook
+receipt, and one T4-shaped authorized publish. A tiny SQL fixture is not this
+rehearsal. Missing hooks or an exited API must fail in seconds, before T4, not
+after the old180-second readiness timeout. Keep rehearsal costs/deadline and
+cleanup separately bounded; the four-hour gates clock starts only after PASS.
+
+Use a fresh isolated DigitalOcean host and hash-verified frozen MinIO dataset
+`2d6bbc4d…`, unchanged32/28/22GiB envelope,24.8.14.39, ten-second measured reads
+and >10M-row stop. Four hours/$2, independent provider/host/container cleanup,
+stated deadline, no extension. Rebuild P satellites as **infrastructure**, with
+bounded spot checks bound to banked receipts, identical dataset and builder code.
+Do not rerun Step0 measurements or full infrastructure parity; do not label spot
+checks as a new full-parity PASS. Banked PR#1572 P Step0/stage table is the cited
+comparator in every P-vs-F table. A fresh F build/reader seed still gets a receipt.
+
+Gate order remains T4 → T2-F → T6-F → T3-F → Population → T6-F-populated →
+T5-F → T8-F → Boundaries → R+W. Preserve three fresh-restore-bound trials ×100
+measured complete sequences, the full-population contract and all observation-
+derived verdicts. T2-F correctness comparisons are not a new P performance
+baseline. T7/P1/production/paper work remain outside admission. Any startup/hook
+failure after rehearsal is explicitly a **rehearsal escape**; stop, retain its
+stage/receipts and report all later gates unreached.
+
+**6.21.2 native execution update:** original P Step0 parity PASS and diagnostics
+are banked without changing its933 source files. Merged2ca24da5c2c0 is staged in a
+separate996-file-verified tree on the SAME DO619625857 lease, original cleanup
+16 November00:33:47UTC unchanged. Updated native checker/population/shadow/views
+rehearsal PASS (402 logical fixture routes;49 population/shadow statements).
+Build preparation restores its own copy from the same frozen archive; original
+P store/source remain intact. T4 and remaining gates are unreached, not passes.
+Receipts: `evidence/arm-f-programme-20261115/`. No automatic extension/new host.
+
+**6.21.0 source update:** `arm_f_programme.py` now supplies the complete explicit
+gate sequence, not merely the P launcher. `--plan` is no-engine; ROOT continues
+only after a real completed Step0, and `--wait-for-step0 ROOT` waits read-only
+within that same admission (original STOP is never retried). Future launchers use
+`arm_f_run.py --programme`; the existing running worker remains on its pinned old
+source until separately updated. All132 no-engine controls/Ruff pass; no native
+performance/full-population/load PASS follows from this source-level completion.
+
+**6.21.1 local integration repair:** async performance trials now await scope
+preparation on their existing loop; synchronous programme stages retain a sync
+entry point. Partial-restore and expired-admission cleanup uses only exact private
+trial registration (API-only mode remains scoped), without authorizing new engine
+work. Original failures survive secondary cleanup errors. Ten regression controls
+plus the full142 no-engine controls pass; native validation/deployment is separate.
+
+The additional source includes per-trial earlier stop timers, private exact crash
+controls, a shared mutation/exclusive shadow-rebuild fence, atomic pointer-table
+exchange and real lifecycle/retry/concurrent-load workloads. R+W has a declared
+10s lead-in before600 measured seconds; it records actual completions inside the
+window separately from lead-in/drain. Pointer audits/fsync and same-snapshot
+differential view checks stay inside measured request costs. Post-window canonical
+facts plus durable operation order verify recipients/follows without guessed
+millisecond cutoffs; an independent acknowledged-before-read lower snapshot checks
+concurrent page completeness. These drivers require native validation; failures,
+unreached cells and unfinished work remain visible, never manufactured PASS files.
+
+1. D113 research design is approved with corrections; exact DDL and source-bound
+   hook manifest are in the closure file. Native build/behavior remain gates.
+   The settings field/range is deferred to integration, not an experiment blocker.
+2. Fresh isolated DigitalOcean admission is **granted** in the4-hour/$2 shape,
+   with independent layered cleanup and a stated deadline. Bind the actual
+   host/start/deadline before execution; no expired lease reuse. Restore dataset
+   `2d6bbc4d…` from its MinIO archive using the full manifest identity; never
+   regenerate. Keep 32 GiB host / 28 GiB container / 22 GiB ClickHouse and the
+   ten-second measured-read deadline unchanged. Cap hit means stop and report.
+3. **Step 0:** reproduce Config P's serving sequence on the fresh restore and
+   retain exact native per-stage SQL/query-ID attribution. Report the stage table
+   before building F under the programme's stricter sequence.
+4. Build the table, publish hook, follow/unfollow, cap trim and merged read in
+   the isolated research arm. Before any test, retain DDL/granularity, constants
+   and effective cutoff, code locations, hook file/line references, implemented
+   recipient predicate and canonical dependency manifest.
+5. Run the gates below in order. Any parity/rebuild failure or stop-rule hit
+    stops the arm and reports. No silent comparator changes or improvisation.
+   Step 5 also requires the concurrent **R+W** gate below before the arm passes;
+   quiet T4 and read-only T6-F results cannot substitute for it.
+6. Only if every required gate passes, write a separate staged, flag-gated
+   broader-integration proposal. A PASS permits a proposal, not deployment.
+7. Only on a separate explicit operator go, implement broader protocol integration:
+   unconditional write maintenance, layout-aware reads, persisted node-admin
+   cutoff default 2,000, parity against the old path before changing defaults.
+8. Only afterward, produce additive **draft v7**, preserving all prior drafts,
+   using receipt-supported claims and personal **Independent** affiliation, never
+   Web10 Inc or the employer. Target **CIDR next cycle**, not SIGMOD 2027; no
+   submission is authorized. Failure leaves later steps waiting for the operator.
+
+## Gates and report order
+
+| Order | Gate | Required result |
+|---|---|---|
+| 1 | Step 0 | Config P native stage decomposition, retained SQL/query IDs |
+| 2 | Build receipt | Actual DDL, constants, hook locations, recipients and sources |
+| 3 | T4 | At approximately 10 / 500 / 999 / 1,999 members, pointers equal entitled recipients; at/above 2,000, zero. Report physical amplification and added publish-path p95 |
+| 4 | T2-F | Independent complete-response parity, mixed lanes and multi-group dedup; exact core/order/counts/profiles/creator ads, existing semantic eligible-node-ad comparator |
+| 5 | T6-F | Three trials, K=20, full store; complete-response p95 <500 ms **and** <25 MB total logical reads, with P-versus-F stage table; >10M rows in a single read stops |
+| 6 | T3-F | Fresh reader follows 39 mixed-lane groups; same-session feed including first seek; >60 seconds fails |
+| 7 | T5-F | Drop **only** `fanout`, rebuild from canonical alone, repeat T2-F/T4 spot checks; reproduce pre-drop logical feed |
+| 8 | T8-F | Stale-pointer deletion/revocation/entitlement replay, latest-version-first tombstones and refill; serving a deleted document fails immediately |
+| 9 | Boundaries | 1,999↔2,000 both ways, multi-route removal, same-ID/different-author, cap overflow, crash/retry and concurrent publish/follow/rebuild |
+| 10 | T7 | K=1000 only after T2-F and T6-F pass; separately admitted under the programme |
+| Required load extension | R+W | Ten minutes of full reader load concurrently with100 real publishes/sec and10 follows/sec; read budget, delivered rates, errors and delivery correctness must hold as specified below |
+
+## Addendum — full-population fanout state
+
+The one-reader seed is an early diagnostic, not the populated node. After
+T4 → T2-F → T6-F → T3-F, seed **every live local human** from current canonical
+memberships: below2,000 members contributes; at/above contributes no pointers.
+Use the group/time index to find candidates, rebind canonical document/link
+winners, and retain each reader's newest200 distinct `(author_key,doc_id)` with
+**all** contributing group routes. No impression replay, invented distribution,
+copied bodies or publish-path membership counter. Unsupported/nonlive explicit
+principals refuse the build rather than disappearing silently.
+
+`arm_f_population.py` supplies the born-batched builder and canonical-only sample
+oracle; `arm_f_population_fixture.py` rehearses it in the admitted pinned-engine
+preflight before full restore. Current tuning:128 groups/64 readers per slice;
+each builder statement is additionally limited to4GiB query memory/8M rows/2GiB
+logical bytes/1M result rows, throwing on overflow within the unchanged22GiB
+server cap. These limits are refusals, not proof of full-store fit. Membership
+snapshot scratch is setup-only and is recreated from canonical on rebuild;
+live publication still performs the original single canonical membership pass.
+No API/coordinator writer may run during seed fencing. Revisions come from the
+existing durable coordinator. Duplicate batch keys refuse; no implicit retries.
+
+Require unchanged logical test-reader window and predeclared independent sample
+parity (test reader, manifest reader2 and final manifest reader; canonical
+author-range oracle, not another satellite). Report reader fraction, exact
+logical route state/digest, serialized bytes, batches, elapsed time and physical
+rows/bytes/parts; preserve partial receipts on stop.200M is at most the retained
+**identity** count at1M readers, not a physical-route/version row ceiling. Larger
+population may change cache, part and merge behavior even for one reader range.
+
+Then rerun T6-F on populated state; T5-F drops only`fanout`, rebuilds with this
+same builder from canonical, and compares exact logical-window digest and
+serialized-byte totals (predeclared logical tolerance0). Physical compression/
+parts are reported separately, never asserted identical through merges. R+W
+and trim/backlog accounting must also use the populated table. A passing seed
+is not a populated T6/T5/R+W or production-equivalence claim.
+
+Early gates win the fixed admission. Missing early proofs, stale index generation,
+native refusal or exhausted time means **UNREACHED/STOP**, with the achieved
+fraction retained, never a one-reader state reported as a full population.
+`arm_f_run.py` is still the P-stage launcher; its receipts now explicitly expose
+unreached population/later gates. Gate execution/continuation must remain explicit;
+these new builder modules do not silently manufacture the remaining F receipts.
+
+Execution update: fresh DO619625857 through16 November00:33:47UTC; checker and
+population native rehearsals PASS before full restore (36 population queries,
+402 logical fixture routes; exact receipts in
+`evidence/arm-f-population-20261115/native-preflight/`). Archive retrieval is
+running. Local119 no-engine controls/Ruff pass; full-population seeding and
+populated T6/T5/R+W remain UNREACHED, not accepted by the tiny fixture.
+
+## Addendum — the load model is DAU R+W, not readers alone
+
+**Operator direction,15 November 2026.** This amends programme Step 5 and what
+the arm must prove, not the settled design. Fanout moves work onto publication
+and follow; measuring only reads would test the cheap half. Both streams must
+run concurrently for the full measured cell, not before/after it.
+
+### Declare both profiles before launch
+
+Use the full frozen realism store and the **37k DAU reader load model**:
+approximately **1,400 peak concurrent sessions**, approximately **23 complete
+feed loads/sec at60-second think time** (approximately **46/sec at30 seconds**).
+Pin the chosen think-time/rate profile, session scheduling, arrival model,
+reader cohort/K and sample schedule in admission. Do not retrospectively choose
+the easier rate or call configured virtual users achieved concurrency.
+
+The supplied writer model is approximately **12,500 publishes/day** at the
+1M-user shape, approximately **0.2/sec average** and **1–2/sec realistic peak**
+at37k DAU. These are operator-supplied sizing assumptions, not new observed
+traffic. The test deliberately stresses writers at approximately **50–100×**
+that assumed peak, rather than testing at the realistic rate:
+
+| Stream | Sustained target during the full measured cell | Required execution |
+|---|---|---|
+| Readers | Declared approximately23/sec (60s think), or46/sec (30s think) | Full Config F response sequence, not only the candidate/main query |
+| Publishes | **100/sec**, mixed under-cutoff group sizes through1,999 members | Real authorized write path through the §4 maintenance coordinator, group-contract hook, **full canonical `group_members` count and recipient-set query**, canonical publication and fanout writes |
+| Follows | **10/sec**, mixed under/at/over-cutoff groups | Real follow path; bounded small-group backfill and large-group no-backfill/first-read seek classification |
+
+**No direct table inserts or precomputed recipient shortcuts in the workload.**
+The hook's legitimate derived writes occur inside the real path. Include auth,
+membership enumeration, coordinator queueing/retries and derived work in write
+latency/accounting; enqueue acknowledgement alone is not completion. The approved
+single canonical pass supplies both count and recipients; do not reintroduce
+counter maintenance or exclude canonical enumeration cost.
+
+### Required cell and acceptance
+
+Run **10 sustained minutes at the declared target rates**, either as a declared
+T6-F load extension or a separately reported R+W cell after T6-F. It is mandatory
+before the arm is called passed. Frozen source files/receipts remain immutable;
+restore an admitted disposable copy and declare workload mutations, storage
+headroom and cleanup. Writes must affect the serving workload, not an unrelated
+side database. No higher memory/query limits, automatic lease extension or new
+paid admission follows from this addendum.
+
+- Complete-response **read p95 <500ms AND <25MB total logical reads per
+  complete sequence**, counting all native stages, while both writers run.
+  Retain unchanged query/resource and >10M-row single-read stop rules.
+- Report **publish-path p95 latency under load**, not only quiet T4 timing,
+  and **follow/backfill completion latency under load**, including backlog and
+  drain status. No numeric publish/follow latency threshold is invented here;
+  T3-F's separate same-session/>60s gate remains unchanged.
+- Receipt actual publish recipient-pointer writes/sec against the **actual sum
+  of entitled recipients for the measured publications** and the declared
+  maximum **publish rate ×1,999**. Define a publication as one group route for
+  this bound: multi-group document writes require summed route accounting, not
+  a false document-wide1,999 ceiling. Pin route mix before launch.
+- Report follow-backfill pointers separately from publish pointers; also report
+  retries, trim/tombstone/bookkeeping writes and total physical amplification.
+  The publish bound is not a ceiling on all physical storage operations.
+- **Errors <1% for reads and writes**, with read/publish/follow counts and error
+  denominators separately retained as well as the combined result; one quiet
+  stream cannot hide another's failure. Record offered/started/completed rates,
+  actual concurrency, timeouts, rejected arrivals, queued work and unresolved
+  acknowledgements. Throttling/draining later cannot manufacture sustained rates.
+- Independent canonical parity and an operation/recipient/route reconciliation
+  must detect lost or duplicated logical delivery under concurrency. Distinguish
+  idempotent retry versions and intentional200-window eviction from duplicate
+  delivery or loss; inspect receipts/history as well as the final retained window.
+  Any parity failure, lost/duplicated delivery or stop-rule hit stops and reports.
+
+A PASS supports only the declared reader/writer mix and measured envelope. It
+does not establish arbitrary load, forecast traffic or unmeasured write-latency
+headroom. A read-only T6-F PASS cannot close the arm or admit broader integration.
+
+Pin unchanged baseline/Arm T/P receipts and distinguish main-only scopes from
+complete-sequence scopes. Historical comparators are approximately 361M rows /
+24.32 GB for the failed baseline, 1.72M rows / 156.5 MB for Arm T core stages,
+and approximately 3.3 seconds / 484 MB for Config P complete sequences. They
+are not interchangeable measurement scopes. Frozen cells/inputs/receipts stay
+untouched; no production change is authorized by programme Steps 1–6.
+
+## Registered follow-on: Sort-Order Arm — PLANNED, NOT ADMITTED
+
+Operator addition,15 November2026, before Fanout implementation resumes. F
+retains its existing admission/code/cells/gates/R+W scope. **No projection build,
+Sort-Order cell, counter retirement or combination cell is admitted in the F run.**
+Do not create another planning document for this registration.
+
+F's Step0 stage table must retain **rows, bytes and time for count/engagement
+reads per complete response**, distinct from candidate selection, canonical
+resolution and preparation. Preserve actual query IDs/SQL and distinguish pure
+count reads from embedded/mixed queries; do not invent component bytes from a
+whole-query total or count a separate diagnostic twice as request cost. Retain
+any additional isolated count probes separately. These measurements confirm
+Sort-Order's target before its cells are finalized. If counts are negligible in
+P, label this lower-priority production-shape simplification, not the owner of
+the484MB miss. Historical approximately3.7M rows/215MB follow-up numbers remain
+source/scope-specific historical comparators, not a fresh P-stage measurement.
+
+**P1 — ref projection.** Proposed replacement for feed engagement counters:
+an engine-maintained projection on canonical `documents`, ordered by
+`(ref_value, collection_name, …)`, with narrow count fields and full identity/
+version/deletion columns needed for latest-wins semantics. Counts are derived
+at read for the page's references, including exact current attachment/group/
+policy scope. The location of that scope in the projection versus canonical
+gate is settled by independent parity fixtures and receipted; a fast unscoped
+count is invalid (Arm D's15/15-versus0/0 regression stands). Verify actual
+ClickHouse24.8 projection selection and FINAL/window/delete/merge behavior;
+engine maintenance alone is not proof of latest-authorized count semantics.
+No projection DDL or runtime activation is authorized by registration.
+
+**P2 — schema audit.** For each hand-built layout (`doc_groups_t`, time layout,
+metadata indexes), state whether it is a pure re-sort of one canonical table
+(projection candidate), or contains joined/derived payload a projection cannot
+produce (name that payload). `fanout` is excluded: documents×membership delivery
+is not a re-sort. `counting_numbers` is an aggregate, not a layout, and remains
+unchanged until P1's separately admitted cells pass. This does not change F.
+
+**Separately admitted cells, one variable each:**
+
+- Exact count parity against the independent canonical T1 fixture set, including
+  same-author/outside-group0/0, scope-qualified/shared/version/tombstone cases;
+  mismatch stops, never change the oracle.
+- Follow-up count cost: standard K20 winner page, versus historical derivation
+  and current counter point reads; rows/bytes/time, viral-tail page separate.
+- Knob cell: rank the declared retained200 candidates using P1 counts and take
+  the page; report actual cost, not arbitrary whole-history ranking.
+- Projection overhead: storage delta and canonical insert/merge cost delta at
+  the100-publish/sec writer rate, with its allowable overhead bound declared
+  **before** launch. No overhead limit is invented by registration.
+- **Combination last:** only after F's required gates and P1's cells pass and
+  separately admitted: Config F+P1, complete response K20, three trials,
+  p95<500ms AND<25MB, same stop rules, with candidates/counts/resolution/
+  preparation stages alongside P and F. Passing one arm cannot substitute for
+  the other or establish the combination result.
+
+Same envelope/engine/stop rules; no production action. Fresh host/window/cap/
+cleanup approval is separate, after F's gates. Failed/unreached cells remain
+results/open gates. Resume F implementation now; this section only registers
+the follow-on and the required Step0 reporting granularity.

@@ -164,7 +164,7 @@ round-trips it and never clobbers it), and rolls back + toasts on failure.
   `src/__tests__/profilePinsScreen.test.tsx` (grid order + badge, feed
   overline + menu pin/unpin + rollback, the slot-full hiding, visitor
   private-pin exclusion, the lightbox menu, owner self-heal, the
-  50-post-boundary fetch), `src/__tests__/profilePinsManage.test.tsx` (the
+  fetch across the 50-post page cutoff), `src/__tests__/profilePinsManage.test.tsx` (the
   profile chip's owner/visitor/none gates + the deep link, the manage
   screen's order / move-up / move-down / rollback / unpin / add /
   slots-full / empty / gap-read / visitor-bounce controls).

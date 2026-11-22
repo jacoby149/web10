@@ -6,8 +6,436 @@ parallel agents and future-you don't re-litigate settled questions. Details
 and task breakdowns live in `plan.txt`.
 
 Status legend: [decided] intent set · [in-progress] · [open] still debating.
+For D115–D120, **DECIDED** records operator intent, **DIRECTION** records a
+chosen design awaiting its proving cell, and **PRINCIPLE** records the lesson.
+None of these labels means implemented, measured or shipped.
+
+**Reading older entries:** original rationale, operator quotations and dated
+implementation receipts are historical, not retroactively revised acceptance.
+Current API/storage examples use JSON and a single `ref_value`; that is not the
+D116 (DECIDED)/D117 (DIRECTION, cell pending) replacement target. D118 is DECIDED
+about representation separation; the [design map](../web10-v3/db/design-revolution.md)
+links the canonical definitions and reports. Older decisions explicitly
+superseded by a later entry remain visible as history.
 
 ---
+
+### D124 — Agreeing billboard pins coalesce; distinct full creative targets conflict [DECIDED; amends D115]
+
+**Jacob Hoffman, 22 November 2026.** Deliberately change the isolated composition's
+duplicate-pin semantics: previously any second live pin for a full-key post
+refused, even for the same ad. Now a nonempty eligible live-pin set may name
+exactly one full `(target_author,target_id)` creative identity. Agreeing pins
+serve it once; distinct targets refuse. One creative may serve many posts.
+Zero eligible live pins remains the ordinary no-ad outcome.
+
+Every eligible pin is validated before coalescing. A malformed or placement-
+unauthorized agreeing pin still refuses. Existing SQL eligibility exclusions (notably failed
+post_author agreement) retain omission semantics; they do not become new request
+failures. Superseded/withdrawn/deleted/service-moved/root-moved versions are
+resolved and excluded exactly as before. Among agreeing author/node placements,
+author wins independently of row order, and its existing target-author
+entitlement still applies. Distinct-target collisions refuse even if one target
+would later be unreadable. Creative read authority remains canonical/current;
+an absent/unreadable creative keeps the existing no-ad omission, not a new
+request-level refusal.
+
+This is a named behaviour amendment, never a parity-preserving optimization.
+Update the independent immutable-placement oracle and ads gate in the same
+source PR; retain banked fixture documents/links and historical outcomes.
+Post-time roll/round robin, fixed placement, full-key identities and all other
+D115 rules remain unchanged. The post-side pin names a passive creative target;
+this does not invert refs or make creatives claim slots.
+
+Workstream A lands alone before the uniform select/materialize workstream.
+Neither source task grants a lease/native run, and uniform measurement stays
+behind the row-model run on a separate fresh admission. No production API,
+cache, budget or audit-rule change. Contract:
+`research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md`.
+
+### D123 — Audit raw event reads by question, with one exact deduplication shape [DECIDED; measurement policy]
+
+**Jacob Hoffman, 21 November 2026.** The research statement audit must deny raw
+event metric fallbacks, not the platform's existing bounded delivery-history
+lookup merely because both touch `content_events`. Admit only a single-table
+SELECT of `doc_id,max(seen_at)`, grouped by `doc_id`, with exactly string-literal
+equalities on service, reader_key, surface and event_type=`delivery`, plus a
+nonempty literal candidate `doc_id IN (...)` list. No join, subquery, other
+aggregate/selected column, HAVING or extra predicate/clause is admitted. Parsed
+shape is the durable identity; attempt-specific SQL digests are evidence, not
+an allowlist. Every deviation remains denied.
+
+Name the admitted inventory stage `delivery_dedup_raw_read` and retain its full
+native rows, bytes and duration in additive captured accounting. Never drop the
+read, move it outside measurement or hide it in unclassified work. Retired
+projection/ad-inventory checks and duplicate/digest verification remain intact.
+At the research-controller -> ClickHouse statement-audit boundary, this changes
+measurement classification only; production API/deduplication, budgets, oracle,
+gates and the row bridge remain unchanged.
+
+Attempt6/PR#1604 remains banked with INCOMPLETE decomposition and NOT RUN row
+measurements. Offline replay under the new policy does not rewrite those outcomes
+or grant native acceptance. Source-only reconciliation merges first; a fresh
+all-fixes→row-model run still requires Jacob's explicit admission. No lease or
+native execution follows from this decision. Contract:
+`research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md`.
+
+### D122 — Platform analytics owns its physical events layout [DECIDED]
+
+**Jacob Hoffman, 20 November 2026.** The platform owns the auxiliary analytics
+layer, including the physical arrangement of `content_events`, in experiments
+and in production. The old fence against changing that layout is lifted;
+`documents` and the measured fanout/tally/refs/aggregate layouts remain frozen.
+The logical dataset does not change: all1,600,000,000 event values are retained.
+
+For the newly admitted composition→row-model attempt, clone every live event
+column/type, partition by `toDate(seen_at)` and retain `(doc_id,reader_key)` order
+inside each day. One sorted INSERT reads the old source once for rebuilding;
+never rebuild with per-day inserts against the old layout. Separate old/new
+full-population, per-day counts and per-day all-column hash censuses must agree
+before the new table takes the name. Preserve both censuses and native rebuild
+I/O/time/memory receipts. Seed amplification is reported, not a failure gate.
+
+The same directive replaces the inherited four-hour race with a24-hour self-kill
+backstop, sized for the whole run. The programme has$1,000; report actual lease
+costs, not a renewed$2/four-hour stop. Agent supervision and owned self-kill
+timers remain; no guardian. Source repair merges separately, then exact-source
+controls/admission/bindings precede one fresh lease and the unchanged ordered
+gates/composition/row cell. Earlier attempts stay banked. This decision does not
+deploy a production migration. Contract: [costfn](../../research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md).
+
+### D121 — Target SIGMOD RESEARCH, January round of the 2028 cycle [DECIDED]
+
+**Jacob Hoffman, 19 November 2026.** Deliberately choose the research-track bar,
+not the old industrial-track submission or CIDR fallback. If that January
+round rejects the paper, revise for PVLDB's monthly research rounds, without
+simultaneous submission. The existing twelve-page plan is unchanged. The
+canonical dates, forecast-versus-official distinction and re-verification gate
+live in [paper-submission.md](paper-submission.md); this decision admits no
+submission, new measurements, cloud work or manuscript rewrite.
+
+### D120 — Answer the question once, rather than over-read on every request [PRINCIPLE]
+
+**Jacob Hoffman, 19 November 2026.** The programme's unifying lesson is
+over-reading: a question without a suitable access path is answered by scanning
+the store again. The remedy is uniform, not a fresh social-specific table for
+each symptom (D60): pre-answer declared question shapes at write/setup time.
+Fanout supplies delivery (D109/D113), tallies supply numbers (D114), aggregates
+supply views, and satellites supply relationships and typed values (D116/D117).
+Reads should be bounded seeks over those shapes, not rediscoveries of history.
+
+**Receipts, not a new result:** the motivating measurements live only in the
+[treated-completion report](../../research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md),
+[views report](../../research/experiments/costfn/evidence/engagement26-20261118/RESULTS.md)
+and [qualified tally report](../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md).
+Their measurement scopes and limitations control any use of those facts; the
+[design map](../web10-v3/db/design-revolution.md) indexes them without duplicating
+the figures. D114's missing paired-domain proof is now banked in the
+[stdin-fixed attempt](../../research/experiments/costfn/evidence/all-fixes-stdin-20261119/RESULTS.md);
+its aggregate setup STOP still blocks formal composition acceptance.
+
+In the row-model direction, declaring a value or relationship and indexing it
+are the same act: no future declared question shape should be born unindexed.
+That is the design obligation, **not proof that arbitrary future queries are
+automatically indexed or cheap**. Read queries must exploit the layouts; new
+question shapes still need suitable access paths and measurement. No new
+`documents` projections are intended in that model: needing one is a smell
+that a value or relationship remains trapped inside a document. The pending
+composition and assembly cells decide costs; §8/production remain gated.
+
+### D119 — Apps declare typed keys; writes enforce the declaration [DIRECTION; cell pending]
+
+**Jacob Hoffman, 19 November 2026.** Apps declare document keys **with types**
+where they use the web10 API. A wrong type is rejected at write, not discovered
+by casting on read. The declaration tells the platform which type-sorted
+satellite receives the value (D117). Declaring a key is data, not a migration:
+no `ALTER TABLE`, no rebuild; schemaless flexibility survives with types attached.
+
+Jacob welcomes strong typing in web10-social's API usage; modifying that usage
+is future work, not part of this documentation task. Key/type semantics stay
+data under D60. This does not specify a new endpoint, declaration syntax or
+compatibility rollout, and does not claim present API enforcement. The row-model
+proving cell is pending behind the all-fixes run; protocol integration and §8
+remain separate gates. Rejects: untyped ingest followed by read-time guesses,
+and treating every newly declared key as a physical schema migration.
+
+### D118 — Storage shape is not export shape [DECIDED]
+
+**Jacob Hoffman, 19 November 2026.** Retire the assumption that data must be
+stored as it is exported. A node's internal storage is its own business. At the
+API -> app/UI boundary, the API assembles and serializes the exported document;
+that response format does not prescribe API -> ClickHouse storage. Exports are rare; reads are
+constant. Do not charge every query for preserving the export representation.
+
+The wire/export document format and protocol surface do not change under this
+principle. Existing features must remain deliverable from the row shape; this
+is a requirement, not a claim that they have been verified. Serving a complete
+document also pays assembly cost, which D117 explicitly measures. Strong-typing
+surface work (D119) is a separate pending direction, not silently shipped by
+this internal-storage decision. Rejects: export format dictating physical
+layout, deleting canonical research JSON before replacement proof, and using
+storage freedom as permission to break clients. No migration or rollout here.
+
+### D117 — Documents become versioned pointers to immutable typed rows [DIRECTION; cell pending]
+
+**Jacob Hoffman, 19 November 2026:** these are “revolutionary changes to the
+system.” The chosen direction is the maximal row model, not merely a few
+extracted JSON fields. Its seven storage rules are:
+
+1. Storage contains only skinny typed rows; **no JSON is stored**. JSON is the
+   API wire format, parsed once at ingest, not extracted or cast on reads.
+2. A document is pointers `(doc_id, key, type, value_row_id)`. Key and type are
+   dictionary-coded **data**. Zero pointers beyond identity is normal: likes,
+   follows and pins are already pointer-bag documents.
+3. Values live in per-type satellites—text, integers, floats, timestamps, and
+   other required types—sorted for their types' questions. Tables name types,
+   never app concepts (D60).
+4. Value rows have their own identities, are immutable and may be shared.
+   Store a value once and point to it from many documents; edits create values.
+5. **Versioning lives on pointers.** The winning pointer per key at the
+   document's current version is its state; deletion is a pointer tombstone.
+   This winner discipline is the consistency core: the intended design has no
+   fat canonical row to fall back on.
+6. Edges are pointers whose value table is documents itself. The N-ref
+   satellite (D116) is the first instalment. Counters and events are already
+   rows and do not change.
+7. Assemble winners only. Seek displayed keys for candidate work; assemble a
+   full document only when opened or served, including the page's winners.
+
+**Honest refinement.** The banked improvements concern queryable values:
+values sought, filtered, sorted, counted or traversed. Payload decomposition
+buys uniformity, not an already-measured speedup. The maximal cell's bet is
+**assembly economics**; it must include payload text rather than quietly test
+only the cheaper refinement.
+
+**Pre-committed verdicts:** exact parity plus same-cost-class feed/post-open
+assembly supports maximal decomposition **at page scale only**. Exact parity
+with order-of-magnitude costlier assembly rejects the maximal version and banks
+the refinement: queryable values as rows, payload as document content. A parity
+mismatch blocks measurement; neither verdict is recorded yet.
+
+**Proof order and admitted scope:** “make all the fixes, then do the experiments.”
+Row-model source preparation is necessary before spending on runs, but its
+measured cell queues **after** all-fixes banking, not inside or instead of it.
+The isolated post-family experiment retains canonical JSON as build source,
+independent oracle and fallback; the treatment stores no JSON and assembles
+without read extraction. That experimental safety net does not contradict the
+intended no-fat-fallback model. Verify ordinary/paired/fat/sample keys, edits,
+tombstones, shared values and zero-payload documents, then separately price
+displayed-key/feed and full post-open assembly. Other families, garbage
+collection, production and §8 are not admitted by this record. Contract:
+[`ROW-MODEL-QUEUED.md`](../../research/experiments/costfn/ROW-MODEL-QUEUED.md).
+No row-model measurement or production acceptance is claimed.
+
+### D116 — Docs are nodes, refs are edges: a generic N-ref satellite [DECIDED]
+
+**Jacob Hoffman, 19 November 2026:** “docs are nodes, refs are edges.” A single
+`ref_value` column is vestigial as the intended relationship design: a column
+holds one value; an edge table holds N connections.
+
+A generic pairs satellite of `(doc_id, ref_id)` edges is **derived from canonical
+documents**, rebuildable and never authoritative. A document may carry N refs.
+Exactly one ref is the governing root; it alone decides group scope and
+permissions. Other refs are targets, not extra grants. A pair's role is data,
+never schema (D60). Sort `(ref_id, doc_id)`, carrying `author_key` as payload;
+retain full document identity when resolving candidates. A transposed sorting
+for reverse questions is future work, not a second admitted layout.
+
+The satellite is the new standard store furniture for this research direction.
+The **17 November mandatory `ref_sorted` furniture rule is superseded**: retire
+that projection in the treated composition **once the satellite proves parity
+on the same questions**. Preserve historical projection stores, source and
+receipts; no production projection is removed by this decision. Current
+canonical winners/tombstones/attachments/policy still decide what is served.
+Neither a stale edge nor an extra target grants access. D117 generalizes edges
+to typed pointers; that later direction is not required to call these edges
+derived in the present canonical-document experiment. All-fixes refs census,
+paired coverage and native composition costs remain pending; see
+[`ALL-FIXES-THEN-MEASURE.md`](../../research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md).
+
+### D115 — Ads are a billboard, not a tracker [DECIDED]
+
+**Jacob Hoffman, 19 November 2026.** Ads are static documents, created once and
+reused on any number of posts: the same ad for everyone who sees it—“a billboard,
+not a tracker.” No reader mining and no per-viewer targeting.
+
+Placement is a **pin document**: its ref is the post (governing root), and its
+body/second ref names the ad (target). Pins are authored, versioned and deletable
+documents, expressed through generic primitives (D60/D116), not a social-only
+node table or endpoint. The author's ad **always wins** their post's slot; a
+node ad never replaces it, rotates over it or outbids it.
+
+Placement is decided **when the post is made**. The API selects from a
+collection: the author's own ads first; only an otherwise-unpinned post gets a
+node-ratio roll. The ratio is a node constant (operator example **5%**, not a
+new default). On a hit, choose from the node's collection. **Round robin** is
+the recorded selection rule; random is mechanically equivalent for this
+placement model. Once pinned, the association remains with that post forever:
+never repick at read time. “Forever” rules out automatic reassignment, not the
+document's explicit version/delete lifecycle or current access/deletion checks.
+Node ads monetize otherwise-empty slots because not every author is an influencer.
+
+The motivating old inventory statement's exact cost and per-composition scope
+are banked in the [treated-completion report](../../research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md).
+The intended treatment deletes that read-time inventory scan and
+resolves ads through the refs satellite; it does not merely cache its answer.
+The exact scan receipt is banked, while the approximate inventory size is
+operator context. The all-fixes directive admits remodel fixtures and measurement;
+its research placements are setup-time analogues, **not implemented production
+post-time selection**. Results pending, no §8/production claim. This supersedes
+older read-time rotation/node-overlay design, retaining its history in
+[ads-dissemination.md](../web10-v3/social/ads-dissemination.md),
+[ads-catalog.md](../web10-v3/social/ads-catalog.md) and
+[node-ads.md](../web10-v3/social/node-ads.md).
+
+### D114 — Tallying is a generic maintained satellite in the fanout family [decided; research first]
+
+**The original missing20-root paired verification gap now has native proof.**
+The [stdin-fixed attempt](../../research/experiments/costfn/evidence/all-fixes-stdin-20261119/RESULTS.md)
+banks exact value/domain checks over all actual roots in all five native domains,
+audited off-host against original SQL hashes and terminal receipts. Its formal
+composition gates remain BLOCKED after aggregate seed241; this is not whole-feed
+or production acceptance. The [first tally report/domain audit](../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md)
+retains its untested-domain history, raw PASS flags, costs and original FAILs.
+
+**Jacob Hoffman,18 November2026:** feed reads fetch ready numbers from the
+`counting_numbers` abstraction instead of counting canonical documents again.
+Counter kinds/targeting semantics are data (D60); the table remains generic for
+notes, music, shops and social apps. Canonical source/policy authority still
+governs each certified scope. Root and finer-target contributions retain their
+distinct displayed-count meanings. This run builds/verifies setup tallies on
+the migrated research copy, then measures the unchanged complete composition
+with only its displayed-count reads redirected. It does not implement or admit
+live production maintenance, invalidation, endpoints,§8 or rollout. Contract:
+`web10-v3/db/tallies.md`; run: existing engagement task block. PR#1590 FAILs remain
+banked; count-stage collapse, not the unrelated preparation/views remainder,
+judges this treatment.
+
+### D113 — Group delivery is built-in and hybrid; canonical state remains authority [research design approved; native gates open]
+
+**Operator, 15.11.2026:** "it is just built in, always ready for scale no
+matter the everything app!" Follow-up: tombstoning remains canonical, stale
+fanout pointers are discarded, and "we need to spec this before we build this
+i want to know the shape". The supplied Config F task supplies the original
+1,000-member proposal, approximately 200-pointer reader window and experiment
+gates. The operator subsequently chose **2,000 members** as the default "normie
+celebrity cutoff", superseding the original cutoff, not its historical receipts.
+
+**Decision.** Intended platform architecture has canonical documents plus a
+generic, derived recipient-pointer table from the outset, for every document
+published into a group. Under 2,000 members: fanout through group-contract
+recipient rules. At/over 2,000: indexed group/time seek. Merge candidates and
+resolve current canonical content/attachments/access before serving. A pointer
+is not a body copy or a permission. Latest-version tombstones win before deletion
+filtering; cleanup may lag rejection. D60 remains binding for all apps.
+
+**Write/read separation, operator clarification:** "the write always does the
+fanout!!!! the read queries aka query engione still need to be written well to
+take advantage!" Every group publication automatically maintains delivery state,
+independent of query usage; the existing cutoff bounds recipient expansion.
+Query-engine/read-query work must explicitly exploit pointers and seeks. Neither
+table existence nor write maintenance makes arbitrary existing queries fast.
+
+**Experiment-before-integration, operator clarification:** "pass all the
+performance benches then do the fanout to the broader system". Implement and
+measure the candidate's writes and layout-aware reads in isolated Config F first,
+after design closure and fresh operational admission. All required §8 response,
+write, lifecycle, rebuild and admitted stress gates must pass before broader
+platform integration is proposed. Main-only speed or a fanout microbenchmark is
+insufficient. Failed/missing evidence blocks integration; a PASS is not automatic
+deployment approval. The broader runtime/schema remains unchanged during proof.
+
+**Rejects:** app-specific fanout infrastructure, scale-triggered content migration,
+synchronous all-recipient pointer cleanup as a deletion gate, satellite-as-authority,
+and the claim that documents alone encode attachment/subscription/access history.
+The 1,999-pointer ceiling is per small-group publication, not per multi-group write.
+`fanout_member_cutoff` is distinct from benchmark K (reader-followed group count);
+the default still needs experiment validation, including write cost and the
+1,999↔2,000 cutoff. Existing K20/K1000 cells and admission gates are unchanged.
+
+**Node Settings follow-up:** the operator asks to make the cutoff configurable,
+or plan it. `fanout_member_cutoff` is a planned persisted node-wide admin setting,
+default 2,000, shared by write routing and read planning. Bounds, exact UI/API
+placement, propagation and safe reclassification/backfill/rollback remain design
+closure work. Configured recipient bounds scale as cutoff minus one; 1,999 is the
+default-only bound. No settings/runtime implementation precedes experiment proof.
+
+**Corrected Fanout Arm programme:** physical table name **`fanout`** is settled
+as generic platform delivery infrastructure. Retained task/programme:
+`research/experiments/costfn/task-block-fanout-arm.md`; proposed closure artifacts:
+`ARM-F-DESIGN-CLOSURE.md` in the same directory. Eight decision artifacts need
+operator approval before code; fresh paid admission and a stage-attributed P
+baseline precede F build. Broader protocol implementation requires a separate go
+after all gates and the integration proposal. Draft v7 follows those steps,
+additive, personal Independent affiliation, CIDR next cycle; no SIGMOD 2027
+submission. The proposed headline is a hypothesis, not a result. No gate passed
+or paid resource admitted by recording the programme.
+
+**Concurrent load addendum:** Config F must pass a full reader+writer cell,
+not readers alone: declared37k-DAU profile,100 real publishes/sec with full
+canonical membership count/recipient query and coordinator/contract writes,
+plus10 mixed-lane follows/sec, sustained concurrently for ten minutes. Same
+complete-response read budget and errors<1% apply; report under-load publish
+p95/follow completion and reconciled pointer/physical writes. Lost/duplicated
+delivery or a stop-rule/parity failure stops. This changes evidence required,
+not architecture or paid admission; the task block records full accounting.
+
+**Research approval/correction,15 November:** the operator approves the bounded
+model, replacing the proposed membership counter with one canonical
+`group_members` pass supplying count and recipients. `counting_numbers` stays
+engagement-only. Fanout inserts are append-only; no per-insert reader-list rerank;
+logical200 cap is applied at read plus amortized background trim. The research
+coordinator/intent journal/idempotent reconcile must exercise real authorized
+publish/follow paths. Inspect the captured query without editing its oracle;
+its attachment multiplicity permits the approved separately labelled identical
+P/F document-stream contract. Disposable satellite rebuild/revalidation is
+inside the timer, never a generation-guard bypass. Settings range is deferred
+to integration, not an experiment gate. Exact DDL/hook hashes/approval and trial
+schedule are folded into `ARM-F-DESIGN-CLOSURE.md`, not a fifth planning document.
+
+The operator grants one fresh isolated DO run, four hours/$2 compute, unchanged
+32/28/22GiB/24.8.14.39/10s/>10M-row limits, full archive hash verification and
+layered cleanup with deadline reported. Concurrent DAU R+W is required; T7
+requires separate admission after T2-F/T6-F. Host/deadline binding and all native
+build/performance gates remain unexecuted. Spec:
+[db/group-delivery.md](../web10-v3/db/group-delivery.md). No production change;
+historical receipts are not reclassified and views treatment stays off.
+
+### D112 — The dominant GTM is org-to-org; the creator/influencer track is archived, not erased [decided]
+
+**Operator, 15.11.2026:** "now the dominating strategy should be b2b or o2o
+org to org bus 2 bus, getting the world online, much more similar to the old
+internet in that way, node by node." Same-session customer clarification:
+the track is "organizations looking to spread a positive message but dont
+have in house social media capabilities, they dont want to be mixed up with
+the ick of current social media, helps keep a hygenic but connected
+technology approach for them" (verbatim: `torah-anytime.md`).
+
+**The decision.** The dominant go-to-market strategy is **org-to-org
+(o2o/B2B)**: organizations run their own web10 nodes (their brand,
+community, content policy), and the network grows node by node,
+old-internet style. New dominant-strategy doc: `strategy/org-to-org.md`.
+Torah Anytime is the first anchor org (`strategy/torah-anytime.md`). The
+influencer/creator strategy — the 100-name outreach machine, M0 kill test,
+20-pitch sales kit, segment splits and sourcer tooling — moved **unchanged**
+to `strategy/archive/creator-influencer-track/` (`outreach.md`,
+`outreach_batch1.md`, `outreach_prospects.md`, `outreach_prospects_full.md`,
+`outreach_sourcer.py`); nothing was erased or rewritten. It is no longer the
+dominant frame and is not authorized for execution by this decision.
+
+**What it rejects.** (1) Leading org prospects with the banned-creator
+story — different customer, different pain, different frame; the partner
+track uses the hygienic-but-connected frame recorded in `torah-anytime.md`.
+(2) Treating "archived" as "deleted" — the track's docs stay readable and
+stay in the `web10web10!` re-read stack (via `AGENTS-RITUALS.md`).
+(3) Any claim the product changed — D20, D41, D60 and the generic API are
+untouched; this is a GTM realignment, and the white-label kit
+(DEMO/THEME/TABS/TA items) is now the reusable onboarding surface for every
+org, not a partner special.
+
+**Open:** the org pipeline itself (segments, sourcing, kill gate, pitch
+copy — the M0 equivalent) is unscoped; a new lane item when the operator
+wants it.
 
 ### D111 — Marketing sends readers to social; it does not replicate discovery [decided]
 
@@ -52,14 +480,14 @@ contract for hashtags.
 **The board:** `/tag/:hashtag` is a public, newest-first board read through
 the D73 safe-query engine (the app's own SELECT over `posts`,
 `has(JSONExtract(body,'hashtags','Array(String)'), '<tag>')`, scoped to the
-discover group — anon-capable per D41/D58, I3-walled by the boundary CTE's
+discover group — anon-capable per D41/D58, I3-filtered by the API-generated CTE's
 block/sharing/hidden anti-joins). The card is the feed's `PostCard` (one
 renderer everywhere, post-render.md). The Discover topic chips (`?tag=`) union
 doc tags + body hashtags of the loaded board; chips stay a pool filter — the
 global destination is the board.
 
 **The pattern:** `#` + 1–30 of `[a-zA-Z0-9_]` (no hyphens, no unicode in v1),
-mention-boundary discipline (start/whitespace/`(` before, a boundary after),
+mention-token delimiters (start/whitespace/`(` before, a non-token character or text end after),
 never in code/headings/link labels/URLs; one shared regex (`@web10/discover/hashtags`)
 feeds the write derivation and the read render so they cannot drift. The
 composer is untouched (typed prose — the toolbar is the only *formatting*
@@ -182,8 +610,8 @@ staying **content-blind**: all text and input values remain masked, media
 drops content-bearing attributes — input values, alt/title/placeholder, media
 srcs, DOM ids (route/document identifiers), and every `data-*`/`aria-*`
 payload; hrefs are route-templated. Supersedes D103's "deliberately reduced
-fidelity" replay posture, not its content-out boundary: content is still never
-recorded. Terms/Privacy copy updated to match. Re-verified: pinned wire test,
+fidelity" replay posture. At that historical browser-page -> PostHog capture boundary,
+content was excluded; D107 later narrows that exclusion. Terms/Privacy copy updated to match. Re-verified: pinned wire test,
 real-Chromium/SDK intercepted-batch check with a class-survival assertion and
 sentinel absence, and a live dev recording for operator inspection.
 
@@ -390,7 +818,7 @@ allowlisted; instagram gains no embed host — there is no embed).
 
 Contract: `web10-v3/social/link-unfurl.md` (the provider matrix rows, the
 wall-retry flow, the Open section). The SSRF scan record carries the curl
-subprocess as a documented seam (the boundary is unchanged).
+subprocess as a documented preview-service -> remote-origin fetch seam; the destination checks are unchanged.
 
 ---
 
@@ -415,8 +843,8 @@ app keeps its own copy for the full-density feed — unchanged.
 
 **Why CORS `*` (and not an origin list, and not an nginx proxy):** the
 answer is public card metadata — no session, no cookies, no credentials in
-or out. CORS is reader access, not the boundary: the SSRF guard + the
-60/min per-IP damper are unchanged, and a browser on any origin was already
+or out. At the preview-service -> remote-origin boundary, the SSRF guard
+controls destinations; CORS only permits browser reads. The 60/min per-IP damper is unchanged, and a browser on any origin was already
 able to call the endpoint from server-side code; CORS just lets a second
 SPA read the same answer. `*` (not a list) so a self-hosted marketing build
 pointing at its own social origin works without a rebuild. An nginx
@@ -446,8 +874,8 @@ pages, and the social feed alike. Marketing against an undeployed social
 app degrades to plain links, never to a broken card.
 
 Contract: `web10-v3/social/link-unfurl.md` ("The second consumer: the
-marketing site (D100)"). Scan record unchanged in substance (the boundary
-is the SSRF guard; CORS is documented there as reader access).
+marketing site (D100)"). Scan record unchanged in substance: the SSRF guard
+controls preview-service -> remote-origin fetches; CORS permits browser reads.
 
 ---
 
@@ -570,7 +998,7 @@ Operator, 03.11.2026 — "the import your life page is just not really a product
 
 **What it rejects.** (1) The "Import Your Life" marketing page as a front-door pitch — the operator's call that it is not product focus and that people don't care. (2) The bulk catalog import as the onboarding hook — replaced by the AI-assistant, post-by-post flow. (3) Keeping the `staging_posts` tier around an empty pipeline — with no importer writing to it, the staging/review surface is dead weight and goes too. **Supersedes** the import half of D90 (the worker durability pass) and the "YouTube Importer (port your YouTube)" plan section; D90's *idiom* (in-process + ClickHouse-queued worker) still stands for any future durable job.
 
-**Implementation disposition.** Marketing/docs merged in #1348; the remaining code gut is tracked in the import lane. Delete the old `web10-v3/social/import.md` implementation guide and its live links. Removing job/event DDL does not authorize dropping existing tables, deleting raw objects or staged documents; any storage cleanup requires a separate inventory and operator approval. Generic CRUD/media/export and the current access model remain. References: `plan.md` "YouTube Importer", `outreach.md`, `ads-october/gaps.md` Gap 1.
+**Implementation disposition.** Marketing/docs merged in #1348; the remaining code gut is tracked in the import lane. Delete the old `web10-v3/social/import.md` implementation guide and its live links. Removing job/event DDL does not authorize dropping existing tables, deleting raw objects or staged documents; any storage cleanup requires a separate inventory and operator approval. Generic CRUD/media/export and the current access model remain. References: `plan.md` "YouTube Importer", `outreach.md` (archived: `archive/creator-influencer-track/outreach.md`), `ads-october/gaps.md` Gap 1.
 
 ### D94 - Portable Protected Media Delivery, Cloudflare First [decided]
 
@@ -1438,10 +1866,12 @@ limit *for now* (deferred — D66).
 per-user-limited; a shared anon budget (or no anon limit) is a separate,
 deferred concern.
 
-### D64 — Origin-based approval is curation, not a security boundary [decided]
+<a id="d64--origin-based-approval-is-curation-not-a-security-boundary-decided"></a>
+
+### D64 — Origin-based approval is curation, not app -> API authentication [decided]
 
 **The decision.** A node-level origin gate (approving/denying which
-websites/apps may call the node) is **curation, not a security boundary.** The
+websites/apps may call the node) is **curation, not app -> API authentication.** The
 `Origin` header is client-controlled: a browser enforces it (a web page's JS
 can't forge it — it's a forbidden header the browser sets), but a non-browser
 client (curl, a backend, a mobile app) sets whatever it wants. So an origin gate
@@ -1450,7 +1880,7 @@ caller forges `Origin` freely.
 
 **Why.** Operator, probing the model: "is that easy to spoof pretend they are
 from website, change the html of the website that is approved?" → "yeah, so can
-be abused since an api can abuse." The real security boundary in web10 is the
+be abused since an api can abuse." At the app -> API boundary, authentication and permissions use the
 **user's token + the user's app contract** — the user is the trust anchor who
 judges the origin (the user-centric model). Origin tells you which *site* a
 browser is on; it is not a proof of who's calling. This extends D49 (rejected
@@ -1467,34 +1897,40 @@ curation (which sites are blessed), but it must not be relied on to stop a
 determined caller. **Abuse prevention is rate limiting** (D65), not origin
 gating.
 
-### D63 — The flexible read: `w.query()` / `POST /v3/query` — a caller writes a ClickHouse `SELECT` over their services; the engine is the boundary [decided]
+<a id="d63--the-flexible-read-wquery--post-v3query--a-caller-writes-a-clickhouse-select-over-their-services-the-engine-is-the-boundary-decided"></a>
+
+### D63 — The flexible read: the API authorizes app SQL before ClickHouse execution [decided]
+
+**Current implementation, not replacement storage.** JSON/single-ref examples
+retain their present API meaning; D116 is DECIDED, D117 is DIRECTION (cell pending)
+and D118 is DECIDED. See the [design map](../web10-v3/db/design-revolution.md).
 
 **The decision.** An app writes a ClickHouse `SELECT` over its **service
 names** (`posts`, `comments`, …); the node compiles it through the safe-query
 engine and runs it. Read-only by construction — the engine rejects anything
 but a single `SELECT`, raw node tables, and table functions *before* anything
-executes. Each service name is rewritten to an API-built **boundary CTE**
+executes. Each service name is rewritten to an API-built **access-filtered CTE**
 (group-filtered + block/sharing/hidden), so self-joins, aggregations,
 subqueries, and caller CTEs all work, and none can leak past the caller's
 groups.
 
 **Why.** v2 let an app run any Mongo query inside a user's collection — the
-collection *was* the boundary. v3 has one shared ClickHouse table and a group
-boundary; the fixed read shapes (group read, `ref` filter) didn't reach "do
+API restricted MongoDB reads to that authorized collection. v3 has one shared
+ClickHouse table and group-based authorization; fixed group/ref reads didn't reach "do
 anything." The engine restores v2's query power (flexible filters, cross-
-service self-joins, aggregations) without breaking the group boundary, because
-the boundary is on the *input* (the CTEs the caller reads), not a filter on
+service self-joins, aggregations). At the API -> ClickHouse boundary, the API
+restricts query *inputs* (the CTEs the caller reads), not merely
 the *output* — the raw tables are simply unreachable.
 
 **The query language: a SQL subset, not a DSL, not raw passthrough.** A DSL
 caps the power; raw passthrough is unsafe (the caller drops the group filter).
-The rewriting layer is the boundary, and it's a *wall* (raw tables
+The rewriter enforces API -> ClickHouse authorization (raw tables are
 unreachable), so the parser only has to be complete about *table references*,
 not about every SQL construct. sqlglot (ClickHouse dialect) parses + validates;
 the round-trip re-parse is the backstop.
 
 **The ClickHouse 24.8 CTE-inlining fix (the load-bearing detail).** The
-boundary CTE's block/sharing/hidden filters are `NOT IN` / tuple-`NOT IN`
+access-filtered CTE's block/sharing/hidden filters are `NOT IN` / tuple-`NOT IN`
 subqueries, **not** `LEFT ANTI JOIN`. A ClickHouse 24.8 bug breaks CTE inlining
 when the CTE body combines a `JOIN` with a `LEFT ANTI JOIN` — the CTE's output
 columns become unresolvable (`UNKNOWN_IDENTIFIER`), so *any* query over the
@@ -1508,8 +1944,9 @@ a CTE that wraps the *output* and filters it (a membrane, not a wall — an
 aggregation inside the parens bakes everyone's data in before the filter runs).
 
 **Bounds.** An unbounded query gets `LIMIT 1000` appended (a caller `LIMIT` is
-honored); `max_execution_time = 10`. The boundary CTE is the data bound — a
-query can only scan the caller's readable groups, not the whole node.
+honored); `max_execution_time = 10`. The access-filtered CTE restricts returned
+content to readable groups. It does not promise physical scan pruning or an
+arbitrary-query performance bound (D120, PRINCIPLE).
 
 **Anon + contract.** Anon-capable (D41 — a missing token reads the public
 board). The app-contract gate: the query may only touch services the contract
@@ -1517,7 +1954,7 @@ grants `readAll` on (`query_services()` checks before any group work). D42
 holds: an explicit group the reader can't read is a 403, not an empty result.
 
 Spec'd in `knowledge-base/web10-v3/query-engine.md` (the discussion) +
-`safe-query.md` (the boundary + why the guarantee holds).
+`safe-query.md` (API -> ClickHouse authorization and its verification).
 
 ### D62 — Engagement (comments/reactions) defaults to discover; the UI can pick groups; private accounts deferred [decided]
 Operator, 02.09.2026 — after the "can't comment/like my own post and have it persist" report: "comments being on discover is legit no problem, and reactions unless a private group setting! so not a big deal!" + "put a readme that to do private insta account type stuff, some thought has to go into that. but we arent implementing private yet, i.e. private accounts." + "we have a groups tab, so maybe it does apply, if you make a comment, well the comment can let you say what groups you want in the social ui you decide what groups the comment is going to! so if in a group and commenting can say discover + the group!"

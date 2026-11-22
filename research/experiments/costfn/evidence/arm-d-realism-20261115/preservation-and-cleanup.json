@@ -1,0 +1,10 @@
+{
+  "kind": "ARM_D_PRESERVATION_AND_CLEANUP_CHECK",
+  "all_preserved_evidence_hashes_equal": true,
+  "protected_files": 53,
+  "protected_inventory_sha256": "75c04d3ddb1030ced46d5d7d73bd8f9ca175a1b91b0c07d5873153e7ff19bb61",
+  "service": "ExecMainStatus=0\nActiveState=inactive\n",
+  "containers": "web10-costfn-frozen-armt-d1-api-1 Exited (143) 22 minutes ago\nweb10-costfn-frozen-armt-d1-clickhouse-1 Exited (0) 19 seconds ago\nweb10-costfn-frozen-armt-d1-minio-1 Exited (0) 22 minutes ago\n",
+  "provider_cleanup_deadline_utc": "2026-11-15T05:17:51Z",
+  "provider_deletion_not_yet_claimed": true
+}

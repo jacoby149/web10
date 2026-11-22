@@ -1,0 +1,1 @@
+CREATE TABLE doc_groups (doc_id String,group_id String,created_at DateTime64(3),updated_at DateTime64(3),deleted UInt8) ENGINE=ReplacingMergeTree(updated_at) ORDER BY (doc_id,group_id)

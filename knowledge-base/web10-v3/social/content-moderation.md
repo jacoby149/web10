@@ -60,7 +60,7 @@ A JSON array of words/phrases. Operator-curated in the Node Config UI (authentic
 
 **Matching rules (v0):**
 - Case-insensitive
-- Whole-word only (word boundaries) — "ass" does not match "assassin"
+- Whole-word only (token start/end delimiters) — "ass" does not match "assassin"
 - No regex (v1 consideration)
 
 ### Detection scope

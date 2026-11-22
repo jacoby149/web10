@@ -1,0 +1,24 @@
+{
+  "kind": "OPERATOR_AD_SEMANTIC_PARITY_RULING",
+  "quote": "the validator just has to check that all ads were appropriate / proper, no ones that shouldnt have been attached getting attached",
+  "original_fail_preserved": true,
+  "production_ordering_changed": false,
+  "canonical_generation": "661ca1829c7895e044b98ca431b4f9e0280cf0e4e09143e9989db4b4e4419c2c",
+  "eligible_payload_sha256": "81fed111654a9b91554e593786c014837787710ffb8f678c27e9803dcde188a6",
+  "candidate_count": 300,
+  "eligible_at_cutoff_with_ties": 300,
+  "all_candidates_at_cutoff_active": true,
+  "native_oracle_query_ids": [
+    "satellite-p-7baa5530472f49d28ca2913312059380",
+    "satellite-p-3df15785e38a491ba6f7ea1e6940584d",
+    "satellite-p-2e6e465cdd194eca935a312ffd3826c4"
+  ],
+  "envelope": {
+    "container_bytes": 30064771072,
+    "engine": "24.8.14.39",
+    "server_bytes": 23622320128
+  },
+  "scope": "exact core/pinned/placement; canonical active current linked node-ad payloads, no creative identity equality",
+  "deadline_utc": "2026-11-15T15:38:32+00:00",
+  "fanout": false
+}

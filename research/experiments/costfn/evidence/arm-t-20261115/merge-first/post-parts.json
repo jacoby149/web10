@@ -1,0 +1,88 @@
+{
+	"meta":
+	[
+		{
+			"name": "table",
+			"type": "String"
+		},
+		{
+			"name": "parts",
+			"type": "UInt64"
+		},
+		{
+			"name": "rows",
+			"type": "UInt64"
+		},
+		{
+			"name": "marks",
+			"type": "UInt64"
+		}
+	],
+
+	"data":
+	[
+		{
+			"table": "app_contracts",
+			"parts": "1",
+			"rows": "20000",
+			"marks": "3"
+		},
+		{
+			"table": "content_events",
+			"parts": "11",
+			"rows": "1600000021",
+			"marks": "195330"
+		},
+		{
+			"table": "doc_groups",
+			"parts": "9",
+			"rows": "92200600",
+			"marks": "11268"
+		},
+		{
+			"table": "doc_groups_t",
+			"parts": "7",
+			"rows": "92200600",
+			"marks": "11266"
+		},
+		{
+			"table": "documents",
+			"parts": "4",
+			"rows": "88200300",
+			"marks": "10771"
+		},
+		{
+			"table": "group_contracts",
+			"parts": "3",
+			"rows": "1000001",
+			"marks": "127"
+		},
+		{
+			"table": "group_members",
+			"parts": "9",
+			"rows": "152340270",
+			"marks": "18610"
+		},
+		{
+			"table": "logs",
+			"parts": "5",
+			"rows": "33",
+			"marks": "10"
+		},
+		{
+			"table": "users",
+			"parts": "1",
+			"rows": "1000000",
+			"marks": "124"
+		}
+	],
+
+	"rows": 9,
+
+	"statistics":
+	{
+		"elapsed": 0.03231148,
+		"rows_read": 50,
+		"bytes_read": 2564
+	}
+}

@@ -1,0 +1,165 @@
+{
+  "kind": "ADDITIVE_ARM_T",
+  "directive": "Jacob 2026-11-14 post-freeze amendment",
+  "outcome": "ARM_T_BUILD_VERIFIED",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "project": "web10-costfn-frozen-armt-d1",
+  "droplet_id": 619371600,
+  "admission_sha256": "872efd4d31d8ef07aec2e767695366168a3e553a4ca5368257de0cf7fff7097a",
+  "deadline_utc": "2026-11-15T05:17:51Z",
+  "pilot_gate_status": "operator-waived-not-passed",
+  "resources_before": {
+    "host_memory_bytes": 33654894592,
+    "docker_store_free_bytes": 360465268736,
+    "setup_query_spill_cap_bytes": 107374182400
+  },
+  "restore_sha256": "7815d95d232d5d5fbe531ab2fe788a99150a37f5afb2c3055d421fddca1120a5",
+  "validation_sha256": "5d7dabb6e4e322d5a76bed630d053b2340d34e5e5016682ad8bdb175c6afdd94",
+  "rewrite_sha256": "df4023c629b3a1aa700d131dd0b605c6be646c6393b90b146ceb5526652bc43c",
+  "builder_sha256": "20e1bb6b50b09d4dcd96f4ed88177b6bd0873d946398fb704c0b414dd4070a65",
+  "ddl_sha256": "33a03804b4d79c4d443d8c49eb721f1ea4b1b3a4b6f1d70e253e674bbb41f713",
+  "build_sql_sha256": "37fc4aa6445c50a1e0ff33093820f46e5ad2cd5f0b37923ba40b27120ebbb672",
+  "steps": [
+    {
+      "name": "engine",
+      "query_id": "arm-t-build-bb733d654f8141f581127dee44a4427c",
+      "sql_sha256": "df1f1d15d442789a5b9c81cdddf44d88d5748499cc48865023ddc1ff1587d0f6",
+      "seconds": 0.29,
+      "complete": true
+    },
+    {
+      "name": "server_memory",
+      "query_id": "arm-t-build-a19e6b9efa284297840f36e341269b24",
+      "sql_sha256": "2095cc241cf01e4f0587234cfabfc1dd1e1c36bc646622a624aafa1913f97a63",
+      "seconds": 0.306,
+      "complete": true
+    },
+    {
+      "name": "source_key_documents",
+      "query_id": "arm-t-build-ad308210562a4659bd5f1671de76a8ad",
+      "sql_sha256": "3b532975a5cddb369cb4f36d233f46da07700d746e47b5165c1f7fc899762182",
+      "seconds": 0.274,
+      "complete": true
+    },
+    {
+      "name": "source_key_doc_groups",
+      "query_id": "arm-t-build-c11c58a99b334a81b7dc9fcf7881affd",
+      "sql_sha256": "35d6b9236d971958ef0b9b521a0baace3dff3fa9749dde2d5337eb21dcce80a4",
+      "seconds": 0.293,
+      "complete": true
+    },
+    {
+      "name": "variant_absent",
+      "query_id": "arm-t-build-68b8957f14e04adbbd0e64685287aa58",
+      "sql_sha256": "0830325e060ed58b7843b0d308fd3d2b781f213f4b840b7a951d223251f11d70",
+      "seconds": 0.329,
+      "complete": true
+    },
+    {
+      "name": "rows_documents",
+      "query_id": "arm-t-build-1a847a030b8a47818201c9f4c0088041",
+      "sql_sha256": "caf014c8e03296cdd988ff1dce5655f23de70734212bb9f35ac542641cd1c06d",
+      "seconds": 0.304,
+      "complete": true
+    },
+    {
+      "name": "history_documents",
+      "query_id": "arm-t-build-4571b2314aeb47b8bb49715f7a6e77c2",
+      "sql_sha256": "f720aad3f759ca9ffca8c080d7443142e60649d85942a8035cefdb79cc7b09d9",
+      "seconds": 36.09,
+      "complete": true
+    },
+    {
+      "name": "tombstones_documents",
+      "query_id": "arm-t-build-b3757856bb56427a96bb6b284ed424f6",
+      "sql_sha256": "ac8c4002500154e39f3b23cae12b3a0ce14b7b7e4e78b1b1816d291919f3ad90",
+      "seconds": 0.331,
+      "complete": true
+    },
+    {
+      "name": "rows_doc_groups",
+      "query_id": "arm-t-build-48e56acb4f364d4f8594c2cbfa5dbefc",
+      "sql_sha256": "8b781ca4fc33f42929b5ad3b844dd164e1fe2e261e2f071a5875f64dd3983a3e",
+      "seconds": 0.308,
+      "complete": true
+    },
+    {
+      "name": "history_doc_groups",
+      "query_id": "arm-t-build-05d99b765525427ba6988a8532444c65",
+      "sql_sha256": "a730f8df0e13ee4dc80d57a2d329b013422862c26b32457ba1db82fda529f7f8",
+      "seconds": 48.462,
+      "complete": true
+    },
+    {
+      "name": "tombstones_doc_groups",
+      "query_id": "arm-t-build-8c318c150e2f41189c6107f66fe9d9ac",
+      "sql_sha256": "cb20516a3579997140f4d6d62892c8b9d7f0072e32c04b5f74b1cde2fb4d5e45",
+      "seconds": 0.422,
+      "complete": true
+    },
+    {
+      "name": "create_variant",
+      "query_id": "arm-t-build-0f30188cecf94df7a0399753582c0402",
+      "sql_sha256": "33a03804b4d79c4d443d8c49eb721f1ea4b1b3a4b6f1d70e253e674bbb41f713",
+      "seconds": 0.385,
+      "complete": true
+    },
+    {
+      "name": "build_variant",
+      "query_id": "arm-t-build-40288a5aeb27437bad107131f6d7f975",
+      "sql_sha256": "37fc4aa6445c50a1e0ff33093820f46e5ad2cd5f0b37923ba40b27120ebbb672",
+      "seconds": 326.63,
+      "complete": true
+    },
+    {
+      "name": "variant_rows",
+      "query_id": "arm-t-build-f6360f0fc97448eda72a662f36b260ef",
+      "sql_sha256": "7f47d248f1a86b896feee55a2515f28d4aed81ed80b8f83c1e3b294761a24921",
+      "seconds": 0.547,
+      "complete": true
+    },
+    {
+      "name": "exact_metadata_reconciliation",
+      "query_id": "arm-t-build-37cd01aa08c44a6d848ecdfbc625cc2f",
+      "sql_sha256": "0204699baba2e495995a22f56603f8ee02b36ae40b841f87a1831971b5f55bec",
+      "seconds": 409.99,
+      "complete": true
+    },
+    {
+      "name": "table_identity",
+      "query_id": "arm-t-build-b63c76b9fe3246238f7905da4d7ef47d",
+      "sql_sha256": "1cef817e57889ef35b9ee603373f88337a23b632161b5ab3a63418229b159808",
+      "seconds": 0.328,
+      "complete": true
+    }
+  ],
+  "build_is_setup_not_feed_cost": true,
+  "parity": "NOT_RUN",
+  "setup_settings": {
+    "max_memory_usage": 23622320128,
+    "max_bytes_in_join": 1073741824,
+    "join_algorithm": "full_sorting_merge",
+    "max_bytes_before_external_sort": 2147483648,
+    "max_temporary_data_on_disk_size_for_query": 107374182400
+  },
+  "receipt_sha256": "3fc243ca203ef845aa7ae8367171935f9711161028965d0ef60fdab0279ff90b",
+  "source_counts": {
+    "documents": 88200300,
+    "doc_groups": 92200600
+  },
+  "variant_rows": 92200600,
+  "tables": [
+    {
+      "name": "doc_groups",
+      "uuid": "69e9bbf9-1d6d-4c79-8c9d-1b4520815226"
+    },
+    {
+      "name": "doc_groups_t",
+      "uuid": "4fb8ed8a-4f92-4ef6-acd4-2a3201072cba"
+    },
+    {
+      "name": "documents",
+      "uuid": "e6df5ed3-9636-4121-9a63-72159761cead"
+    }
+  ]
+}

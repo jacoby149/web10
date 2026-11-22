@@ -1,0 +1,159 @@
+{
+  "kind": "TWO_GRAIN_DAY_SLICED_ATTEMPT_FOUR",
+  "outcome": "PARTIAL_DAY_SEED_SERVICE_WINDOW_EXHAUSTED",
+  "source_commit": "8402cd5fef88b8d36fe51a9a25faf5a9ee335574",
+  "source_controls": {
+    "suites": 40,
+    "tests": 378,
+    "outcome": "PASS"
+  },
+  "deployed_hashes": 1487,
+  "source_fix_prs": [
+    1599,
+    1600
+  ],
+  "row_readiness_before_restore": true,
+  "source_changed_after_deployment": false,
+  "post_run_diagnostic_label_fix": {
+    "deployed": false,
+    "suites": 40,
+    "tests": 379,
+    "sql_or_treatment_changed": false
+  },
+  "lease": {
+    "droplet_id": 621488571,
+    "name": "web10-fanout-f-7c65ded91a9f",
+    "region": "nyc3",
+    "sku": "s-8vcpu-32gb-amd",
+    "hourly_usd": 0.25,
+    "host_gib": 32,
+    "container_gib": 28,
+    "server_gib": 22,
+    "engine": "26.10.4.207",
+    "snapshot_id": "255003176",
+    "approved_utc": "2026-11-20T03:43:51+00:00",
+    "deadline_utc": "2026-11-20T07:43:51+00:00",
+    "amendment_arrived_before_deployment": true,
+    "original_deadline_retained": true,
+    "guardian_started": false
+  },
+  "service_stop": {
+    "result": "timeout",
+    "signal": 15,
+    "utc": "2026-11-20T07:38:51+00:00",
+    "cause": "existing RuntimeMaxSec lease margin",
+    "native_statement_timeout": false,
+    "scan_count_gate": false,
+    "memory_failure": false
+  },
+  "persisted_programme_stages": {
+    "banked": "PASS",
+    "restore": "PASS",
+    "read-setup": "PASS",
+    "migrate": "PASS",
+    "billboard-fixtures": "PASS"
+  },
+  "persisted_seed_outcome": "BUILDING",
+  "seed": {
+    "plan_days": 319,
+    "first_day": "2025-12-27",
+    "end_day_exclusive": "2026-11-11",
+    "doc_id_buckets": 1,
+    "controller_pass_slices": 293,
+    "native_finished_slices": 294,
+    "unstarted_slices": 25,
+    "extra_native_finish_without_controller_ack": 1,
+    "native_exception_codes": [
+      0
+    ],
+    "frozen_logical_events": 1600000000,
+    "observed_partial_day_impressions": 1165394847,
+    "missing_logical_events": 434605153,
+    "partial_day_counts_match_raw_census": true,
+    "full_population_reconciled": false,
+    "logical_count_scope": "post-stop countMerge observation; not the unrun controller reconciliation",
+    "native_read_rows": 470400000000,
+    "native_read_bytes": 17727624723651,
+    "max_memory_usage": 2890041689,
+    "native_time_bound_min": 146,
+    "native_time_bound_max": 600,
+    "window_clipped_statement_caps": 13,
+    "native_rows_per_observed_partial_event": 403.6400205569126,
+    "native_rows_per_full_frozen_population_reference": 294.0,
+    "sum_native_query_duration_ms": 6931712,
+    "csv": "seed-slices.csv",
+    "csv_sha256": "1a1cfadf2df99ba7375d6e2b7378c22870f6539e71610a690ea2aef907c425d4"
+  },
+  "all_time": {
+    "source_table": "content_events_aggregated",
+    "ddl_and_raw_insert_mv_installed": true,
+    "derivation": "NOT_RUN",
+    "observed_empty_table_rows": 0,
+    "row_count_observation_query_id": "fanout-f-fca68907a0b94243b08d5db088a03db1",
+    "row_count_scope": "post-stop empty-table observation, not a completed build receipt",
+    "native_derivation_actuals": null
+  },
+  "parity": {
+    "refs_census": "NOT_REACHED",
+    "tally_native_setup": "PASS",
+    "paired_tally_actual20_roots": "PASS_COMPLETED_NATIVE_EVIDENCE_AUDITED_OFF_HOST",
+    "paired_tally_evidence_file": "paired-tally-evidence.json",
+    "views_daily": "NOT_RUN",
+    "views_all_time": "NOT_RUN",
+    "ads_exact_identity": "NOT_RUN",
+    "complete_response": "NOT_RUN"
+  },
+  "composition": {
+    "uniform_K20": "NOT_RUN",
+    "paired_P": "NOT_RUN",
+    "paired_F": "NOT_RUN",
+    "decomposition": null,
+    "unclassified_query_list": null
+  },
+  "row_model": {
+    "worker_started": false,
+    "assembly_verdict": null,
+    "all_six_stages": "NOT_RUN",
+    "D117": "PENDING"
+  },
+  "off_host": {
+    "private_root": "~/.local/state/web10-research/web10-fanout-f-7c65ded91a9f",
+    "checkpoint": {
+      "file": "all-fixes-day-seed-checkpoint-20261120T074019Z.tar.gz",
+      "bytes": 7019393,
+      "sha256": "b014ee968ee441cd6cf036615e74c32f91b83e077527201121964ca81a7c681e",
+      "off_host_verified_before_cleanup": true
+    },
+    "stopped_native_parts": {
+      "file": "stopped-native-query-log.tar.gz",
+      "bytes": 29813753,
+      "sha256": "c73ca779913a7b21aa19d0aa2bd10381d30c1f7787b70bcaaaea2eb3d30435a8",
+      "off_host_verified_before_cleanup": true
+    }
+  },
+  "cost": {
+    "basis": "admission creation through final recorded provider readback; conservative SKU estimate",
+    "elapsed_seconds": 14285.982309103012,
+    "estimated_compute_usd": 0.9920821047988203,
+    "core_cleanup_estimate_usd": 0.9891272886759706,
+    "invoice": false,
+    "snapshot_storage_separate": true
+  },
+  "cleanup": {
+    "core_verified_utc": "2026-11-20T07:41:14.432957+00:00",
+    "final_provider_readback_utc": "2026-11-20T07:41:56.982309+00:00",
+    "droplet_absent": true,
+    "firewall_absent": true,
+    "ssh_key_absent": true,
+    "tag_absent": true,
+    "snapshot_retained": true,
+    "before_original_deadline": true,
+    "no_engine_restart": true
+  },
+  "prior_three_attempt_records_unchanged": true,
+  "baseline_B_D_not_repeated": true,
+  "whole_arm_pass": false,
+  "admission_closed": true,
+  "automatic_retry": false,
+  "new_run_requires_fresh_admission": true
+}

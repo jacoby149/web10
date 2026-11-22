@@ -1,0 +1,25 @@
+{
+  "outcome": "COMPLETED",
+  "droplet_id": 620121703,
+  "snapshot_id": "255003176",
+  "snapshot": {
+    "id": "255003176",
+    "name": "web10-fanout-f-cc70d077b6cd-prepared",
+    "resource_id": "620121703",
+    "resource_type": "droplet",
+    "regions": [
+      "nyc3"
+    ],
+    "min_disk_size": 400,
+    "size_gigabytes": 88.2,
+    "created_at": "2026-11-17T04:03:54Z"
+  },
+  "action_id": 3552180115,
+  "provider_action_status": "completed",
+  "request_sha256": "e2fa509e95a725f5be848acd1e950904d1bbd136e2c39664f79d0d4c3540eac4",
+  "engines_stopped_during_snapshot": true,
+  "frozen_archive_mutated": false,
+  "restore_speed": "UNMEASURED",
+  "retained_separate_from_droplet_cleanup": true,
+  "completed_utc": "2026-11-17T04:27:56.592509+00:00"
+}

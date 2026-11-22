@@ -132,7 +132,7 @@ This includes authenticated foreign reads, not a public-only substitute.
 FM1 can land without a blanket local-principal migration. FM2 is mandatory for
 authenticated browser federation; certificate success alone does not satisfy it.
 FM3's public domain continuity can be tested independently, but full activation
-requires FM2–FM6. Each trust-boundary PR remains <=500 code/test lines with a
+requires FM2–FM6. Each app -> foreign-node API credential/authorization PR remains <=500 code/test lines with a
 repro gate, written evidence and fresh design-intent review; stage and review the
 units rather than mixing them into the batching-default PR.
 

@@ -1,5 +1,11 @@
 # Web10 Ads: The Catalog + Composer (D54, D55)
 
+**Current implementation/history, not the target.** D115 and D116 are DECIDED;
+their canonical definitions live in the [decision ledger](../../strategy/decisions.md#d115--ads-are-a-billboard-not-a-tracker-decided).
+Older direct-`ref_value`/read-time rotation text below is retained context, not
+authority to implement that behaviour in the new proving cell. No deployment
+or measured remodel result is claimed here.
+
 `ads.md` defines what an ad is (a `posts` document tagged `ad` — a piece of content + a link that pays) and how it reaches a viewer (group delivery + the feed read). This doc defines the two surfaces a creator actually touches: the **Ad Catalog** in web10-social's Monetization surface (the inventory of *their* ads — D75 moved it out of the authenticator) and the **composer integration** in web10-social (attaching an ad to a post, or letting the creator's own ads rotate).
 
 ## The Use Case
