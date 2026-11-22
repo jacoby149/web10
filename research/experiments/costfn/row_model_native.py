@@ -3,6 +3,11 @@
 No engine, credential or network activity on import. The worker supplies an
 already configured pinned driver after host/admission/envelope verification.
 Native result blocks stay typed; JSON is only the private receipt format.
+
+Receipt scope: Driver.submit statements only. Caller-created client bootstrap
+(server/session/timezone/protocol negotiation) is outside that scope. Explicit
+insert-context metadata and receipt observations use distinct true query IDs
+and ROW_MODEL_AUX tags, outside data receipts; no data ID is reused for them.
 """
 import hashlib
 from pathlib import Path
@@ -19,6 +24,12 @@ from arm_f_native import save
 from arm_satellite_sql import literal as q
 import engagement_limits as limits
 from row_model_fence import TABLES
+
+
+class IdentityMismatch(ValueError):
+    def __init__(self, expected, actual):
+        self.actual = str(actual)
+        super().__init__('row-model response identity differs: expected ' + expected + ', returned ' + self.actual)
 
 
 class Driver:
@@ -41,19 +52,33 @@ class Driver:
 
     def settings(self, query_id, *, observation=False):
         self.guard()
-        return {**limits.settings(), 'max_execution_time': 2 if observation else 600,
+        # HttpClient recognizes query_id here and puts it in URL params, not headers.
+        return {**limits.settings(), 'query_id': query_id, 'max_execution_time': 2 if observation else 600,
             'max_threads': 4, 'log_comment': ('ROW_MODEL_AUX:' if observation else 'ROW_MODEL:') + query_id,
             'log_queries': 1, 'log_query_settings': 1,
             'max_bytes_before_external_sort': 2 * 1024**3,
             'max_bytes_before_external_group_by': 2 * 1024**3}
 
+    def auxiliary_settings(self, *, metadata=False):
+        identifier = ('row-model-metadata-' if metadata else 'row-model-observe-') + uuid.uuid4().hex
+        settings = self.settings(identifier, observation=not metadata)
+        settings['log_comment'] = 'ROW_MODEL_AUX:' + identifier
+        print('[row-model] native auxiliary', 'metadata' if metadata else 'observation', identifier, flush=True)
+        return settings
+
+    @staticmethod
+    def check_response_identity(result, settings):
+        actual = getattr(result, 'query_id', None)
+        # Body-returning command results may omit identity; native exact-ID proof
+        # remains mandatory. A known mismatch must never poll a different ID.
+        if actual and actual != settings['query_id']:
+            raise IdentityMismatch(settings['query_id'], actual)
+
     def observe(self, query_id):
         """Wait for the ORIGINAL native operation, never resubmit lost work."""
         while True:
             self.guard()
-            observation_id = 'row-model-observe-' + uuid.uuid4().hex
-            self.client.command('SYSTEM FLUSH LOGS', settings=self.settings(observation_id, observation=True),
-                transport_settings={'query_id': observation_id})
+            self.client.command('SYSTEM FLUSH LOGS', settings=self.auxiliary_settings())
             sql = ("SELECT query_id,toString(type) AS type,exception_code,exception,read_rows,read_bytes,query_duration_ms,"
                 "written_rows,written_bytes,memory_usage,Settings['max_execution_time'] AS native_max_execution_time,"
                 "Settings['max_rows_to_read'] AS native_max_rows_to_read,"
@@ -61,23 +86,24 @@ class Driver:
                 "Settings['max_memory_usage'] AS native_max_memory_usage "
                 'FROM system.query_log WHERE query_id=' + q(query_id)
                 + " AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing')")
-            result = self.client.query(sql, settings=self.settings(observation_id, observation=True))
+            result = self.client.query(sql, settings=self.auxiliary_settings())
             rows = [dict(zip(result.column_names, row)) for row in result.result_rows]
             if rows:
                 if len(rows) != 1:
                     raise ValueError('ambiguous original row-model native completion')
+                if rows[0]['query_id'] != query_id:
+                    raise ValueError('native row-model receipt identity differs from original operation')
                 return rows[0]
             time.sleep(2)  # No fixed client/poll cap; the bound lease and native deadline govern.
 
     def collect_pending(self, records=None):
         records = list(self.pending.values()) if records is None else records
-        pending = [r for r in records if 'native' not in r]
+        pending = [r for r in records if 'native' not in r and not r.get('identity_mismatch')]
         if not pending:
             return
         # Batch successful receipt collection: never force one query-log flush
         # per tiny value seek during a full-family build.
-        identifier = 'row-model-observe-' + uuid.uuid4().hex
-        self.client.command('SYSTEM FLUSH LOGS', settings=self.settings(identifier, observation=True))
+        self.client.command('SYSTEM FLUSH LOGS', settings=self.auxiliary_settings())
         ids = ','.join(q(r['query_id']) for r in pending)
         earliest = min(r['submitted_epoch'] for r in pending) - 2
         statement = ("SELECT query_id,toString(type) AS type,exception_code,exception,read_rows,read_bytes,query_duration_ms,"
@@ -86,10 +112,13 @@ class Driver:
             "Settings['max_memory_usage'] AS native_max_memory_usage FROM system.query_log WHERE "
             'event_date>=toDate(toDateTime(' + str(earliest) + ')) AND event_time>=toDateTime(' + str(earliest) + ') AND query_id IN (' + ids
             + ") AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing')")
-        result = self.client.query(statement, settings=self.settings(identifier, observation=True))
+        result = self.client.query(statement, settings=self.auxiliary_settings())
         native = {}
+        wanted = {record['query_id'] for record in pending}
         for row in result.result_rows:
             value = dict(zip(result.column_names, row))
+            if value['query_id'] not in wanted:
+                raise ValueError('unexpected native identity in row-model receipt batch')
             if value['query_id'] in native:
                 raise ValueError('duplicate native completion in row-model receipt batch')
             native[value['query_id']] = value
@@ -134,23 +163,28 @@ class Driver:
         print('[row-model] native submit', self.stage, query_id, flush=True)
         started = time.perf_counter()
         try:
-            value = operation(self.settings(query_id), {'query_id': query_id})
+            value = operation(self.settings(query_id))
             record['outcome'] = 'CLIENT_COMPLETE'
             return value
         except BaseException as error:
             record.update(outcome='INCOMPLETE', **details(error))
+            if isinstance(error, IdentityMismatch):
+                record.update(identity_mismatch=True, returned_query_id=error.actual)
+                self.pending.pop(query_id, None)
             save(self.root / (query_id + '.json'), record)
             raise
         finally:
             record['client_ms'] = (time.perf_counter() - started) * 1000
             # Successful measured work is observed AFTER the sample clock stops.
             # Failed transport settles the original operation before another cell.
-            if record['outcome'] == 'INCOMPLETE':
+            if record['outcome'] == 'INCOMPLETE' and not record.get('identity_mismatch'):
                 self.collect(record)
             save(self.root / (query_id + '.json'), record)
             print('[row-model] native client', query_id, record['outcome'], flush=True)
 
     def collect(self, record):
+        if record.get('identity_mismatch'):
+            return  # Proven different response ID: preserve failure, never poll/remap it.
         try:
             record['native'] = self.observe(record['query_id'])
             if record['outcome'] == 'CLIENT_COMPLETE':
@@ -161,23 +195,38 @@ class Driver:
         save(self.root / (record['query_id'] + '.json'), record)
 
     def query(self, statement):
-        def execute(settings, transport):
-            result = self.client.query(statement, settings=settings, transport_settings=transport,
+        def execute(settings):
+            result = self.client.query(statement, settings=settings,
                 query_tz='UTC', tz_mode='aware')
             # Consume typed result blocks inside the submitted operation. A
             # late body/decoder failure is not a successful client completion.
-            return [dict(zip(result.column_names, row)) for row in result.result_rows]
+            rows = [dict(zip(result.column_names, row)) for row in result.result_rows]
+            self.check_response_identity(result, settings)
+            return rows
         return self.submit(statement, execute)
 
     def command(self, statement):
-        return self.submit(statement, lambda settings, transport: self.client.command(statement,
-            settings=settings, transport_settings=transport))
+        def execute(settings):
+            result = self.client.command(statement, settings=settings)
+            self.check_response_identity(result, settings)
+            return result
+        return self.submit(statement, execute)
 
     def insert(self, table, rows, columns):
         # SQL identity is metadata only; never copy inserted private payloads into logs.
         statement = 'INSERT INTO ' + table + ' (' + ','.join(columns) + ') FORMAT Native'
-        return self.submit(statement, lambda settings, transport: self.client.insert(table, rows,
-            column_names=columns, settings=settings, transport_settings=transport))
+        self.check_treatment(statement)  # Deny a typed-read write before even metadata I/O.
+        # The pinned client's implicit DESCRIBE inherits context settings. Give
+        # metadata its own true AUX ID, then replace it for the actual INSERT.
+        context = self.client.create_insert_context(table, column_names=columns,
+            settings=self.auxiliary_settings(metadata=True))
+        def execute(settings):
+            context.settings = settings
+            context.transport_settings = None
+            result = self.client.insert(table, rows, context=context)
+            self.check_response_identity(result, settings)
+            return result
+        return self.submit(statement, execute)
 
     def sample(self, name, variant, phase, operation):
         before = len(self.records)
@@ -218,6 +267,7 @@ class Driver:
     @staticmethod
     def require_native(records):
         if not records or any(r.get('outcome') != 'NATIVE_COMPLETE' or 'native' not in r
+                or r['native'].get('query_id') != r['query_id']
                 or int(r['native']['exception_code']) or str(r['native']['native_max_execution_time']) != '600'
                 or str(r['native']['native_max_rows_to_read']) != '0'
                 or str(r['native']['native_max_bytes_to_read']) != '0'

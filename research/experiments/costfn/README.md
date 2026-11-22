@@ -1,5 +1,25 @@
 # Access-Control Cost Function Experiment
 
+## Source work —row receipt repair; uniform pin-discovery inventory
+
+The row driver now routes each requested ID through the pinned client's
+recognized per-call query_id parameter, never transport headers. Insert metadata
+and observation calls have distinct true auxiliary IDs; data receipts remain
+exact-ID/submit-once, with unchanged native limits and treatment guards. Eleven
+new controls use real1.6.0 request planning/insert-context generation and a fake
+server keyed by wire identity. They reproduce the old routing failure, prove
+query/command/insert and collection, and deny proven mismatches without imposing
+a client abandonment cap. Source repair only; attempt7 remains stopped as banked.
+
+The parallel [uniform consumer inventory](UNIFORM-PREPARATION-INVENTORY.md)
+finds that the10GB statement is canonical billboard-pin discovery **after** page
+selection. Four body-derived inputs and duplicate/malformed-pin refusals are not
+answerable from current satellites. Inventory is complete; uniform reorder is
+NOT IMPLEMENTED pending the documented typed-model/bounded-input fork. Three
+no-engine controls pin the source facts/refusals, not an optimization result.
+No cache or paired/gate/audit/oracle change. Uniform measurement remains behind
+the row-model run. No lease/native run/admission is granted by either source task.
+
 ## Latest run —22 November: native composition/audit PASS, row receipt-ID STOP
 
 Fresh post-PR#1605 DO622092911 on merged52233c8b9 completes construction,

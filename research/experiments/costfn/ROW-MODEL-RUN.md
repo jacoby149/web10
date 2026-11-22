@@ -1,5 +1,31 @@
 # Run the post-family row-model proving cell
 
+## Receipt-identity repair —source only
+
+For pinned clickhouse-connect1.6.0, the recognized per-call `settings['query_id']`
+is the server-honoured HTTP query-identity parameter. `transport_settings` are
+HTTP headers, never that identity channel; `ROW_MODEL:<id>` log comments remain
+correlation only. Query, command and actual insert requests must carry the exact
+ID recorded before their single submission. A proven returned-ID mismatch stops
+without remapping history into PASS or waiting forever for the wrong ID; actual
+live native work still uses original-operation completion polling, not a fixed
+client abandonment cap.
+
+Receipt scope is explicit: client construction/session/timezone/protocol bootstrap
+precedes Driver and is outside receipt accounting. Receipt-observation flushes
+and queries each get a distinct true auxiliary ID and `ROW_MODEL_AUX` tag;
+they retain the existing2s observation bound. Insert-context metadata is likewise
+outside data-statement receipts, with its own true auxiliary ID and existing600s
+setup limits. Prepare the context separately, then replace its settings with the
+actual INSERT's settings/ID: metadata and insertion must never reuse one ID.
+No metadata cache or change to row data, stages, variants or treatment guards.
+
+Real pinned-driver request-plan and fake-server receipt controls precede any
+fresh native proof. Attempt7's original RUNNING packet, separate supervisor STOP
+and diagnostic CSV remain immutable. This repair grants no lease/native run;
+the composition re-proves before six same-store assembly comparisons on Jacob's
+fresh admission after the source repair merges.
+
 This is a runnable isolated research harness, not a production cutover. Finish
 source checks before spending. No command here creates a DigitalOcean resource.
 Do not run ClickHouse or Docker locally for this programme.
