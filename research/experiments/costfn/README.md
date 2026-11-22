@@ -1,5 +1,16 @@
 # Access-Control Cost Function Experiment
 
+## Workstream A —D124 semantics amendment, source only
+
+The isolated pin reader/oracle/ads gate now permit agreeing full-creative pins
+per post, with author precedence among agreeing placements. Distinct targets
+still refuse; all eligible pins validate before coalescing. Existing canonical
+winner/eligibility/creative authority and zero-pin omission remain unchanged.
+This is a deliberate behaviour change, not a parity-preserving optimization.
+[Amendment, controls and unchanged banked fixtures](PIN-AGREEMENT-AMENDMENT.md).
+Workstream B is NOT IMPLEMENTED and waits for A's separate merge. No lease,
+native run or fresh admission; uniform measurement stays behind the row-model run.
+
 ## Source work —row receipt repair; uniform pin-discovery inventory
 
 The row driver now routes each requested ID through the pinned client's

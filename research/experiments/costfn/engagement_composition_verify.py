@@ -175,4 +175,5 @@ def billboards(session, root, expected):
         receipts[name] = ads.compare(actual, page['rows'], page['billboard_setup'])
     save(root / 'composition-ad-parity.json', receipts)
     return contract.gate('ads', dict(parity='PASS', source_binding=binding(), query_ids=query_ids,
-        profiles=list(expected), exact_creative_identity_required=True, setup_sha256=setup.digest(root / 'billboards/setup.json')))
+        profiles=list(expected), exact_creative_identity_required=True, pin_semantics=ads.PIN_SEMANTICS,
+        setup_sha256=setup.digest(root / 'billboards/setup.json')))

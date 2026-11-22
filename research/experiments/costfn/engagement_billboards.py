@@ -10,6 +10,8 @@ import json
 from fractions import Fraction
 import uuid
 
+PIN_SEMANTICS = 'D124_FULL_CREATIVE_AGREEMENT_AUTHOR_FIRST'
+
 
 def key(row):
     value = row['author_key'], row['doc_id']
@@ -77,21 +79,37 @@ def plan(posts, author_collections, node_collection, *, author_posts, node_ratio
 
 
 def expected_rows(rows, setup):
-    """Oracle consumes setup, never runtime-selected ads or satellite output."""
-    records = {tuple(row['post']): row for row in setup['posts']}
-    if len(records) != len(setup['posts']):
-        raise ValueError('duplicate setup post identity')
+    """Independent D124 oracle over immutable eligible placement records.
+
+    Banked setup has one record per post. Purpose-built amendment fixtures may
+    carry multiple settled pin records; runtime pins/satellites never feed this.
+    """
+    records = {}
+    for record in setup['posts']:
+        records.setdefault(tuple(record['post']), []).append(record)
     result = []
     for original in rows:
         identity = key(original)
         if identity not in records:
             raise ValueError('actual page post missing from immutable ad setup')
-        record = records[identity]
         row = {k: deepcopy(v) for k, v in original.items() if k not in ('ad', 'node_ad')}
-        kind, ad = record['placement'], record['ad']
-        if kind not in ('author', 'node', 'none') or ((kind == 'none') != (ad is None)):
-            raise ValueError('malformed immutable ad setup')
-        if ad is not None:
+        live = []
+        for record in records[identity]:
+            kind, ad = record['placement'], record['ad']
+            if kind not in ('author', 'node', 'none') or ((kind == 'none') != (ad is None)):
+                raise ValueError('malformed immutable ad setup')
+            if ad is not None:
+                target = key(ad)
+                if kind == 'author' and target[0] != identity[0]:
+                    raise ValueError('immutable author placement names foreign creative')
+                live.append((kind, target, ad))
+        if len({target for _, target, _ in live}) > 1:
+            raise ValueError('immutable pins name different ads for one post')
+        if live:
+            ad = live[0][2]
+            if any(creative != ad for _, _, creative in live):
+                raise ValueError('inconsistent immutable payload for one creative identity')
+            kind = 'author' if any(kind == 'author' for kind, _, _ in live) else 'node'
             row['ad' if kind == 'author' else 'node_ad'] = deepcopy(ad)
         result.append(row)
     return result
@@ -101,5 +119,5 @@ def compare(actual, canonical_rows, setup):
     expected = expected_rows(canonical_rows, setup)
     if actual != expected:
         raise ValueError('exact billboard identity/content/placement or canonical page parity failed')
-    return dict(parity='PASS', exact_creative_identity_required=True, checked_posts=len(expected),
+    return dict(parity='PASS', exact_creative_identity_required=True, pin_semantics=PIN_SEMANTICS, checked_posts=len(expected),
         author_pins=sum('ad' in row for row in expected), node_pins=sum('node_ad' in row for row in expected))

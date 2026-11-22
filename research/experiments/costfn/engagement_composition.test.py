@@ -45,7 +45,8 @@ def proof(name):
         result.update(profiles=['ordinary', 'fixture'], exact_impressions_and_reach=True,
             all_time_parity='PASS', daily_parity='PASS')
     else:
-        result.update(profiles=['ordinary', 'fixture'], exact_creative_identity_required=True, setup_sha256='setup')
+        result.update(profiles=['ordinary', 'fixture'], exact_creative_identity_required=True,
+            pin_semantics=ads.PIN_SEMANTICS, setup_sha256='setup')
     return result
 
 
@@ -150,10 +151,12 @@ class CompositionTests(unittest.TestCase):
             readable=lambda reader, service: [], compile=Mock(side_effect=AssertionError('must not fetch')))
         self.assertNotIn('ad', denied[0])
 
-    def test_pin_ambiguity_or_foreign_author_collection_refuses_instead_of_replacing_author(self):
+    def test_pin_conflict_or_foreign_author_collection_refuses_instead_of_replacing_author(self):
         pin = dict(author_key='a', doc_id='pin', ref_value='p', body=dict(
             post_author='a', target_id='ad', target_author='a', placement='author'))
-        for values in ([pin, pin], [{**pin, 'body': {**pin['body'], 'target_author': 'b'}}]):
+        # D124 amends agreeing duplicates only; conflicting targets still refuse.
+        conflict = {**pin, 'doc_id':'other-pin', 'body':{**pin['body'], 'target_id':'other-ad'}}
+        for values in ([pin, conflict], [{**pin, 'body': {**pin['body'], 'target_author': 'b'}}]):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 ad_reads.attach([post()], 'reader', execute=lambda sql, values=values: values,
                     readable=Mock(side_effect=AssertionError('must refuse before fetch')), compile=Mock())

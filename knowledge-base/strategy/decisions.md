@@ -20,6 +20,39 @@ superseded by a later entry remain visible as history.
 
 ---
 
+### D124 — Agreeing billboard pins coalesce; distinct full creative targets conflict [DECIDED; amends D115]
+
+**Jacob Hoffman, 22 November 2026.** Deliberately change the isolated composition's
+duplicate-pin semantics: previously any second live pin for a full-key post
+refused, even for the same ad. Now a nonempty eligible live-pin set may name
+exactly one full `(target_author,target_id)` creative identity. Agreeing pins
+serve it once; distinct targets refuse. One creative may serve many posts.
+Zero eligible live pins remains the ordinary no-ad outcome.
+
+Every eligible pin is validated before coalescing. A malformed or placement-
+unauthorized agreeing pin still refuses. Existing SQL eligibility exclusions (notably failed
+post_author agreement) retain omission semantics; they do not become new request
+failures. Superseded/withdrawn/deleted/service-moved/root-moved versions are
+resolved and excluded exactly as before. Among agreeing author/node placements,
+author wins independently of row order, and its existing target-author
+entitlement still applies. Distinct-target collisions refuse even if one target
+would later be unreadable. Creative read authority remains canonical/current;
+an absent/unreadable creative keeps the existing no-ad omission, not a new
+request-level refusal.
+
+This is a named behaviour amendment, never a parity-preserving optimization.
+Update the independent immutable-placement oracle and ads gate in the same
+source PR; retain banked fixture documents/links and historical outcomes.
+Post-time roll/round robin, fixed placement, full-key identities and all other
+D115 rules remain unchanged. The post-side pin names a passive creative target;
+this does not invert refs or make creatives claim slots.
+
+Workstream A lands alone before the uniform select/materialize workstream.
+Neither source task grants a lease/native run, and uniform measurement stays
+behind the row-model run on a separate fresh admission. No production API,
+cache, budget or audit-rule change. Contract:
+`research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md`.
+
 ### D123 — Audit raw event reads by question, with one exact deduplication shape [DECIDED; measurement policy]
 
 **Jacob Hoffman, 21 November 2026.** The research statement audit must deny raw

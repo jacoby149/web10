@@ -47,7 +47,7 @@ class UniformInventoryTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 attach([{**pin,'body':{**body,field:value}}])
 
-    def test_page_sized_limit_could_hide_duplicate_live_pin_refusal(self):
+    def test_page_sized_limit_could_hide_conflicting_live_pin_refusal(self):
         docs = [dict(author_key='a', doc_id='p')]
         pin = dict(author_key='a', doc_id='pin', ref_value='p',
             body=dict(post_author='a',placement='author',target_author='a',target_id='creative'))
@@ -55,8 +55,10 @@ class UniformInventoryTests(unittest.TestCase):
             return billboards.attach(docs, 'reader', execute=lambda _:values,
                 readable=lambda *_:[], compile=lambda *_args, **_kwargs:self.fail('not needed'))
         self.assertEqual(attach([pin]), docs)
-        with self.assertRaisesRegex(ValueError, 'multiple live pins'):
-            attach([pin, {**pin,'doc_id':'second-pin'}])
+        # Deliberate D124 amendment: agreeing pins no longer refuse, but a LIMIT
+        # can still hide a different creative and change the answer.
+        with self.assertRaisesRegex(ValueError, 'different ads'):
+            attach([pin, {**pin,'doc_id':'second-pin','body':{**pin['body'],'target_id':'other-ad'}}])
 
 
 if __name__ == '__main__':

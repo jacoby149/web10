@@ -1,5 +1,17 @@
 # Uniform preparation: pin consumers and the bounded-input fork
 
+**D124 amendment note:** this inventory records the banked pre-amendment lookup.
+The separate Workstream A intentionally changes only duplicate handling:
+agreeing full creative identities coalesce, distinct targets refuse, and author
+wins among agreeing placements. References below to any-second-live-pin refusal
+describe the banked implementation, not the amended target. Malformed/placement-
+unauthorized pins and existing SQL eligibility exclusions retain their behavior.
+The page-limit counterexample now uses distinct conflicting ads; count>1 alone
+is no longer a duplicate refusal. Workstream B must return complete pin IDs from
+skinny selection, then derive full ad identities/apply D124 after body validation;
+the separate creative fetch remains unchanged. No body-free ad-identity claim,
+uniform reorder, cache or native result is introduced by the amendment.
+
 Source-only inventory,22 November2026. The operator's select-then-materialize
 block starts with this inventory before changing any statement. No reorder,
 cache, native measurement or new layout is implemented here. Uniform measurement
@@ -113,8 +125,9 @@ have separate sources/accounting; several execute before the pin read.
    A generic pairs target edge does not preserve the original field name or
    associate its value with the target author.
 
-Two live pins for one full post key refuse, even if both target the same
-creative. A LIMIT that hides the second pin changes semantics. These are pin
+In the banked pre-D124 implementation, two live pins for one full post key refuse
+even for the same creative. Under D124 only distinct full creative targets
+conflict; a LIMIT can still hide that conflict and change semantics. These are pin
 selection/validation inputs, not body fields that rank/filter the feed page.
 Creative-body content is a separate current fetch; no new active-status filter
 is invented. Current version/tombstone, service and root checks must also remain.
