@@ -8,6 +8,7 @@ from arm_f_native import save
 from arm_satellite_sql import literal as q
 import engagement_billboards as ads
 import engagement_pairs as pairs
+import engagement_pin_index as pin_index
 import engagement_ref as migration
 
 COLUMNS = 'doc_id,author_key,collection_name,body,ref_value,tags,created_at,updated_at,deleted,ad_mode,ad_target,posted_by'
@@ -114,3 +115,22 @@ def build_pairs(session, root):
         session.query('pairs_freeze_' + table, 'SYSTEM STOP MERGES ' + table)
     census, query_id = session.rows('pairs_build_census', 'SELECT count() AS n FROM ' + pairs.TABLE)
     return dict(statements=receipts, rows=int(census[0]['n']), census_query_id=query_id)
+
+
+def build_pin_index(session, root):
+    receipt = dict(parity='INCOMPLETE', statements=[])
+    path = root / 'billboards/pin-index-build.json'
+    for label, sql in (('ddl', pin_index.DDL), ('insert', f'INSERT INTO {pin_index.TABLE} ' + pin_index.source()),
+            ('freeze', f'SYSTEM STOP MERGES {pin_index.TABLE}')):
+        _, query_id = session.query('pin_index_' + label, sql)
+        receipt['statements'].append(dict(stage=label, query_id=query_id, native=session.native(query_id)))
+        save(path, receipt)
+    rows, query_id = session.rows('pin_index_exact_census', pin_index.census())
+    receipt.update(census_query_id=query_id, mismatches=int(rows[0]['mismatches']), census_native=session.native(query_id))
+    save(path, receipt)
+    if receipt['mismatches']:
+        raise ValueError('billboard pin index differs from complete canonical placement history')
+    rows, query_id = session.rows('pin_index_size', f'SELECT count() AS n FROM {pin_index.TABLE}')
+    receipt.update(parity='PASS', rows=int(rows[0]['n']), size_query_id=query_id)
+    save(path, receipt)
+    return receipt

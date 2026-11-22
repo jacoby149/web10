@@ -51,6 +51,8 @@ def classify(sql, callers, current):
     except Exception:
         return 'unclassified'
     tables = {table.name for table in tree.find_all(exp.Table)}
+    if tables == {'billboard_pin_refs'} and 'candidates' in callers:
+        return 'pin_index_lookup'
     if 'select_pins' in callers and tables == {'engagement_documents', 'pairs_refs'}:
         return 'pin_selection'
     if 'materialize_pins' in callers and tables == {'engagement_documents'}:
