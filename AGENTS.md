@@ -346,6 +346,19 @@ uses a24-hour self-kill backstop; the programme has$1,000 and costs are receipte
 No production migration, guardian or old-lease reopening follows. Current
 precedence/admission: `research/experiments/costfn/README.md`.
 
+**22 November row identity source repair, native pending:** generated IDs use
+the pinned driver's true per-call query_id parameter, not transport headers;
+log comments remain correlation. Insert metadata and each receipt observation
+have distinct true AUX identities with explicit receipt scope. Submit-once,
+native limits, treatment and bridge checks remain; known mismatches fail without
+remapping history or abandoning genuinely live native work on a client cap.
+Source controls are not a rerun: attempt7's STOP/full-family NOT BANKED/six stages
+NOT RUN remain. Uniform inventory separately finds the10GB read is canonical pin
+discovery after page selection, requiring the documented body-input/bound fork;
+no uniform reorder/cache/native result is implemented. Row native proof stays
+first. `research/experiments/costfn/ROW-MODEL-RUN.md` and
+`research/experiments/costfn/UNIFORM-PREPARATION-INVENTORY.md` own details.
+
 **Latest native composition,22 November UTC:** merged PR#1605 banks full
 construction/four gates/three parity responses and real D123 decomposition PASS;
 budgets FAIL. The row bridge accepts and starts its worker, but receipt transport

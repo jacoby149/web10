@@ -44,7 +44,7 @@ class NativeClient:
             rows = [self.terminals[key] for key in values if key in self.terminals]
             columns = list(self.terminal(''))
             return SimpleNamespace(column_names=columns, result_rows=[tuple(row[c] for c in columns) for row in rows])
-        identifier = kwargs['transport_settings']['query_id']
+        identifier = kwargs['settings']['query_id']
         self.settings.append(kwargs['settings'])
         self.events.append('data')
         self.terminals[identifier] = self.terminal(identifier)
@@ -58,13 +58,13 @@ class NativeClient:
         if statement == 'SYSTEM FLUSH LOGS':
             self.events.append('flush')
             return None
-        identifier = kwargs['transport_settings']['query_id']
+        identifier = kwargs['settings']['query_id']
         self.terminals[identifier] = self.terminal(identifier)
         return None
 
     def insert(self, table, rows, **kwargs):
         inspect.signature(Client.insert).bind_partial(None, table, rows, **kwargs)
-        identifier = kwargs['transport_settings']['query_id']
+        identifier = kwargs['context'].settings['query_id']
         self.terminals[identifier] = self.terminal(identifier)
 
 
