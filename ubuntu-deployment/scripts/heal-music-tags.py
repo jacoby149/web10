@@ -36,7 +36,9 @@ class Obsolete(Exception):
 
 
 def digest(value):
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
 
 
 def log(phase, **fields):
@@ -205,7 +207,9 @@ def execute(runtime, path, provider, *, apply=False):
         raise ValueError("wrong provider for this node")
     if not apply:
         plan = discover(runtime)
-        with open(path, "x", opener=lambda p, flags: os.open(p, flags, 0o600)) as output:
+        with open(
+            path, "x", opener=lambda p, flags: os.open(p, flags, 0o600)
+        ) as output:
             json.dump(plan, output, indent=1)
         log("dry-run", plan_path=str(path), writes="private-local-plan-only")
         return 0
@@ -218,7 +222,13 @@ def execute(runtime, path, provider, *, apply=False):
     failed = False
     for index, item in enumerate(plan["items"], 1):
         outcome = apply_one(runtime, item)
-        log("item-result", index=index, total=len(plan["items"]), doc_id=item["doc_id"], outcome=outcome)
+        log(
+            "item-result",
+            index=index,
+            total=len(plan["items"]),
+            doc_id=item["doc_id"],
+            outcome=outcome,
+        )
         if outcome in {"failed", "obsolete", "deleted", "missing"}:
             failed = True
             break
@@ -228,9 +238,20 @@ def execute(runtime, path, provider, *, apply=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", required=True, help="expected node identity (prod: api.web10.app)")
-    parser.add_argument("--plan", required=True, type=Path, help="private plan path inside the API container")
-    parser.add_argument("--apply", action="store_true", help="apply only the reviewed plan, sequentially")
+    parser.add_argument(
+        "--provider", required=True, help="expected node identity (prod: api.web10.app)"
+    )
+    parser.add_argument(
+        "--plan",
+        required=True,
+        type=Path,
+        help="private plan path inside the API container",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="apply only the reviewed plan, sequentially",
+    )
     args = parser.parse_args()
     from app import settings
     from app.v3.services import clickhouse
