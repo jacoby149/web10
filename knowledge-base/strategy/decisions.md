@@ -20,6 +20,33 @@ superseded by a later entry remain visible as history.
 
 ---
 
+### D123 — Audit raw event reads by question, with one exact deduplication shape [DECIDED; measurement policy]
+
+**Jacob Hoffman, 21 November 2026.** The research statement audit must deny raw
+event metric fallbacks, not the platform's existing bounded delivery-history
+lookup merely because both touch `content_events`. Admit only a single-table
+SELECT of `doc_id,max(seen_at)`, grouped by `doc_id`, with exactly string-literal
+equalities on service, reader_key, surface and event_type=`delivery`, plus a
+nonempty literal candidate `doc_id IN (...)` list. No join, subquery, other
+aggregate/selected column, HAVING or extra predicate/clause is admitted. Parsed
+shape is the durable identity; attempt-specific SQL digests are evidence, not
+an allowlist. Every deviation remains denied.
+
+Name the admitted inventory stage `delivery_dedup_raw_read` and retain its full
+native rows, bytes and duration in additive captured accounting. Never drop the
+read, move it outside measurement or hide it in unclassified work. Retired
+projection/ad-inventory checks and duplicate/digest verification remain intact.
+At the research-controller -> ClickHouse statement-audit boundary, this changes
+measurement classification only; production API/deduplication, budgets, oracle,
+gates and the row bridge remain unchanged.
+
+Attempt6/PR#1604 remains banked with INCOMPLETE decomposition and NOT RUN row
+measurements. Offline replay under the new policy does not rewrite those outcomes
+or grant native acceptance. Source-only reconciliation merges first; a fresh
+all-fixes→row-model run still requires Jacob's explicit admission. No lease or
+native execution follows from this decision. Contract:
+`research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md`.
+
 ### D122 — Platform analytics owns its physical events layout [DECIDED]
 
 **Jacob Hoffman, 20 November 2026.** The platform owns the auxiliary analytics

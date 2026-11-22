@@ -1,5 +1,17 @@
 # Access-Control Cost Function Experiment
 
+## Source-only audit reconciliation —21 November, D123
+
+Future audits admit only the exact parsed bounded delivery-history lookup as
+`delivery_dedup_raw_read`, retaining all native rows/bytes/duration and the prior
+captured stage. Raw metric fallbacks and every retired-query/digest/identity
+check remain denied. Seventeen new no-engine controls replay both banked digests
+and the complete410-statement captured set with identical additive totals.
+This does not promote attempt6's failed decomposition or run the row-model cell.
+Production API/gates/budgets/oracle/row bridge are unchanged. Merge this source
+reconciliation before Jacob's separate fresh admission; no lease/native action
+is authorized here. [Exact policy](ALL-FIXES-THEN-MEASURE.md#21-november-measurement-policy-reconciliation-source-only-d123).
+
 ## Current state —full batch proof PASS, responses parity PASS, audit STOP
 
 Jacob's fresh post-PR#1603 attempt on DO621754971 passes all489 all-time batches,

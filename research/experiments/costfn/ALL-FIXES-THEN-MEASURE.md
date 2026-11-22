@@ -47,6 +47,25 @@ near-one amplification requirement becoming a gate.
 
 ## Treatment
 
+### 21 November measurement-policy reconciliation —source only, D123
+
+The operator admits the existing bounded delivery-deduplication question, not
+raw event metrics. Classify by the exact parsed single-table shape:
+`SELECT doc_id,max(seen_at) FROM content_events WHERE service=<string> AND reader_key=<string> AND surface=<string> AND event_type='delivery' AND doc_id IN (<nonempty string list>) GROUP BY doc_id`.
+The conjunction may be parenthesized/reordered; no additional predicate, selected
+column, aggregate, join, subquery, HAVING or extra clause is admitted. Count,
+reach, sum and per-day raw metric reads remain denied. A digest allowlist is not
+the classifier, since future reader/service/candidate literals change hashes.
+
+The inventory names this exact read `delivery_dedup_raw_read` and preserves every
+native row/byte/millisecond in additive captured totals, alongside its original
+captured stage. Projection/ad-inventory/digest/duplicate checks remain intact.
+Replay both banked digests and the complete410-statement captured set offline,
+requiring the same totals. Production API, gates/budgets/oracle and row bridge
+are untouched. Attempt6's original INCOMPLETE decomposition/blocked row outcome
+and all evidence remain immutable. This is no lease/native/fresh admission;
+the next run requires the separate reviewed merge and Jacob's word.
+
 ### Latest execution —batched backfill passes, audit remains open
 
 Jacob explicitly admits one fresh post-PR#1603 run in this session. Exact merged

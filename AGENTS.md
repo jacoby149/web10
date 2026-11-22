@@ -346,6 +346,15 @@ uses a24-hour self-kill backstop; the programme has$1,000 and costs are receipte
 No production migration, guardian or old-lease reopening follows. Current
 precedence/admission: `research/experiments/costfn/README.md`.
 
+**21 November measurement-policy reconciliation (D123), source only:** future
+research audits admit only the exact parsed, bounded current-reader delivery
+history lookup as `delivery_dedup_raw_read`, retaining all native costs and the
+original stage. Raw metric fallbacks and existing retired-query/digest/identity
+guards remain denied. Offline replay of all410 attempt6 captured statements
+preserves additive actuals; attempt6's INCOMPLETE decomposition and NOT RUN row
+outcomes remain history. No production API/gate/budget/oracle/row-bridge change,
+lease/native action or admission. See the costfn contract and D123.
+
 **Latest batched proof,20–21 November UTC:** merged PR#1603 passes489 all-time
 batches over2,000,001 document IDs, exact1.6B reconciliation and all four formal
 composition gates. Uniform K20/paired P/F responses retain exact parity and
