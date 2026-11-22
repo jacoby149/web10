@@ -1,5 +1,12 @@
 # Access-Control Cost Function Experiment
 
+## Skinny type-aware pin lookup —source only
+
+The operator requests a research-only skinny placement lookup followed by a
+fresh rerun. Exact full post keys select historical pin candidates, then the
+canonical read resolves only those full identities. No API or document-model
+change. Native proof and cost savings remain pending. [Contract](PIN-INDEX.md).
+
 ## Workstream B —skinny pin selection, then exact materialization
 
 The uniform research reader now resolves complete historical ref candidates with

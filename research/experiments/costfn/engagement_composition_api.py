@@ -11,6 +11,7 @@ import engagement_tally_api as tally
 import engagement_billboard_reads as billboards
 import engagement_composition as contract
 import engagement_pairs as pairs
+import engagement_pin_index as pin_index
 from engagement_composition_verify import binding
 
 e = tally.e
@@ -20,6 +21,11 @@ if (e.f.admission.get('composition_admitted') is not True
     raise RuntimeError('explicit uniform/pairs/tally/billboard/aggregate composition required')
 
 proof = json.loads(Path(os.environ['ENGAGEMENT_COMPOSITION_PROOF']).read_bytes())
+indexed = pin_index.enabled(e.f.admission)
+immutable_tables = {pairs.TABLE, pin_index.TABLE} if indexed else {pairs.TABLE}
+if set(proof['immutable_parts']) != immutable_tables or (indexed and
+        proof['gates']['ads'].get('pin_index_same_question') != 'PASS'):
+    raise RuntimeError('missing certified immutable pin/ref lookup parts')
 for name in contract.GATES:
     contract.gate(name, proof['gates'][name])
     if proof['gates'][name]['source_binding'] != binding():
@@ -52,15 +58,15 @@ def checked_query(*args, **kwargs):
     current = e.p.observer.current.get()
     if current is not None and not current.get('composition_pairs_checked'):
         for table, expected in proof['immutable_parts'].items():
-            if table != pairs.TABLE:
-                raise ValueError('only immutable pairs parts belong in the composition fence')
+            if table not in immutable_tables:
+                raise ValueError('unexpected table in immutable composition fence')
             sql = ("SELECT name,toString(rows) AS rows,toString(data_version) AS data_version FROM system.parts "
                 "WHERE database='web10' AND active AND table='" + table + "' ORDER BY name")
             result = e.f.original_query(sql, settings={'log_comment': 'F_READ:' + current['request_id']})
             parts = [dict(zip(result.column_names, row)) for row in result.result_rows]
             if hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest() != expected:
                 raise ValueError('pairs changed after exact census verification')
-        if set(proof['immutable_parts']) != {pairs.TABLE}:
+        if set(proof['immutable_parts']) != immutable_tables:
             raise ValueError('missing frozen pairs part fence')
         current['composition_pairs_checked'] = True
     return original_checked(*args, **kwargs)
@@ -75,7 +81,7 @@ def attach(docs, reader):
     return billboards.attach(docs, reader, execute=execute,
         readable=lambda reader, service: e.p.ch.readable_groups(reader, service, True,
             sorted({group for doc in docs for group in ([doc['group_id']] if doc.get('group_id') else doc.get('groups', []))})),
-        compile=e.p._compile)
+        compile=e.p._compile, indexed=indexed)
 
 
 def forbidden_inventory():

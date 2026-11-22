@@ -10,6 +10,7 @@ import json
 
 from arm_satellite_sql import literal as q
 import engagement_pairs as pairs
+import engagement_pin_index as pin_index
 import engagement_queries as queries
 
 
@@ -35,9 +36,10 @@ def pin_selection_sql(docs):
 def pin_materialization_sql(docs, selected):
     if not selected:
         raise ValueError('nonempty exact pin survivor identities required')
-    keys = ','.join('(' + q(row['author_key']) + ',' + q(row['doc_id']) + ')' for row in selected)
-    roots = ','.join('(' + q(row['author_key']) + ',' + q(row['doc_id']) + ',' + q(row['ref_value']) + ')'
-        for row in selected)
+    keys = ','.join('(' + q(author) + ',' + q(doc) + ')' for author, doc in
+        sorted({(row['author_key'], row['doc_id']) for row in selected}))
+    roots = ','.join('(' + q(author) + ',' + q(doc) + ',' + q(root) + ')' for author, doc, root in
+        sorted({(row['author_key'], row['doc_id'], row['ref_value']) for row in selected}))
     return ("SELECT author_key,doc_id,ref_value,body FROM ("
         "SELECT author_key,doc_id,ref_value,body,collection_name,deleted,updated_at,row_number() OVER "
         "(PARTITION BY author_key,doc_id ORDER BY updated_at DESC,deleted DESC) AS rn "
@@ -64,19 +66,19 @@ def select_pins(docs, execute):
 def materialize_pins(docs, selected, execute):
     pins = execute(pin_materialization_sql(docs, selected))
     keys = [(row['author_key'], row['doc_id']) for row in pins]
-    expected = {(row['author_key'], row['doc_id']): row['ref_value'] for row in selected}
-    if (keys != sorted(set(keys)) or any(key not in expected or row['ref_value'] != expected[key]
+    expected = {(row['author_key'], row['doc_id'], row['ref_value']) for row in selected}
+    if (keys != sorted(set(keys)) or any((*key, row['ref_value']) not in expected
             for key, row in zip(keys, pins))):
         raise ValueError('materialized pins differ from exact survivor handoff')
     print('[billboards] pin_materialization finish eligible_bodies=', len(pins), flush=True)
     return pins
 
 
-def attach(docs, reader, *, execute, readable, compile):
+def attach(docs, reader, *, execute, readable, compile, indexed=False):
     if not docs:
         return docs
     print('[billboards] canonical pins start posts=', len(docs), flush=True)
-    selected = select_pins(docs, execute)
+    selected = pin_index.candidates(docs, execute) if indexed else select_pins(docs, execute)
     pins = materialize_pins(docs, selected, execute) if selected else []
     placements, wanted, validated = {}, set(), []
     for pin in pins:

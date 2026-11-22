@@ -14,12 +14,13 @@ import engagement_composition as contract
 import engagement_composition_setup as setup
 import engagement_events as events
 import engagement_pairs as pairs
+import engagement_pin_index as pin_index
 import engagement_tally_sql as tally_sql
 from engagement_tally_build import HOT
 
 
 def binding():
-    names = ('engagement_pairs.py', 'engagement_billboard_reads.py', 'engagement_billboards.py',
+    names = ('engagement_pairs.py', 'engagement_pin_index.py', 'engagement_billboard_reads.py', 'engagement_billboards.py',
         'engagement_composition_verify.py', 'engagement_composition_api.py', 'engagement_events.py',
         'engagement_tally_sql.py', 'engagement_tally_build.py')
     return {name: setup.digest(Path(__file__).with_name(name)) for name in names}
@@ -163,6 +164,12 @@ def billboards(session, root, expected):
         sys.path.insert(0, api)
     from app.v3.services.safe_query import build_safe_query
     query_ids, receipts = [], {}
+    indexed = pin_index.enabled(json.loads((root / 'admission.json').read_bytes()))
+    if indexed:
+        index_proof = json.loads((root / 'billboards/pin-index-build.json').read_bytes())
+        if index_proof['parity'] != 'PASS' or index_proof['mismatches'] != 0:
+            raise ValueError('complete pin-index census required before ads verification')
+        query_ids.append(index_proof['census_query_id'])
     def execute(sql):
         rows, query_id = session.rows('composition_ad_canonical_verification', sql)
         query_ids.append(query_id)
@@ -171,9 +178,15 @@ def billboards(session, root, expected):
         profile = json.loads((root / ('profile-' + name + '.json')).read_bytes())
         groups = profile['actual_readable_by_kind']['main']['posts']
         actual = billboard_reads.attach(page['rows'], profile['reader'], execute=execute,
-            readable=lambda reader, service, groups=groups: groups, compile=build_safe_query)
+            readable=lambda reader, service, groups=groups: groups, compile=build_safe_query, indexed=indexed)
+        if indexed:
+            baseline = billboard_reads.attach(page['rows'], profile['reader'], execute=execute,
+                readable=lambda reader, service, groups=groups: groups, compile=build_safe_query)
+            if actual != baseline:
+                raise ValueError('skinny pin index differs from unmodified B attachment response')
         receipts[name] = ads.compare(actual, page['rows'], page['billboard_setup'])
     save(root / 'composition-ad-parity.json', receipts)
     return contract.gate('ads', dict(parity='PASS', source_binding=binding(), query_ids=query_ids,
         profiles=list(expected), exact_creative_identity_required=True, pin_semantics=ads.PIN_SEMANTICS,
-        setup_sha256=setup.digest(root / 'billboards/setup.json')))
+        setup_sha256=setup.digest(root / 'billboards/setup.json'),
+        pin_index_same_question='PASS' if indexed else 'NOT_RUN'))

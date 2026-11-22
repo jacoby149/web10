@@ -14,6 +14,7 @@ import engagement_window as window
 import engagement_finish as finish
 import engagement_modern as modern
 import engagement_pairs as pairs
+import engagement_pin_index as pin_index
 import engagement_prepared as prepared
 import engagement_tally_build as tallies
 
@@ -54,9 +55,10 @@ class Actions(finish.Actions):
                 for key in contract.GATES:
                     contract.gate(key, gates[key])
                 copy = json.loads((self.root / 'copy-proof.json').read_bytes())
-                digest, _ = setup.parts(session, pairs.TABLE)
+                tables = [pairs.TABLE, pin_index.TABLE] if pin_index.enabled(self.approval) else [pairs.TABLE]
                 save(self.root / 'composition-proof.json', dict(droplet_id=session.host_id, gates=gates,
-                    copy_parts_sha256=copy['parts_sha256'], immutable_parts={pairs.TABLE: digest}))
+                    copy_parts_sha256=copy['parts_sha256'],
+                    immutable_parts={table: setup.parts(session, table)[0] for table in tables}))
             return value
         if name in contract.CELLS:
             return self.complete('all-fixes-' + name, 'uniform',
@@ -87,6 +89,7 @@ class Actions(finish.Actions):
         save(self.root / 'copy-proof.json', proof)
         tally = tallies.run(self.root)  # Existing recipes/build/verifier, unchanged.
         satellite = setup.build_pairs(session, self.root)
+        pins = setup.build_pin_index(session, self.root) if pin_index.enabled(self.approval) else None
         # Setup build is explicitly admitted; banked Stage B timings/diagnosis
         # are cited, not rerun. Install MV before disjoint day seeds, writers down.
         cells.stop(self.root)
@@ -98,7 +101,7 @@ class Actions(finish.Actions):
         self.aggregate_ready = True
         if setup.parts(session, 'engagement_documents')[0] != digest:
             raise ValueError('canonical copy changed during furniture build')
-        return dict(initial=initial, tally_rows=tally.get('table'), pairs=satellite, event_layout=layout, aggregate=receipts,
+        return dict(initial=initial, tally_rows=tally.get('table'), pairs=satellite, pin_index=pins, event_layout=layout, aggregate=receipts,
             live_maintenance_implemented=False, no_stage_B_timing_rerun=True)
 
     def decomposition(self):
