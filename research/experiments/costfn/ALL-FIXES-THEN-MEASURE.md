@@ -47,6 +47,26 @@ near-one amplification requirement becoming a gate.
 
 ## Treatment
 
+### Workstream A —D124 duplicate-pin amendment, source only
+
+The22 November operator ruling deliberately replaces any-second-pin refusal
+with full creative-identity agreement. Validate every eligible live pin first;
+coalesce equal `(target_author,target_id)` targets per full-key post and refuse
+different targets. Among agreeing placements author wins independent of order;
+zero pins means no ad. Existing SQL post_author exclusions, current winner/
+tombstone/service/root handling, malformed/entitlement refusals and the separate
+current authorized creative fetch remain unchanged. One ad may serve many posts.
+The independent oracle and ads gate name D124; old policy receipts do not become
+amended native proof. Banked338-document/950-link fixtures are unchanged.
+
+This semantics amendment is its own PR, before Workstream B; it is not labelled
+parity-preserving. B must read only named skinny canonical columns after current
+winner resolution, then materialize the complete survivor IDs. Full ad identities
+and duplicate handling wait for validated bodies, not the body-free stage.
+No candidate truncation, cache, creative-fetch change or unreported cost is
+allowed. This block grants no lease/native run; uniform measurement needs fresh
+admission after the row-model run.
+
 ### Latest execution —22 November: native audit PASS, row-ID supervised STOP
 
 Jacob's fresh post-PR#1605 directive runs the existing combined entry on one new

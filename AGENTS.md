@@ -346,6 +346,18 @@ uses a24-hour self-kill backstop; the programme has$1,000 and costs are receipte
 No production migration, guardian or old-lease reopening follows. Current
 precedence/admission: `research/experiments/costfn/README.md`.
 
+**22 November D124 pin amendment, source only:** the isolated composition now
+coalesces agreeing full creative(target_author,target_id) pins per full-key post;
+different targets refuse and author wins among agreeing placements. Every
+eligible pin validates first; existing canonical eligibility exclusions/current
+creative authority remain unchanged, as do zero-pin/no-ad and shared campaigns.
+The independent oracle/ads gate name the deliberate semantics amendment; it is
+not a parity-preserving optimization or a retroactive native verdict. Banked
+338-document/950-link fixtures are unchanged. Workstream A merges separately
+before B's uniform read reorder; no cache/native run/lease follows and uniform
+measurement stays behind the row-model run. Contract:
+`research/experiments/costfn/PIN-AGREEMENT-AMENDMENT.md`.
+
 **22 November row identity source repair, native pending:** generated IDs use
 the pinned driver's true per-call query_id parameter, not transport headers;
 log comments remain correlation. Insert metadata and each receipt observation

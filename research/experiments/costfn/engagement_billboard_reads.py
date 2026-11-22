@@ -30,9 +30,11 @@ def attach(docs, reader, *, execute, readable, compile):
         return docs
     print('[billboards] canonical pins start posts=', len(docs), flush=True)
     pins = execute(pin_sql(docs))
-    placements, wanted = {}, set()
+    placements, wanted, validated = {}, set(), []
     for pin in pins:
         body = json.loads(pin['body']) if isinstance(pin['body'], str) else pin['body']
+        if not isinstance(body, dict):
+            raise ValueError('malformed canonical billboard pin')
         root = pin['author_key'], pin['ref_value']
         target = body.get('target_author'), body.get('target_id')
         if (body.get('post_author') != root[0] or body.get('placement') not in ('author', 'node')
@@ -40,11 +42,15 @@ def attach(docs, reader, *, execute, readable, compile):
             raise ValueError('malformed canonical billboard pin')
         if body['placement'] == 'author' and target[0] != root[0]:
             raise ValueError('author billboard cannot name another author collection')
-        # Fixtures install ONE settled pin per post. Ambiguity is a refusal,
-        # never permission to rotate or silently outbid the author.
-        if root in placements:
-            raise ValueError('multiple live pins for one full-key post')
-        placements[root] = body['placement'], target
+        validated.append((root, body['placement'], target))
+    # D124 deliberately permits agreeing pins. Validate the complete eligible
+    # set first; no duplicate can hide a malformed/unauthorized pin.
+    for root, kind, target in validated:
+        previous = placements.get(root)
+        if previous is not None and previous[1] != target:
+            raise ValueError('live pins name different ads for one full-key post')
+        if previous is None or kind == 'author':
+            placements[root] = kind, target  # Author wins among agreeing placements.
         wanted.add(target)
     print('[billboards] canonical pins finish pins=', len(placements), flush=True)
     creatives = {}

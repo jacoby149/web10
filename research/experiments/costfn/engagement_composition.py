@@ -10,6 +10,7 @@ from pathlib import Path
 from arm_f_failure import details
 from arm_f_native import save
 import engagement_delivery_dedup as delivery_dedup
+import engagement_billboards as billboards
 
 DIRECTIVE = 'Jacob Hoffman 2026-11-19 all fixes first then one experiment'
 GATES = ('refs', 'paired-tallies', 'views', 'ads')
@@ -43,6 +44,7 @@ def gate(name, value):
     elif name == 'ads':
         if (set(value.get('profiles', [])) != {'ordinary', 'fixture'}
                 or value.get('exact_creative_identity_required') is not True
+                or value.get('pin_semantics') != billboards.PIN_SEMANTICS
                 or value.get('setup_sha256') is None):
             raise ValueError('immutable setup-bound exact ad identity verification required')
     return value
