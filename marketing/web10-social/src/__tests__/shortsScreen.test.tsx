@@ -27,11 +27,10 @@ class FakeHls {
 
 // Mock data layer — the Shorts feed (the render-time gate output: a post +
 // its one resolved 9:16 video) + the engagement read the screen runs to
-// populate like/comment counts (the ref pattern, the same one DiscoverScreen
-// runs). `getV3Client` is faked so the screen's `w.read('reactions'/'comments')`
-// returns controlled docs instead of hitting the network. `fakeV3Read` is
-// hoisted (the vi.mock factory runs before any top-level const).
-const { fakeV3Read } = vi.hoisted(() => ({ fakeV3Read: vi.fn() }));
+// populate like/comment counts (the feed's EXACT ref pattern: the safe-query
+// counts + the paged ref read of the reader's own reactions — no capped
+// sample). Both are stubbed so the screen gets controlled docs instead of
+// hitting the network.
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
@@ -39,7 +38,9 @@ vi.mock('@/data', async (importOriginal) => {
     readShortsFeed: vi.fn().mockResolvedValue([]),
     readShortsPage: vi.fn().mockResolvedValue({ shorts: [], hasMore: false }),
     toggleReactionKind: vi.fn().mockResolvedValue(undefined),
-    getV3Client: vi.fn().mockReturnValue({ read: fakeV3Read }),
+    readFeedEngagementCounts: vi.fn(),
+    readFeedReactions: vi.fn(),
+    getV3Client: vi.fn().mockReturnValue({ contentViews: vi.fn().mockResolvedValue({}) }),
   };
 });
 
@@ -126,23 +127,24 @@ async function renderShorts(initialEntries: string[] = ['/shorts/s1']) {
   );
 }
 
-// Seed the fake v3 client's `read` with the engagement docs the screen reads
-// (reactions + comments over the discover group). `reactions` is an array of
-// { ref, type, author }; `comments` is an array of post ids (a comment's
-// `body.post_id` — the total-count key, comments.md).
+// Seed the engagement reads the lens runs (the feed's exact ref pattern):
+// `reactions` is an array of { ref, type, author } (the reader's username is
+// 'testuser' — a like by 'testuser' fills the heart on load); `comments` is an
+// array of post ids (the total-count key, comments.md).
 function seedEngagement(
   reactions: { ref: string; type?: string; author?: string }[],
   comments: string[] = [],
 ) {
-  const reactionDocs = reactions.map((r) => ({
-    ref_value: r.ref,
-    author_key: r.author ?? 'someone',
-    body: { type: r.type ?? 'like' },
-  }));
-  const commentDocs = comments.map((postId) => ({ ref_value: postId, body: { post_id: postId } }));
-  fakeV3Read.mockImplementation(async (collection: string) =>
-    collection === 'reactions' ? reactionDocs : commentDocs,
-  );
+  const likes: Record<string, number> = {};
+  const liked: Record<string, boolean> = {};
+  for (const r of reactions) {
+    if (r.type === 'like') likes[r.ref] = (likes[r.ref] || 0) + 1;
+    if (r.author === 'testuser' && (r.type ?? 'like') === 'like') liked[r.ref] = true;
+  }
+  const commentCounts: Record<string, number> = {};
+  for (const postId of comments) commentCounts[postId] = (commentCounts[postId] || 0) + 1;
+  vi.mocked(data.readFeedEngagementCounts).mockResolvedValue({ likes, dislikes: {}, comments: commentCounts });
+  vi.mocked(data.readFeedReactions).mockResolvedValue({ liked, disliked: {}, reposted: {} });
 }
 
 describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
@@ -151,9 +153,10 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     vi.clearAllMocks();
     FakeHls.instances = [];
     window.Hls = FakeHls as unknown as typeof window.Hls;
-    // Default: the engagement read returns nothing (zero counts) unless a test
-    // seeds it.
-    fakeV3Read.mockResolvedValue([]);
+    // Default: the engagement reads return nothing (zero counts, no own like)
+    // unless a test seeds them.
+    vi.mocked(data.readFeedEngagementCounts).mockResolvedValue({ likes: {}, dislikes: {}, comments: {} });
+    vi.mocked(data.readFeedReactions).mockResolvedValue({ liked: {}, disliked: {}, reposted: {} });
     // jsdom has no scrollIntoView — the lens's deep-link effect calls it on
     // mount (scrolling to the :postId short). Stub it so the effect is a no-op.
     HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -474,6 +477,42 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     expect(commentCount[commentCount.length - 1].textContent).toBe('2');
   });
 
+  it('keeps the reader own like filled on load (the exact read, not the capped sample)', async () => {
+    (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
+      shortPost({ id: 's1', author: 'luna' }),
+    ]);
+    // The board is busy: on the old capped 500-doc sample the reader's own
+    // like (and most of these reactions) fell outside the window, so the
+    // heart rendered empty on a short the reader HAD liked — and the next
+    // tap toggled the real like off in the backend ("liked it, it shows I
+    // didn't, tapping unlikes it"). The exact reads see all of it.
+    seedEngagement(
+      [
+        { ref: 's1', type: 'like', author: 'fan1' },
+        { ref: 's1', type: 'like', author: 'fan2' },
+        { ref: 's1', type: 'like', author: 'testuser' },
+      ],
+      ['s1'],
+    );
+    await renderShorts();
+    await waitFor(() => {
+      expect(screen.getByTestId('short-like-0')).toBeInTheDocument();
+    });
+    const like = screen.getByTestId('short-like-0');
+    // The reader's own like renders filled…
+    const heart = like.querySelector('[data-testid="icon-heart"]')!;
+    expect(heart.className).toMatch(/fill-red-500/);
+    // …and the tally is the exact count, not the sample's undercount.
+    const spans = like.querySelectorAll('span');
+    expect(spans[spans.length - 1].textContent).toBe('3');
+    // Tapping now unlikes (the data layer's exact read sees the like) — the
+    // UI state follows the backend truth.
+    fireEvent.click(like);
+    expect(data.toggleReactionKind).toHaveBeenCalledWith('s1', 'like');
+    expect(heart.className).not.toMatch(/fill-red-500/);
+    expect(spans[spans.length - 1].textContent).toBe('2');
+  });
+
   it('liking a short increments from the loaded count, not from zero', async () => {
     (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       shortPost({ id: 's1', author: 'luna' }),
@@ -641,7 +680,8 @@ describe('ShortsScreen — the explore wall (/shorts, the "before you pick a sho
     vi.clearAllMocks();
     FakeHls.instances = [];
     window.Hls = FakeHls as unknown as typeof window.Hls;
-    fakeV3Read.mockResolvedValue([]);
+    vi.mocked(data.readFeedEngagementCounts).mockResolvedValue({ likes: {}, dislikes: {}, comments: {} });
+    vi.mocked(data.readFeedReactions).mockResolvedValue({ liked: {}, disliked: {}, reposted: {} });
   });
 
   async function renderWall() {
