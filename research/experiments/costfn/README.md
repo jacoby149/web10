@@ -1,5 +1,20 @@
 # Access-Control Cost Function Experiment
 
+## Latest run —22 November: native composition/audit PASS, row receipt-ID STOP
+
+Fresh post-PR#1605 DO622092911 on merged52233c8b9 completes construction,
+all four gates, all three exact-parity/budget-FAIL response cells and the real
+D123 statement inventory with410 captured/78 auxiliary operations. The unchanged
+row bridge accepts that banked composition and launches the worker. Row setup
+then hangs on receipt IDs:39 client-complete requests have zero matching native
+IDs, while57 correlated server UUIDs finish. The pinned driver's query_id
+transport option is an ordinary HTTP header, not server query identity.
+The agent verifies no active row-data work, preserves the original RUNNING
+worker packet and records a separate supervised STOP; no full-family build or
+assembly result is banked. [Original results, query CSVs and diagnostic proof](evidence/all-fixes-reconciled-20261122/RESULTS.md).
+State/native parts verify off-host before owned cleanup, snapshot retained,
+admission closed. No source repair, native retry or new paid continuation.
+
 ## Source-only audit reconciliation —21 November, D123
 
 Future audits admit only the exact parsed bounded delivery-history lookup as
@@ -12,7 +27,7 @@ Production API/gates/budgets/oracle/row bridge are unchanged. Merge this source
 reconciliation before Jacob's separate fresh admission; no lease/native action
 is authorized here. [Exact policy](ALL-FIXES-THEN-MEASURE.md#21-november-measurement-policy-reconciliation-source-only-d123).
 
-## Current state —full batch proof PASS, responses parity PASS, audit STOP
+## Earlier run —full batch proof PASS, responses parity PASS, audit STOP
 
 Jacob's fresh post-PR#1603 attempt on DO621754971 passes all489 all-time batches,
 2,000,001 document IDs and exact1.6B reconciliation, with565,711,161-byte peak

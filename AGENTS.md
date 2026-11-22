@@ -346,7 +346,18 @@ uses a24-hour self-kill backstop; the programme has$1,000 and costs are receipte
 No production migration, guardian or old-lease reopening follows. Current
 precedence/admission: `research/experiments/costfn/README.md`.
 
-**21 November measurement-policy reconciliation (D123), source only:** future
+**Latest native composition,22 November UTC:** merged PR#1605 banks full
+construction/four gates/three parity responses and real D123 decomposition PASS;
+budgets FAIL. The row bridge accepts and starts its worker, but receipt transport
+sends query_id as an ordinary HTTP header:39 client-complete claims match zero
+native IDs while57 actual server UUIDs finish. No active row-data query remains;
+agent stops the worker, preserves original RUNNING plus supervisor STOP, without
+ID remapping/source retry. Full-family build NOT BANKED; six assembly stages
+NOT RUN, D117 pending. Off-host state/native custody and owned cleanup verify,
+snapshot retained, admission closed. Report:
+`research/experiments/costfn/evidence/all-fixes-reconciled-20261122/RESULTS.md`.
+
+**21 November measurement-policy reconciliation (D123), source implementation:**
 research audits admit only the exact parsed, bounded current-reader delivery
 history lookup as `delivery_dedup_raw_read`, retaining all native costs and the
 original stage. Raw metric fallbacks and existing retired-query/digest/identity
