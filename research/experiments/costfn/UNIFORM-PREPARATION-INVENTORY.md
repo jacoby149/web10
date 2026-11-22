@@ -1,5 +1,12 @@
 # Uniform preparation: pin consumers and the bounded-input fork
 
+**Workstream B successor:** [PIN-SELECT-MATERIALIZE.md](PIN-SELECT-MATERIALIZE.md)
+now implements skinny complete-candidate winner resolution followed by exact
+survivor body materialization. The inventory below remains the original banked
+lookup/investigation; its NOT IMPLEMENTED/row-first statements are historical,
+not current source or the operator's subsequent B→merge→run directive. No
+native performance verdict is inferred from the source change.
+
 **D124 amendment note:** this inventory records the banked pre-amendment lookup.
 The separate Workstream A intentionally changes only duplicate handling:
 agreeing full creative identities coalesce, distinct targets refuse, and author

@@ -138,16 +138,21 @@ class CompositionTests(unittest.TestCase):
         sqls = []
         def execute(sql):
             sqls.append(sql)
-            return [pin] if len(sqls) % 2 else [creative()]
+            if len(sqls) == 1:
+                return [{k: pin[k] for k in ('author_key', 'doc_id', 'ref_value')} | {'candidate_count': 1}]
+            return [pin] if len(sqls) == 2 else [creative()]
         rows = ad_reads.attach([post(ad={'forged': 'old'})], 'reader', execute=execute,
             readable=lambda reader, service: ['allowed'], compile=build_safe_query)
         self.assertEqual(rows[0]['ad'], creative())
         self.assertIn('pairs_refs', sqls[0])
         self.assertIn('deleted DESC', sqls[0])
         for name in ('engagement_documents', 'group_hidden_docs', 'user_blacklist'):
-            self.assertIn(name, sqls[1])
-        self.assertIn('(' + q('a') + ', ' + q('ad') + ')', sqlglot.parse_one(sqls[1], read='clickhouse').sql(dialect='clickhouse'))
-        denied = ad_reads.attach([post()], 'denied', execute=lambda sql: [pin],
+            self.assertIn(name, sqls[2])
+        self.assertIn('(' + q('a') + ', ' + q('ad') + ')', sqlglot.parse_one(sqls[2], read='clickhouse').sql(dialect='clickhouse'))
+        def denied_execute(sql):
+            return ([{k: pin[k] for k in ('author_key', 'doc_id', 'ref_value')} | {'candidate_count': 1}]
+                if 'pin_selection_current_winners' in sql else [pin])
+        denied = ad_reads.attach([post()], 'denied', execute=denied_execute,
             readable=lambda reader, service: [], compile=Mock(side_effect=AssertionError('must not fetch')))
         self.assertNotIn('ad', denied[0])
 
@@ -158,7 +163,10 @@ class CompositionTests(unittest.TestCase):
         conflict = {**pin, 'doc_id':'other-pin', 'body':{**pin['body'], 'target_id':'other-ad'}}
         for values in ([pin, conflict], [{**pin, 'body': {**pin['body'], 'target_author': 'b'}}]):
             with self.subTest(values=values), self.assertRaises(ValueError):
-                ad_reads.attach([post()], 'reader', execute=lambda sql, values=values: values,
+                ad_reads.attach([post()], 'reader', execute=lambda sql, values=values: (
+                    sorted([{k: row[k] for k in ('author_key', 'doc_id', 'ref_value')} | {'candidate_count': len(values)}
+                        for row in values], key=lambda row: (row['author_key'], row['doc_id']))
+                    if 'pin_selection_current_winners' in sql else sorted(values, key=lambda row: (row['author_key'], row['doc_id']))),
                     readable=Mock(side_effect=AssertionError('must refuse before fetch')), compile=Mock())
 
     def test_each_required_gate_failure_blocks_every_measured_cell(self):

@@ -34,7 +34,7 @@ def expectation(post='p', *, owner='a', placement='author', creative=None):
 
 
 class CanonicalStore:
-    """Execute actual pin_sql over complete model histories; creative gate stays real SQL construction."""
+    """Execute both real pin stages over complete histories; creative gate stays real SQL construction."""
     def __init__(self, rows, creatives=None, reverse=False):
         self.db = sqlite3.connect(':memory:')
         self.db.row_factory = sqlite3.Row
@@ -46,7 +46,7 @@ class CanonicalStore:
         self.db.execute('CREATE TABLE engagement_documents (author_key TEXT,doc_id TEXT,ref_value TEXT,'
             'collection_name TEXT,body TEXT,updated_at INTEGER,deleted INTEGER)')
         self.db.execute('CREATE TABLE pairs_refs (author_key TEXT,doc_id TEXT,ref_id TEXT,role TEXT)')
-        for row in rows:
+        for row in reversed(rows) if reverse else rows:
             values = [json.dumps(row[k]) if k=='body' else row[k] for k in
                 ('author_key','doc_id','ref_value','collection_name','body','updated_at','deleted')]
             self.db.execute('INSERT INTO engagement_documents VALUES (?,?,?,?,?,?,?)', values)
@@ -56,12 +56,12 @@ class CanonicalStore:
 
     def execute(self, statement):
         self.sql.append(statement)
-        if len(self.sql)==1:
+        if 'pin_selection_current_winners' in statement or 'pin_materialization_current_winners' in statement:
             translated = sqlglot.transpile(statement, read='clickhouse', write='sqlite')[0]
             rows = [dict(r) for r in self.db.execute(translated)]
-            return list(reversed(rows)) if self.reverse else rows
-        if len(self.sql)!=2:
-            raise AssertionError('Workstream A must not add query stages')
+            return rows
+        if len(self.sql)!=3:
+            raise AssertionError('Workstream B permits only selection, materialization, unchanged creative fetch')
         return deepcopy(self.creatives)
 
 
@@ -80,7 +80,7 @@ class AgreementTests(unittest.TestCase):
         rows, sql = self.serve([pin('one'),pin('two')], [expectation(),expectation()])
         self.assertEqual(rows[0]['ad'], ad())
         self.assertNotIn('node_ad', rows[0])
-        self.assertEqual(len(sql), 2)
+        self.assertEqual(len(sql), 3)
 
     def test_different_ads_refuse_before_creative_authority_or_fetch(self):
         for reverse in (False,True):
@@ -159,13 +159,15 @@ class AgreementTests(unittest.TestCase):
     def test_creative_lookup_statement_and_reader_denial_are_unchanged(self):
         _, single = self.serve([pin()], [expectation()])
         _, duplicate = self.serve([pin('one'),pin('two')], [expectation(),expectation()])
-        self.assertEqual(single, duplicate)
+        self.assertEqual(single[0], duplicate[0])  # Same full candidate selection, no page shortcut.
+        self.assertEqual(single[-1], duplicate[-1])  # Creative SQL is byte-for-byte unchanged.
+        self.assertNotEqual(single[1], duplicate[1])  # Exact survivor handoff includes the second pin.
         store = CanonicalStore([pin('one'),pin('two')])
         self.addCleanup(store.db.close)
         actual = reads.attach([dict(author_key='a',doc_id='p')], 'denied', execute=store.execute,
             readable=lambda *_:[], compile=Mock(side_effect=AssertionError('must not fetch denied creative')))
         self.assertNotIn('ad', actual[0])
-        self.assertEqual(len(store.sql), 1)
+        self.assertEqual(len(store.sql), 2)
 
     def test_ads_gate_requires_named_amended_semantics_not_an_old_policy_receipt(self):
         value = dict(parity='PASS',source_binding={'source':'hash'},query_ids=['native'],
