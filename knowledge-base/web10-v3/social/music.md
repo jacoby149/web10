@@ -81,6 +81,16 @@ DiscoverCard and social Feed/PostCard use the shared `AudioPlayer` for resolved
 Resolved MIME takes precedence over a post's `music` tag; supporting images and
 video retain their renderers. No decorative progress bar stands in for a player.
 
+**The music-style treatment is the Music tab's (operator ruling, 22.11.2026):** on
+every post surface — the Following feed card, the post lightbox / permalink, the
+Video tab, the Shorts lens, the profile wall — a video labeled `music` renders
+as a **video** (its own player). The MUSIC card + the app-transport handoff
+(`MusicFeedMedia`) is the audio affordance only: it takes over for resolved
+`audio/*` media and never for video. The Music tab is the one destination that
+shows both kinds music-style (its rows + the dual transport), and a feed
+session-queue snapshot may still include music videos (6.3.0) — that is queue
+membership, not surface rendering.
+
 The inline transport has explicit Play/Pause, keyboard/touch seeking and actual
 elapsed/duration state; it does not autoplay or fetch audio on mount
 (`preload="none"`). Another audible media play pauses it; URL replacement or

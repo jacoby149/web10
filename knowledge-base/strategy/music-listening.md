@@ -100,7 +100,10 @@ to restart. A reproduced pre-repair failure pins this seam; all 379 marketing
 tests/build pass for the shared component's other consumer.
 
 Music-tagged feed posts use the same app-level transport as Music, not a second
-inline audio element. Operator correction (13.11.2026): a feed tap starts the
+inline audio element — audio tracks only (operator ruling, 22.11.2026: a
+music-tagged feed VIDEO renders its inline video renderer, not the MUSIC card +
+app-transport handoff; the music-style treatment is the Music tab's — see
+`web10-v3/social/music.md`). Operator correction (13.11.2026): a feed tap starts the
 readable, resolved track and reveals the persistent mini-player in place, without
 changing the Posts tab, filters, scroll position or browser history. Outside
 Music the mini-player is playback-only: artwork/title are inert and there are
