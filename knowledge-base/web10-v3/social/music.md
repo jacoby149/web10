@@ -39,7 +39,14 @@ a new column:
 
 - **Create:** when the tray has video media, the composer shows a "Mark as
   music" checkbox (opt-in, never automatic — audio keeps its auto-tag).
-  Checked → `tags: ['music']` on the create.
+  The create's tags are **additive, never exclusive**: a 9:16 video marked
+  as music ships `['short','music']` (it stays in Shorts AND joins the Music
+  tab); a landscape marked video ships `['music']`; an unmarked 9:16 video
+  ships `['short']`; audio keeps its auto-`['music']`. Both write seams apply
+  the rule — the composer's standard path (`PostComposer`'s create) and the
+  deferred/queue upload path (`UploadContext`'s create intent). The 6.28.1
+  repro pinned the exclusive `['short']`-only write that kept vertical marked
+  videos out of the Music tab.
 - **Edit:** when the post's media is video OR audio, the composer's edit
   mode shows the same choice as a separate-save control (`MusicTagToggle`,
   the Discover-audience pattern — it writes the tag via `updatePost`

@@ -80,6 +80,25 @@ describe('real queue orchestration with IndexedDB and HTTP adapter (byte engine 
     expect(fake.nudge).toHaveBeenCalledExactlyOnceWith({ username: 'bob', provider: 'node' }, { type: 'post_mention', from: 'team', ref_doc_id: 'post-id' });
   });
 
+  // The doc tags are the machine's vocabulary and they ADD (shorts.md +
+  // music.md): the exclusive `width < height ? ['short']` branch in
+  // createIntent dropped the music tag from 9:16 drafts marked as music —
+  // they reached the Shorts tab but never the Music tab.
+  it.each([
+    { width: 1080, height: 1920, markAsMusic: true, tags: ['short', 'music'] },
+    { width: 1080, height: 1920, markAsMusic: false, tags: ['short'] },
+    { width: 640, height: 480, markAsMusic: true, tags: ['music'] },
+    { width: 640, height: 480, markAsMusic: false, tags: undefined },
+  ])('a %sx%s draft with markAsMusic=%s ships tags %o in the deferred intent', async ({ width, height, markAsMusic, tags }) => {
+    mount(); await waitFor(() => expect(queue.enabled).toBe(true));
+    const input = { ...draft(), markAsMusic, media: [{ ...draft().media[0], width, height }] };
+    await act(async () => { await queue.queue(input); });
+    await waitFor(() => expect(queue.tasks[0]?.phase).toBe('processing'));
+    const intent = requests.find(item => item.path.endsWith('/deferred/create'))!.body.intent as { body: { tags?: string[] } };
+    if (tags === undefined) expect(intent.body.tags).toBeUndefined();
+    else expect(intent.body.tags).toEqual(tags);
+  });
+
   it('saves the frozen draft and admits HLS-waiting publication, then observes its result after remount without a file', async () => {
     const view = mount();
     await waitFor(() => expect(queue.enabled).toBe(true));

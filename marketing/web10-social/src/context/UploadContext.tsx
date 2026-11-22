@@ -28,10 +28,16 @@ const terminal = (row: SavedUpload) => row.phase === 'published' || row.phase ==
 
 function createIntent(row: SavedUpload): DeferredIntent {
   const draft = row.draft;
-  const tags = draft.width < draft.height ? ['short'] : draft.markAsMusic ? ['music'] : undefined;
+  // Additive doc tags (shorts.md + music.md): a 9:16 video CAN also be marked
+  // as music — the exclusive branch dropped the music tag from vertical marked
+  // videos, so they never reached the Music tab. Same rule as the composer's
+  // standard path (PostComposer's composerTags).
+  const tags: string[] = [];
+  if (draft.width < draft.height) tags.push('short');
+  if (draft.markAsMusic) tags.push('music');
   return { service: 'posts', groups: [...draft.groups], author_as: draft.authorAs,
     body: { title: draft.title || undefined, text: draft.text, mention_usernames: mentionedUsernames(draft.text), visibility: draft.visibility,
-      media_refs: row.media_doc_id ? [row.media_doc_id] : [], tags },
+      media_refs: row.media_doc_id ? [row.media_doc_id] : [], tags: tags.length ? tags : undefined },
     ad_preference: draft.pinnedAdId ? { mode: 'pinned', target: draft.pinnedAdId } : { mode: 'none' } };
 }
 function service(row: SavedUpload) { return row.draft.visibility === 'public' ? 'public_media' : 'media'; }

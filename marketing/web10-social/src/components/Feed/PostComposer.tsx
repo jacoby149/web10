@@ -1264,6 +1264,14 @@ export default function PostComposer({
       // automatic. The same `music` tag puts the post in the Music tab.
       const hasVideo = mediaItems.some((m) => m.isVideo);
       const isMarkedMusic = markAsMusic && hasVideo;
+      // The doc tags are the machine's vocabulary and they ADD (shorts.md +
+      // music.md): a 9:16 video marked as music ships `['short','music']`, not
+      // `['short']`. The exclusive branch below silently dropped the music tag
+      // from vertical marked videos, so they never reached the Music tab (the
+      // prod report: the Sam Hanks performance videos carry only ['short']).
+      const composerTags: string[] = [];
+      if (isShort) composerTags.push('short');
+      if (isMusic || isMarkedMusic) composerTags.push('music');
       // Keep explicit destinations; otherwise use the group's memberships.
       let targetGroups: string[] | undefined = groups;
       if (authorAs) {
@@ -1288,7 +1296,7 @@ export default function PostComposer({
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
           created_at: new Date().toISOString(),
-          tags: isShort ? ['short'] : isMusic ? ['music'] : isMarkedMusic ? ['music'] : undefined,
+          tags: composerTags.length ? composerTags : undefined,
         },
         targetGroups,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,
