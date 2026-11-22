@@ -1151,6 +1151,20 @@ export async function readFeedEngagement(): Promise<{ likes: Record<string, numb
   }
   return { likes, comments };
 }
+// The exact per-post engagement counts (the safe-query ref pattern the feed's
+// readFeedPage runs and the Shorts lens now shares with it). Seeded from the
+// feed posts the same way readFeedEngagement is.
+export async function readFeedEngagementCounts(postIds: string[]): Promise<{ likes: Record<string, number> | null; dislikes: Record<string, number> | null; comments: Record<string, number> | null }> {
+  const likes: Record<string, number> = {};
+  const dislikes: Record<string, number> = {};
+  const comments: Record<string, number> = {};
+  for (const p of FEED_POSTS) {
+    likes[p._id] = p.likes;
+    dislikes[p._id] = 0;
+    comments[p._id] = p.comments;
+  }
+  return { likes, dislikes, comments };
+}
 // The reader's own like/dislike per feed post (the feed's initial-state load).
 // Seeded so the PR shot shows a filled heart on the first post.
 export async function readFeedReactions(postIds: string[]): Promise<{ liked: Record<string, boolean>; disliked: Record<string, boolean>; reposted: Record<string, boolean> }> {

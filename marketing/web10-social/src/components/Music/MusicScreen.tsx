@@ -333,18 +333,38 @@ export default function MusicScreen() {
   const current = music.current;
   const featured = view === 'explore' && !q && tracks[0];
 
-  // The video stage borrow (music.md): while the panel is open on a video
-  // track, the session's OWN video element plays in this frame (the provider
-  // owns the element — borrow/return by parent; position + hls state survive
-  // the move). Audio tracks keep the artwork stage. An effect (not a ref
+  // The video stage borrow (music.md): while the expanded player is open on a
+  // video track, the session's OWN video element plays in this frame (the
+  // provider owns the element — borrow/return by parent; position + hls state
+  // survive the move). Audio tracks keep the artwork stage. An effect (not a ref
   // callback) does the borrowing: the provider's mount effect creates the
   // element AFTER this screen's first commit, so the borrow re-runs once
   // `music.videoElement` lands.
+  // The borrow is the WHOLE expanded player, not just `panel === 'player'`
+  // (operator, 22.11.2026): clicking Comments used to detach the element —
+  // which killed the picture AND paused playback, because a `<video>` out of
+  // the document stops ("when i click comments, there was a video, then the
+  // video disappears and the thing playing pauses too"). On the desktop the
+  // player column stays visible in every panel (`hidden lg:block`), so the
+  // element stays borrowed + playing. On phones the queue/comments panels
+  // REPLACE the column (display:none) — they keep the detached audio-only
+  // state, and "Back to player" re-borrows at the same position. `isDesktop`
+  // tracks the `lg` (1024px) split the column's own classes use (jsdom
+  // reports false — the panel-gated mobile default the tests assume).
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setIsDesktop(mql.matches);
+    setIsDesktop(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
   const videoStageEl = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    const attach = panel === 'player' && !!current && isVideoTrack(current);
+    const attach = !!current && isVideoTrack(current) && (panel === 'player' || isDesktop);
     musicRef.current.attachVideoStage(attach ? videoStageEl.current : null);
-  }, [panel, current, music.videoElement]);
+  }, [panel, current, music.videoElement, isDesktop]);
 
   function start(track: MusicTrack) {
     if (music.current && musicTrackKey(music.current) === musicTrackKey(track)) music.toggle(); else music.play(track, filtered);

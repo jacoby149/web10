@@ -100,7 +100,10 @@ to restart. A reproduced pre-repair failure pins this seam; all 379 marketing
 tests/build pass for the shared component's other consumer.
 
 Music-tagged feed posts use the same app-level transport as Music, not a second
-inline audio element. Operator correction (13.11.2026): a feed tap starts the
+inline audio element — audio tracks only (operator ruling, 22.11.2026: a
+music-tagged feed VIDEO renders its inline video renderer, not the MUSIC card +
+app-transport handoff; the music-style treatment is the Music tab's — see
+`web10-v3/social/music.md`). Operator correction (13.11.2026): a feed tap starts the
 readable, resolved track and reveals the persistent mini-player in place, without
 changing the Posts tab, filters, scroll position or browser history. Outside
 Music the mini-player is playback-only: artwork/title are inert and there are
@@ -121,6 +124,17 @@ their source and read-only recovery restriction. On phones the mini-player is
 an inset rounded surface with a visible gap above the glass dock; all controls,
 the seek track and the last page content remain reachable. Real Android
 notification/background acceptance requires a physical device, not a mocked API.
+
+Operator correction (22.11.2026): the expanded player's video stage is the WHOLE
+desktop player, not just `panel === 'player'` — opening the Queue or Comments
+panel kept the session's video element borrowed (picture + playback survive the
+panel switch; same element, position + hls state intact). The old panel gate
+released the element on a panel switch, and a `<video>` out of the document
+stops — so "click Comments" killed the picture AND paused playback. Phones are
+the exception by layout: the queue/comments panels replace the player column
+(display:none), so they keep the detached audio-only state and "Back to player"
+re-borrows at the same position. Contract: `web10-v3/social/music.md` (the
+whole-player borrow paragraph).
 
 Discover and Following share this renderer. Audible ordinary feed audio/video
 acquires Media Session ownership while mounted, including a playing clip unmuted
