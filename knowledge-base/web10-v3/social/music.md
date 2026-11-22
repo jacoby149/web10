@@ -125,7 +125,15 @@ has ONE voice: the active transport is the element of the current track's kind
 vice-versa). The video element is DETACHED by default (audio-only in the
 mini-player state) — the expanded player panel borrows it into its visible
 video stage (the provider owns the element; the surface lends a parent, so
-position + hls state survive the move). A transcoded video (status done +
+position + hls state survive the move). The borrow is the WHOLE expanded
+player on the desktop (operator ruling, 22.11.2026): the Queue and Comments
+panels keep the stage — a `<video>` out of the document STOPS (picture gone
+AND paused: "when i click comments, there was a video, then the video
+disappears and the thing playing pauses too"), so releasing the element on a
+panel switch is a playback bug, not a design state. On phones the
+queue/comments panels REPLACE the player column (display:none) — they keep
+the detached audio-only state and "Back to player" re-borrows at the same
+position. A transcoded video (status done +
 minted manifest) rides hls.js through the app's vendored build + the shared
 `resolveManifestHref` (the same source seam every video surface uses); a raw
 MP4 plays the direct file. The persistent player sits above mobile

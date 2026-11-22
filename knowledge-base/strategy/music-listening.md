@@ -125,6 +125,17 @@ an inset rounded surface with a visible gap above the glass dock; all controls,
 the seek track and the last page content remain reachable. Real Android
 notification/background acceptance requires a physical device, not a mocked API.
 
+Operator correction (22.11.2026): the expanded player's video stage is the WHOLE
+desktop player, not just `panel === 'player'` — opening the Queue or Comments
+panel kept the session's video element borrowed (picture + playback survive the
+panel switch; same element, position + hls state intact). The old panel gate
+released the element on a panel switch, and a `<video>` out of the document
+stops — so "click Comments" killed the picture AND paused playback. Phones are
+the exception by layout: the queue/comments panels replace the player column
+(display:none), so they keep the detached audio-only state and "Back to player"
+re-borrows at the same position. Contract: `web10-v3/social/music.md` (the
+whole-player borrow paragraph).
+
 Discover and Following share this renderer. Audible ordinary feed audio/video
 acquires Media Session ownership while mounted, including a playing clip unmuted
 after a muted start. Play/pause and bounded seeking target that actual element,

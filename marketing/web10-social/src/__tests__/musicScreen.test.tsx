@@ -440,6 +440,64 @@ describe('MusicScreen', () => {
     expect(document.querySelectorAll('video').length).toBe(1);
   });
 
+  it('keeps the video stage borrowed across the Comments and Queue panels (desktop) — panels never kill the video', async () => {
+    // Operator 22.11.2026: "when i click comments, there was a video, then the
+    // video disappears and the thing playing pauses too." The stage holds the
+    // session's OWN element — detaching it (out of the document) stops
+    // playback. On the desktop the player column stays visible in every
+    // panel, so the borrow must survive the panel switch (same element, no
+    // reload, no detach).
+    const vid = track({ id: 'vid', author: 'nova', title: 'Live set' });
+    vid.post.tags = ['music'];
+    vid.media = { _id: 'm-vid', url: 'https://cdn/v.mp4', mime_type: 'video/mp4', duration_seconds: 60, thumbnail_url: 'https://cdn/poster.webp' } as never;
+    vi.mocked(data.readMusicTrack).mockResolvedValue(vid);
+    vi.spyOn(data, 'readThreadComments').mockResolvedValue({ comments: [], nextCursor: null, replyCounts: {} });
+    // The desktop (lg) split — the column's own `hidden lg:block` classes.
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    try {
+      renderScreen([], '/music?track=vid&panel=player');
+      const stage = await screen.findByTestId('music-video-stage');
+      await waitFor(() => expect(stage.querySelector('video')).not.toBeNull());
+      const borrowed = stage.querySelector('video')!;
+      // Comments — the stage keeps the SAME element (no detach, no reload).
+      fireEvent.click(screen.getByRole('button', { name: 'Comments' }));
+      await screen.findByTestId('music-comments');
+      expect(stage.querySelector('video')).toBe(borrowed);
+      expect(document.querySelectorAll('video').length).toBe(1);
+      // Queue — same element again.
+      fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
+      await screen.findByText('Your queue');
+      expect(stage.querySelector('video')).toBe(borrowed);
+      expect(document.querySelectorAll('video').length).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('detaches the video stage on phones when the comments panel replaces the player column', async () => {
+    // The mobile shape: queue/comments REPLACE the player column
+    // (display:none) — borrowing into a hidden column would stop the
+    // element, so phones keep the detached audio-only state there and
+    // "Back to player" re-borrows at the same position (jsdom reports the
+    // matchMedia default: non-desktop).
+    const vid = track({ id: 'vid', author: 'nova', title: 'Live set' });
+    vid.post.tags = ['music'];
+    vid.media = { _id: 'm-vid', url: 'https://cdn/v.mp4', mime_type: 'video/mp4', duration_seconds: 60, thumbnail_url: 'https://cdn/poster.webp' } as never;
+    vi.mocked(data.readMusicTrack).mockResolvedValue(vid);
+    vi.spyOn(data, 'readThreadComments').mockResolvedValue({ comments: [], nextCursor: null, replyCounts: {} });
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    try {
+      renderScreen([], '/music?track=vid&panel=player');
+      const stage = await screen.findByTestId('music-video-stage');
+      await waitFor(() => expect(stage.querySelector('video')).not.toBeNull());
+      fireEvent.click(screen.getByRole('button', { name: 'Comments' }));
+      await screen.findByTestId('music-comments');
+      expect(stage.querySelector('video')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('keeps the artwork stage for an audio track in the panel (no video stage)', async () => {
     vi.mocked(data.readMusicTrack).mockResolvedValue(track({ id: 'aud', author: 'alice', title: 'Audio only' }));
     renderScreen([], '/music?track=aud&panel=player');
