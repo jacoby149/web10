@@ -69,6 +69,8 @@ class Driver:
     @staticmethod
     def check_response_identity(result, settings):
         actual = getattr(result, 'query_id', None)
+        if callable(actual):
+            actual = actual()  # Pinned QuerySummary uses query_id(); QueryResult uses a property.
         # Body-returning command results may omit identity; native exact-ID proof
         # remains mandatory. A known mismatch must never poll a different ID.
         if actual and actual != settings['query_id']:

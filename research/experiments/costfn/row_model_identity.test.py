@@ -10,6 +10,7 @@ from sqlglot.errors import ParseError
 
 from clickhouse_connect.driver.httpclient import HttpClient
 from clickhouse_connect.driver.query import QueryContext
+from clickhouse_connect.driver.summary import QuerySummary
 from clickhouse_connect.driver._backend.httpcommon import (
     QueryRuntime, plan_command_request, plan_data_insert_request, plan_query_request,
 )
@@ -78,7 +79,7 @@ class WireClient:
     def command(self, statement, *, settings, transport_settings=None):
         plan = plan_command_request(statement, {}, None, None, self.runtime(settings), transport_settings)
         identity = self.sent('command', statement, plan.params, plan.headers)
-        return SimpleNamespace(query_id=identity)
+        return QuerySummary({'query_id':identity})
 
     def create_insert_context(self, table, *, column_names, settings):
         # Exercise the pinned generator: it really emits DESCRIBE with these settings.
@@ -92,10 +93,31 @@ class WireClient:
         context.data = rows
         plan = plan_data_insert_request(context, self.runtime(context.settings))
         identity = self.sent('insert', 'INSERT', plan.params, plan.headers)
-        return SimpleNamespace(query_id=identity)
+        return QuerySummary({'query_id':identity})
 
 
 class IdentityTests(unittest.TestCase):
+    def test_real_pinned_summary_method_is_compared_as_an_identity_not_a_bound_method(self):
+        Driver.check_response_identity(QuerySummary({'query_id':'expected'}), {'query_id':'expected'})
+        Driver.check_response_identity(SimpleNamespace(query_id='expected'), {'query_id':'expected'})
+        with self.assertRaisesRegex(ValueError, 'returned wrong'):
+            Driver.check_response_identity(QuerySummary({'query_id':'wrong'}), {'query_id':'expected'})
+
+    def test_missing_summary_identity_still_requires_the_original_exact_native_receipt(self):
+        Driver.check_response_identity(QuerySummary(), {'query_id':'expected'})
+        with tempfile.TemporaryDirectory() as root:
+            driver, client = self.driver(root)
+            original = client.command
+            def no_response_identity(*args, **kwargs):
+                original(*args, **kwargs)
+                return QuerySummary()
+            client.command = no_response_identity
+            driver.command('SYSTEM STOP MERGES row_text')
+            with self.assertRaises(ValueError):
+                driver.require_native(driver.records)
+            driver.collect_pending()
+            driver.require_native(driver.records)
+
     def driver(self, root):
         client = WireClient()
         return Driver(client, Path(root)/'native', lambda:None), client

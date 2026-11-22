@@ -2,6 +2,14 @@
 
 ## Receipt-identity repair —source only
 
+The post-B tiny native check additionally catches the pinned QuerySummary's
+`query_id()` method (command/insert), unlike QueryResult's string property.
+The source now invokes that method before exact comparison. Missing response
+identity still requires original exact native proof; wrong identities still
+refuse. Real pinned summary controls precede a separately source-bound same-lease
+continuation under the operator's autonomous repair direction. The original
+tiny preflight STOP is retained; no expensive preparation or measurement ran.
+
 For pinned clickhouse-connect1.6.0, the recognized per-call `settings['query_id']`
 is the server-honoured HTTP query-identity parameter. `transport_settings` are
 HTTP headers, never that identity channel; `ROW_MODEL:<id>` log comments remain
