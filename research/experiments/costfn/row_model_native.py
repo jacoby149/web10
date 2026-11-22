@@ -165,7 +165,17 @@ class Driver:
         print('[row-model] native submit', self.stage, query_id, flush=True)
         started = time.perf_counter()
         try:
-            value = operation(self.settings(query_id))
+            settings = self.settings(query_id)
+            # query_log.Settings records CHANGED settings, not unchanged defaults.
+            # Keep raw missing values; bank both explicit request and the pinned
+            # client's server-bootstrap defaults before submission for zero caps.
+            server = getattr(self.client, 'server_settings', {})
+            record['zero_limit_evidence'] = {key: dict(requested=str(settings[key]),
+                session_default=str(getattr(server.get(key), 'value', 'UNKNOWN')),
+                default_source='pinned_client_bootstrap_server_settings')
+                for key in ('max_rows_to_read', 'max_bytes_to_read')}
+            save(self.root / (query_id + '.json'), record)
+            value = operation(settings)
             record['outcome'] = 'CLIENT_COMPLETE'
             return value
         except BaseException as error:
@@ -267,12 +277,22 @@ class Driver:
         return actual, sample
 
     @staticmethod
+    def zero_limit(record, name):
+        logged = str(record.get('native', {}).get('native_' + name, 'UNKNOWN'))
+        if logged == '0':
+            return True
+        evidence = record.get('zero_limit_evidence', {}).get(name, {})
+        return (logged == '' and evidence.get('requested') == '0'
+            and evidence.get('session_default') == '0'
+            and evidence.get('default_source') == 'pinned_client_bootstrap_server_settings')
+
+    @staticmethod
     def require_native(records):
         if not records or any(r.get('outcome') != 'NATIVE_COMPLETE' or 'native' not in r
                 or r['native'].get('query_id') != r['query_id']
                 or int(r['native']['exception_code']) or str(r['native']['native_max_execution_time']) != '600'
-                or str(r['native']['native_max_rows_to_read']) != '0'
-                or str(r['native']['native_max_bytes_to_read']) != '0'
+                or not Driver.zero_limit(r, 'max_rows_to_read')
+                or not Driver.zero_limit(r, 'max_bytes_to_read')
                 or str(r['native']['native_max_memory_usage']) != str(22 * 1024**3)
                 for r in records):
             raise ValueError('missing/failed native600s statement evidence; preserve partial actuals, never claim parity')
