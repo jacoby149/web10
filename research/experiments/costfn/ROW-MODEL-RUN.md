@@ -2,6 +2,15 @@
 
 ## Receipt-identity repair —source only
 
+ClickHouse query_log.Settings contains changed settings. An unchanged zero row/
+byte cap may therefore be absent. Each new submission records its explicit zero
+request and the pinned client's server-bootstrap default before native I/O.
+Missing native map entries remain raw empty strings and are accepted only when
+both banked values are exactly zero with that named source. Missing/unknown/
+nonzero/default-source mismatch still refuses. This is request/default-supported
+limit evidence, not a claim that the native map explicitly contains zero. The
+tiny attempt2 STOP is not retroactively promoted.
+
 The post-B tiny native check additionally catches the pinned QuerySummary's
 `query_id()` method (command/insert), unlike QueryResult's string property.
 The source now invokes that method before exact comparison. Missing response

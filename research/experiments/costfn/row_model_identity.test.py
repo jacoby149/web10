@@ -97,6 +97,43 @@ class WireClient:
 
 
 class IdentityTests(unittest.TestCase):
+    def test_unchanged_native_zero_caps_need_both_explicit_request_and_banked_server_default(self):
+        with tempfile.TemporaryDirectory() as root:
+            driver, client = self.driver(root)
+            client.server_settings = {key:SimpleNamespace(value='0',readonly=False)
+                for key in ('max_rows_to_read','max_bytes_to_read')}
+            driver.query('SELECT value FROM row_text')
+            driver.collect_pending()
+            record = driver.records[0]
+            record['native'].update(native_max_rows_to_read='',native_max_bytes_to_read='')
+            driver.require_native([record])
+            self.assertEqual(record['native']['native_max_rows_to_read'], '')  # Never rewrite raw evidence.
+            self.assertEqual(record['zero_limit_evidence']['max_rows_to_read']['requested'], '0')
+
+    def test_missing_nonzero_unknown_or_wrong_source_default_never_waives_zero_limit_proof(self):
+        from copy import deepcopy
+        with tempfile.TemporaryDirectory() as root:
+            driver, client = self.driver(root)
+            driver.query('SELECT value FROM row_text')
+            driver.collect_pending()
+            for key in ('max_rows_to_read','max_bytes_to_read'):
+                original = deepcopy(driver.records[0])
+                original['native']['native_'+key] = ''
+                for changes in ({},dict(requested='0',session_default='UNKNOWN'),
+                        dict(requested='0',session_default='10'),dict(requested='10',session_default='0'),
+                        dict(requested='0',session_default='0',default_source='invented')):
+                    value = deepcopy(original)
+                    value['zero_limit_evidence'][key] = changes
+                    with self.subTest(key=key,changes=changes),self.assertRaises(ValueError):
+                        driver.require_native([value])
+                for logged in ('UNKNOWN','10'):
+                    value = deepcopy(original)
+                    value['native']['native_'+key] = logged
+                    value['zero_limit_evidence'][key] = dict(requested='0',session_default='0',
+                        default_source='pinned_client_bootstrap_server_settings')
+                    with self.subTest(key=key,logged=logged),self.assertRaises(ValueError):
+                        driver.require_native([value])
+
     def test_real_pinned_summary_method_is_compared_as_an_identity_not_a_bound_method(self):
         Driver.check_response_identity(QuerySummary({'query_id':'expected'}), {'query_id':'expected'})
         Driver.check_response_identity(SimpleNamespace(query_id='expected'), {'query_id':'expected'})
