@@ -16,7 +16,20 @@ bridge or its refusal of unbanked accounting. Offline replay of attempt6 is not
 a replacement controller result. Merge/source controls and a fresh explicit
 admission still precede any rerun or six-stage assembly measurement.
 
-## Latest attempt —batched all-time PASS, statement audit STOP
+## Latest attempt —row worker starts, receipt-ID transport blocks native acceptance
+
+The fresh post-PR#1605 run banks actual complete composition/decomposition and
+launches this unchanged bridge on the same store. The worker's39 client-complete
+setup operations have zero requested/native query-ID matches;57 correlated
+actual server UUIDs finish. Exact-ID receipt polling therefore cannot advance.
+The agent verifies no active row-data work and stops the owned worker, preserving
+the original RUNNING packet plus a separate supervisor STOP. Full-family build
+is NOT BANKED and all six assembly stages are NOT RUN; D117 remains pending.
+Pinned-driver request planning confirms the wrong HTTP query_id header without
+network/engine activity; this is diagnosis, not a fix. Receipts verify off-host,
+owned cleanup is verified, snapshot retained, admission closed. [Results and ID proof](evidence/all-fixes-reconciled-20261122/RESULTS.md).
+
+## Earlier attempt —batched all-time PASS, statement audit STOP
 
 Fresh post-PR#1603 source readiness passes before DO621754971 restores.
 All489 all-time batches and exact1.6B reconciliation pass, as do refs/paired

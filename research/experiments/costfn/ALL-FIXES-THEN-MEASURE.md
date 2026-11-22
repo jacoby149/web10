@@ -47,6 +47,20 @@ near-one amplification requirement becoming a gate.
 
 ## Treatment
 
+### Latest execution —22 November: native audit PASS, row-ID supervised STOP
+
+Jacob's fresh post-PR#1605 directive runs the existing combined entry on one new
+24h lease, with exact source controls/bindings and the original limits. Native
+construction, four formal gates, three complete parity responses and D123's
+real inventory all PASS; response budgets FAIL. The row bridge accepts that
+banked composition and starts the worker. Its client completes39 setup requests
+but the native receipt IDs are wrong:57 correlated actual UUIDs, zero exact-ID
+matches. No active row-data query remains. The agent preserves the original
+RUNNING packet and records a supervisor STOP without remapping IDs, changing
+source or repeating data work. Full-family build is NOT BANKED and six assembly
+measurements remain NOT RUN. Off-host receipts/owned cleanup verify, snapshot
+retained, admission closed. [Native results and diagnosis](evidence/all-fixes-reconciled-20261122/RESULTS.md).
+
 ### 21 November measurement-policy reconciliation —source only, D123
 
 The operator admits the existing bounded delivery-deduplication question, not
@@ -66,7 +80,7 @@ are untouched. Attempt6's original INCOMPLETE decomposition/blocked row outcome
 and all evidence remain immutable. This is no lease/native/fresh admission;
 the next run requires the separate reviewed merge and Jacob's word.
 
-### Latest execution —batched backfill passes, audit remains open
+### Earlier execution —batched backfill passes, audit remains open
 
 Jacob explicitly admits one fresh post-PR#1603 run in this session. Exact merged
 source passes full489-batch/2,000,001-document all-time construction and1.6B
