@@ -1,11 +1,13 @@
 # Access-Control Cost Function Experiment
 
-## Skinny type-aware pin lookup —source only
+## Skinny type-aware pin lookup —native same-store result
 
-The operator requests a research-only skinny placement lookup followed by a
-fresh rerun. Exact full post keys select historical pin candidates, then the
-canonical read resolves only those full identities. No API or document-model
-change. Native proof and cost savings remain pending. [Contract](PIN-INDEX.md).
+On the same frozen store, measured uniform reads fall from 8.85GB to 123.1MB
+with exact parity and the original authorized creative SQL. The two pin reads
+total 56,681 bytes. The operator stopped the unrelated full typed build at
+2,104,576 of 4,000,675 identities; no typed comparisons ran. No added lease,
+platform/API change or production proof. [Contract](PIN-INDEX.md) ·
+[Native results and cleanup](evidence/skinny-pin-20261122/RESULTS.md).
 
 ## Workstream B —skinny pin selection, then exact materialization
 
