@@ -27,7 +27,12 @@ class UniformInventoryTests(unittest.TestCase):
             author, doc = (bytes.fromhex(value.this.this).decode() for value in key.expressions)
             docs.append(dict(author_key=author, doc_id=doc))
         self.assertEqual(len(docs), 21)  # Frozen fixture observation, never a candidate bound.
-        self.assertEqual(sqlglot.parse_one(billboards.pin_sql(docs), read='clickhouse').sql(dialect='clickhouse'), sql)
+        # Banked SQL stays frozen; runtime now selects skinny canonical winners.
+        selection = sqlglot.parse_one(billboards.pin_selection_sql(docs), read='clickhouse')
+        selected_keys = next(node for node in selection.find_all(exp.In) if isinstance(node.this, exp.Tuple)
+            and [c.name for c in node.this.expressions] == ['author_key','ref_value'])
+        self.assertEqual(selected_keys.sql(), post_keys.sql())
+        self.assertNotIn('body', billboards.pin_selection_sql(docs))
         self.assertEqual([c.name for c in tree.expressions], ['author_key','doc_id','ref_value','body'])
         self.assertIsNone(tree.args.get('order'))
         self.assertFalse(list(tree.find_all(exp.Limit)))
@@ -39,7 +44,10 @@ class UniformInventoryTests(unittest.TestCase):
         body = dict(post_author='a', placement='author', target_author='a', target_id='creative')
         pin = dict(author_key='a', doc_id='pin', ref_value='p', body=body)
         def attach(values):
-            return billboards.attach(docs, 'reader', execute=lambda _:values,
+            return billboards.attach(docs, 'reader', execute=lambda sql: (
+                [dict(author_key=v['author_key'],doc_id=v['doc_id'],ref_value=v['ref_value'],candidate_count=len(values))
+                    for v in sorted(values, key=lambda v:(v['author_key'],v['doc_id']))]
+                if 'pin_selection_current_winners' in sql else sorted(values, key=lambda v:(v['author_key'],v['doc_id']))),
                 readable=lambda *_:[], compile=lambda *_args, **_kwargs: self.fail('no readable creative scope'))
         self.assertEqual(attach([pin]), docs)
         # Same edge fields and identities; only body input changes refusal.
@@ -52,7 +60,10 @@ class UniformInventoryTests(unittest.TestCase):
         pin = dict(author_key='a', doc_id='pin', ref_value='p',
             body=dict(post_author='a',placement='author',target_author='a',target_id='creative'))
         def attach(values):
-            return billboards.attach(docs, 'reader', execute=lambda _:values,
+            return billboards.attach(docs, 'reader', execute=lambda sql: (
+                [dict(author_key=v['author_key'],doc_id=v['doc_id'],ref_value=v['ref_value'],candidate_count=len(values))
+                    for v in sorted(values, key=lambda v:(v['author_key'],v['doc_id']))]
+                if 'pin_selection_current_winners' in sql else sorted(values, key=lambda v:(v['author_key'],v['doc_id']))),
                 readable=lambda *_:[], compile=lambda *_args, **_kwargs:self.fail('not needed'))
         self.assertEqual(attach([pin]), docs)
         # Deliberate D124 amendment: agreeing pins no longer refuse, but a LIMIT

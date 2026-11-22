@@ -51,6 +51,10 @@ def classify(sql, callers, current):
     except Exception:
         return 'unclassified'
     tables = {table.name for table in tree.find_all(exp.Table)}
+    if 'select_pins' in callers and tables == {'engagement_documents', 'pairs_refs'}:
+        return 'pin_selection'
+    if 'materialize_pins' in callers and tables == {'engagement_documents'}:
+        return 'pin_materialization'
     preparation = bool(set(callers) & {'_prepare_rows', '_prepare_face', 'attach_node_ads', 'attach_pinned_ads',
         'get_active_node_ads', 'inventory', 'resolve_media_urls_in_docs', '_mint_hls_manifest_urls'})
     counters = any(name.startswith('counting_numbers') for name in tables)

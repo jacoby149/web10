@@ -1,5 +1,18 @@
 # Access-Control Cost Function Experiment
 
+## Workstream B —skinny pin selection, then exact materialization
+
+The uniform research reader now resolves complete historical ref candidates with
+named skinny canonical columns, then reads bodies only for exact current pin
+survivors. Both statements recheck current winners/service/root/deletion; the
+second retains SQL post_author omission and all D124 validation before the
+unchanged authorized creative fetch. No cache, truncation or new layout.
+`pin_selection` and `pin_materialization` have separate captured native costs.
+[Source contract and controls](PIN-SELECT-MATERIALIZE.md). Native acceptance is
+pending; the operator explicitly requests B→green checks→merge→one experiment
+with five-minute monitoring. This supersedes the earlier row-first restriction
+for this fresh combined run, not any historical receipt or resource limit.
+
 ## Workstream A —D124 semantics amendment, source only
 
 The isolated pin reader/oracle/ads gate now permit agreeing full-creative pins
@@ -8,8 +21,8 @@ still refuse; all eligible pins validate before coalescing. Existing canonical
 winner/eligibility/creative authority and zero-pin omission remain unchanged.
 This is a deliberate behaviour change, not a parity-preserving optimization.
 [Amendment, controls and unchanged banked fixtures](PIN-AGREEMENT-AMENDMENT.md).
-Workstream B is NOT IMPLEMENTED and waits for A's separate merge. No lease,
-native run or fresh admission; uniform measurement stays behind the row-model run.
+Workstream A merged separately as PR#1608. Its source change alone granted no
+lease/native admission; the subsequent B/run direction is recorded above.
 
 ## Source work —row receipt repair; uniform pin-discovery inventory
 

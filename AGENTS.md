@@ -358,6 +358,16 @@ before B's uniform read reorder; no cache/native run/lease follows and uniform
 measurement stays behind the row-model run. Contract:
 `research/experiments/costfn/PIN-AGREEMENT-AMENDMENT.md`.
 
+**22 November Workstream B successor:** after A/#1608, the isolated pin reader
+now selects complete current winners using named skinny canonical columns, then
+materializes only exact full-key survivors under rechecked eligibility and D124.
+No cache/truncation or creative-fetch change; separate pin_selection and
+pin_materialization costs remain. Source controls are not native acceptance.
+The operator explicitly authorizes B→green checks→merge→one combined experiment
+with five-minute monitoring, superseding the earlier separate-row-first
+measurement restriction only for this fresh run. Contract:
+`research/experiments/costfn/PIN-SELECT-MATERIALIZE.md`.
+
 **22 November row identity source repair, native pending:** generated IDs use
 the pinned driver's true per-call query_id parameter, not transport headers;
 log comments remain correlation. Insert metadata and each receipt observation
