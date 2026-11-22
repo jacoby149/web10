@@ -39,7 +39,14 @@ a new column:
 
 - **Create:** when the tray has video media, the composer shows a "Mark as
   music" checkbox (opt-in, never automatic — audio keeps its auto-tag).
-  Checked → `tags: ['music']` on the create.
+  The create's tags are **additive, never exclusive**: a 9:16 video marked
+  as music ships `['short','music']` (it stays in Shorts AND joins the Music
+  tab); a landscape marked video ships `['music']`; an unmarked 9:16 video
+  ships `['short']`; audio keeps its auto-`['music']`. Both write seams apply
+  the rule — the composer's standard path (`PostComposer`'s create) and the
+  deferred/queue upload path (`UploadContext`'s create intent). The 6.28.1
+  repro pinned the exclusive `['short']`-only write that kept vertical marked
+  videos out of the Music tab.
 - **Edit:** when the post's media is video OR audio, the composer's edit
   mode shows the same choice as a separate-save control (`MusicTagToggle`,
   the Discover-audience pattern — it writes the tag via `updatePost`
@@ -73,6 +80,16 @@ DiscoverCard and social Feed/PostCard use the shared `AudioPlayer` for resolved
 `audio/*` media. Carousel audio uses the same transport instead of an image tag.
 Resolved MIME takes precedence over a post's `music` tag; supporting images and
 video retain their renderers. No decorative progress bar stands in for a player.
+
+**The music-style treatment is the Music tab's (operator ruling, 22.11.2026):** on
+every post surface — the Following feed card, the post lightbox / permalink, the
+Video tab, the Shorts lens, the profile wall — a video labeled `music` renders
+as a **video** (its own player). The MUSIC card + the app-transport handoff
+(`MusicFeedMedia`) is the audio affordance only: it takes over for resolved
+`audio/*` media and never for video. The Music tab is the one destination that
+shows both kinds music-style (its rows + the dual transport), and a feed
+session-queue snapshot may still include music videos (6.3.0) — that is queue
+membership, not surface rendering.
 
 The inline transport has explicit Play/Pause, keyboard/touch seeking and actual
 elapsed/duration state; it does not autoplay or fetch audio on mount
@@ -108,7 +125,15 @@ has ONE voice: the active transport is the element of the current track's kind
 vice-versa). The video element is DETACHED by default (audio-only in the
 mini-player state) — the expanded player panel borrows it into its visible
 video stage (the provider owns the element; the surface lends a parent, so
-position + hls state survive the move). A transcoded video (status done +
+position + hls state survive the move). The borrow is the WHOLE expanded
+player on the desktop (operator ruling, 22.11.2026): the Queue and Comments
+panels keep the stage — a `<video>` out of the document STOPS (picture gone
+AND paused: "when i click comments, there was a video, then the video
+disappears and the thing playing pauses too"), so releasing the element on a
+panel switch is a playback bug, not a design state. On phones the
+queue/comments panels REPLACE the player column (display:none) — they keep
+the detached audio-only state and "Back to player" re-borrows at the same
+position. A transcoded video (status done +
 minted manifest) rides hls.js through the app's vendored build + the shared
 `resolveManifestHref` (the same source seam every video surface uses); a raw
 MP4 plays the direct file. The persistent player sits above mobile

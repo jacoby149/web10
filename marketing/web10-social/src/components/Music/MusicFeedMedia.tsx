@@ -14,7 +14,12 @@ export default function MusicFeedMedia({ post, media, readOnlySource = false, ch
   const music = useOptionalMusic();
   const queue = useFeedMusicQueue();
   const resolved = musicTrackFromPost(post, media);
-  if (!music || !resolved) return children;
+  // The resolved MIME decides the renderer on post surfaces (music.md: "video
+  // retain their renderers", operator 22.11.2026): the MUSIC card + the
+  // app-transport handoff is the audio affordance. A music-TAGGED video still
+  // plays as a video on Posts/Video/Shorts/permalinks — the music-style
+  // treatment is the Music tab's, not the post's.
+  if (!music || !resolved || resolved.media.mime_type?.startsWith('video/')) return children;
   const track = { ...resolved, readOnlySource };
   const selected = !!music.current && musicTrackKey(music.current) === musicTrackKey(track);
   const playing = selected && music.isPlaying;

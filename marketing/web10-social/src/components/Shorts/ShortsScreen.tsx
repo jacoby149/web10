@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useActingAuthor, getActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
+import { useActingAuthor, getActingAuthor } from '@/data/actingIdentity';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft, Search, BarChart3, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
-import { readShortsFeed, toggleReactionKind, getV3Client, getDiscoverGroupId, extractUsername, readViewCounts, trackVideoViewport, type ShortPost } from '@/data';
+import { readShortsFeed, toggleReactionKind, getDiscoverGroupId, readFeedEngagementCounts, readFeedReactions, readViewCounts, trackVideoViewport, type ShortPost } from '@/data';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -166,45 +166,30 @@ function ShortsLensContent({ postId, tuned }: { postId: string; tuned: ReturnTyp
       const result = await readShortsFeed(50);
       LOG('loaded', result.length, 'shorts');
 
-      // Engagement counts (the ref pattern — the same one DiscoverScreen runs):
-      // `readShortsFeed` maps through `fromV3DocToPost`, which never populates
-      // `likes`/`comments` (those come from the feed query or a client-side
-      // count). Without this the heart and the comment bubble render blank —
-      // the "shorts show the wrong number of likes" bug. One read of the
-      // reactions + comments collections over the discover group, counted
-      // client-side by ref_value. Likes and dislikes are counted separately
-      // (the heart shows likes only — the 3.101.0 doctrine). The reader's own
-      // reaction per short is captured too, so a like made earlier renders
-      // filled on load (the "refresh my like is gone" class of bug).
+      // Engagement counts — the feed's EXACT ref pattern (the same reads
+      // readFeedPage runs): a capped 500-doc sample of the discover group's
+      // reactions/comments counted client-side undercounted on any busy board,
+      // and — worse — dropped the READER'S OWN like out of the sample window,
+      // so the heart rendered empty on a short the reader had already liked
+      // and the next tap toggled the real like OFF ("liked it, it shows I
+      // didn't, tapping unlikes it in the backend"). `readShortsFeed` maps
+      // through `fromV3DocToPost`, which never populates `likes`/`comments`,
+      // so the lens still reads them separately — just exactly, per post:
+      // the safe-query counts (no cap, likes only on the heart — the 3.101.0
+      // doctrine) + the paged ref read of the reader's own reactions.
       const token = getWapi().readToken();
       if (token && result.length) {
         try {
-          const w = getV3Client();
           const discoverId = getDiscoverGroupId();
-          const [reactionDocs, commentDocs, viewCounts] = await Promise.all([
-            w.read('reactions', { groups: [discoverId], limit: 500 }),
-            w.read('comments', { groups: [discoverId], limit: 500 }),
-            readViewCounts(result.map((s) => s.post._id || '').filter(Boolean), [discoverId]),
+          const postIds = result.map((s) => s.post._id || '').filter(Boolean);
+          const [counts, myReactions, viewCounts] = await Promise.all([
+            readFeedEngagementCounts(postIds, []),
+            readFeedReactions(postIds),
+            readViewCounts(postIds, [discoverId]),
           ]);
-          const likesByPost: Record<string, number> = {};
-          const commentsByPost: Record<string, number> = {};
-          const likedByPost: Record<string, boolean> = {};
-          for (const d of reactionDocs) {
-            if (!d.ref_value) continue;
-            const type = (d.body as Record<string, unknown>)?.type as string | undefined;
-            if (type !== 'dislike') {
-              likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
-            }
-            if (matchesActingAuthor(d.author_key, token.username, actingIdentity || null) && type === 'like') {
-              likedByPost[d.ref_value] = true;
-            }
-          }
-          for (const d of commentDocs) {
-            // The TOTAL count (top-level + replies): a reply's `ref_value` is
-            // its parent comment (comments.md), so key on `body.post_id`.
-            const pid = (d.body as Record<string, unknown>)?.post_id as string | undefined;
-            if (pid) commentsByPost[pid] = (commentsByPost[pid] || 0) + 1;
-          }
+          const likesByPost = counts.likes ?? {};
+          const commentsByPost = counts.comments ?? {};
+          const likedByPost = myReactions.liked;
           for (const s of result) {
             const id = s.post._id || '';
             s.post.likes = likesByPost[id] || 0;
