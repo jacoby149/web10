@@ -3,6 +3,41 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 22.11.2026 15:40 — OpenCode (rome-v1 / jacoby149/prod-web10-music-missing-v2) — backfill the missing `music` tag on 6 vertical performance videos
+did:
+  - Operator requests backfilling the music videos that 6.28.1's exclusive
+    composer tag write (PR #1613, merged) dropped the `music` tag from.
+    Candidate verification read-only through the public `/v3/query` endpoint
+    (discover board, `has(tags,'short') AND not has(tags,'music')`, media
+    prepared): 17 short-tagged videos — 6 are music performances (lizday ×1
+    "Did you love somebody - Peach Pit", leowarner ×2 "Nobody knows you" +
+    "Feathered Indians" (Tyler Childers cover), samhanks ×2 "he's on wechat" +
+    "Ramblin" (Woody Guthrie), clintbruce ×1 "Buskin"); the other 11 (adam ×9
+    social clips + new-group-5 ×2 film promos) are not music and are left
+    untouched.
+  - New one-off ops script `ubuntu-deployment/scripts/heal-music-tags.py`
+    (heal-phone-videos.py house pattern: pinned per-document allowlist, node
+    binding via PROVIDER, private 0600 dry-run plan, per-item state-digest
+    re-verification before each write, the node's own
+    `clickhouse.update_document` for the write — body/ref_value/ad_mode/
+    ad_target/posted_by/created_at byte-identical, tags additive
+    `['short']` + `'music'`).
+  - Executed inside the API container on all-spark (`web10-prod-api-1`,
+    `/web10/.venv/bin/python`, stdin; PROVIDER=api.web10.app): dry-run — all
+    6 pinned docs eligible (live, exactly `['short']`, single 9:16 video
+    media, user present), plan at /tmp/music-tag-backfill-plan.json; plan
+    reviewed; `--apply` — all 6 `done` with post-write readback verifying
+    `["short","music"]` and unchanged body on each.
+state: independent public read confirms the 6 posts tagged
+  `["short","music"]` on the discover board with video/mp4 media resolving
+  fresh read_urls (transcoding done); the Music tab reads (legacy board read
+  + D73 prepared query) and the Shorts read both pick them up now. No service
+  deployment/restart, no container/env/DNS change; no other data mutation.
+  Receipts: `.context/music-tag-backfill/` (reviewed plan + public readback).
+next: dev→main promotion and the app deployment are operator actions; the
+  composer fix (6.28.1) is already in dev. Any further missing-tagged video
+  needs a fresh pinned allowlist + fresh plan (the script refuses drift).
+
 ## 13.11.2026 — OpenCode (lansing / fix/service-name-safety) — full read-only service convention sweep
 did:
   - Operator requests a full production ClickHouse service-name check. Verify
