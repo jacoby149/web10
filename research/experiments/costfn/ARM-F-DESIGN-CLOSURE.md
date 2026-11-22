@@ -964,17 +964,17 @@ No production source edit or new endpoint is authorized.
 aa90341a0795f7f88a622a939f190b6f9d4bf50444a7181785351db3d126d352  api/app/v3/endpoints/groups.py
 d9fa359eadf6e5b9792923913e3fb14a453759afc7f7fb774d1c86968cd5f030  api/app/v3/services/clickhouse.py
 411c9d51f592e66d33e6e654e1b0665225cd89ec4bbb56d6be2f50aa4da2bf61  api/app/v3/services/safe_query.py
-675d2bc7030d7efb3c636489366937486f508d74146d1b4249801a40c5a12518  marketing/web10-social/src/data/feed.ts
+fcdff1a59e241a52ed1fc68530256073d647f28c8d45cacaefd6ccffc4922217  marketing/web10-social/src/data/feed.ts
 517a664daea23fda704826ba052625182545c56264d8924e881e347991fd472b  research/experiments/costfn/arm_satellite_api.py
 a91133de21e61fed81b10fb2e2bcbd20eeb73f3c4e782170873aa92fbd553bfb  research/experiments/costfn/arm_satellite_pull.py
-2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd  research/experiments/costfn/evidence/core-feed-wire-v7.json
+1a93516428ea69af2e58f9162e20211f8f6610a74fc1815136c4d3f9a69b482f  research/experiments/costfn/evidence/core-feed-wire-v8.json
 b51f94c2f54ce84f9cc9bb0755f83956b365f0c793af880d88ec255ffd3a869c  research/experiments/costfn/arm_satellite_serve.py
 d0a177abee4e2d00be88f68d20bf01f7b3f9e38782f42728a8b11d54a6c02095  research/experiments/costfn/arm_satellite_counts.py
 69ba73271e91849b032dc1af7f88d7df9e6acf3d1e27e742b228da59f1b9a0e4  research/experiments/costfn/arm_satellite_metadata.py
 f661fef290535840fddf80a4778e39f3fef137d539291ae129170396070e1874  research/experiments/costfn/arm_satellite_verify.py
 fa0df8ffc81f5d92a1d02dbdfc679697c2774833274b375036c113efd07153c8  research/experiments/costfn/arm_satellite_reconcile.py
 d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5  research/experiments/costfn/smoke_realism.py
-9cc2fd817dd946e68455a91834f0a67a5987ff1c846e2a8590a9d9a00ee5501a  research/experiments/costfn/core_feed.py
+d9be6cad34554f6dbbf176f01b553fb54e4e88590a15818d795a2a276b20fcf1  research/experiments/costfn/core_feed.py
 8b8ae69d4808fa72da0012c562ea92b73598e4bf7a20c7695b3246931539129f  api/app/v3/endpoints/query.py
 ```
 
@@ -985,6 +985,11 @@ composition fix. Previous pin `25b667f2…acac228` and every historical executin
 receipt stay banked. Canonical compiler/policy/scopes, builders, read caps and
 the remaining source pins are unchanged; the new HTTP composition control
 rejects positional settings at each actual research wrapper boundary.
+
+22 November source-only repin: PR#1616's existing reader export changes the
+feed file hash, not the captured request payloads or cursor SQL. Wire v8 and
+the current loader replace the live hashes only. The original v7, v5 and all
+historical manifests/receipts are unchanged. No new native run or admission.
 
 ## Execution receipt — STOP before P serving; F not measured
 
