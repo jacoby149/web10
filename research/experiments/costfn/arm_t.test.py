@@ -144,7 +144,7 @@ class SQLTests(unittest.TestCase):
         # Compiler only: no server, SQL execution, credentials or network.
         sys.path.insert(0, str(HERE.parents[2] / "api"))
         from app.v3.services.safe_query import build_safe_query
-        wire = json.loads((HERE / "evidence/core-feed-wire-v7.json").read_bytes())
+        wire = json.loads((HERE / "evidence/core-feed-wire-v8.json").read_bytes())
         current = build_safe_query(wire["requests"][0]["payload"]["sql"],
                                    {s: GROUPS for s in rewrite.SERVICES}, member_key="reader")
         rewrite.pinned(current, "reader", GROUPS)
