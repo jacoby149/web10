@@ -7,6 +7,10 @@ assembly comparisons. All six crossed D117's pre-committed cost threshold;
 retain queryable values as rows and payload as document content. No production
 change or new admission. [Results and original receipt custody](evidence/row-model-4096-20261123/RESULTS.md).
 
+The [hybrid K20 preflight](HYBRID-K20-PREFLIGHT.md) reproduces the no-engine
+fixture and plans a three-arm native comparison before a full retained-design
+cell. It separates modeled bytes, native logical bytes, and R630 physical I/O.
+
 ## Skinny type-aware pin lookup —native same-store result
 
 On the same frozen store, measured uniform reads fall from 8.85GB to 123.1MB

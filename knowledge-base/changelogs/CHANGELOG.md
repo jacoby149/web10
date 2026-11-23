@@ -1,3 +1,6 @@
+6.28.9 || 23.11.2026
+research: bank the no-engine hybrid K20 model and queue a three-arm native comparison. Exact ordered parity; the hybrid touches 11.15× fewer modeled bytes than a whole-document scan but 11.1% more than projected canonical. Separate the historical 25 MB logical reference, modeled ~73 MB/read gross physical allowance on the R630, and 500 ms latency target. No native result, lease or production change. [Findings and gates](../../research/experiments/costfn/HYBRID-K20-PREFLIGHT.md).
+
 6.28.8 || 23.11.2026
 research: bank the completed D117 native proving cell on merged #1620. Three-source preflight passes; full composed build loads 4,000,675 post identities in about 2h26m. All four feed gates, three feed cells and statement accounting pass. Independent typed verification and all six assembly comparisons retain exact parity, but all six exceed the pre-committed cost rule: reject maximal payload decomposition, retain queryable values as rows and payload as document content. Final state and original stopped native parts verify off-host; owned cleanup 11:06:20 UTC, snapshot retained, estimated compute $1.609642/not invoice. No production change or new admission. [Results](../../research/experiments/costfn/evidence/row-model-4096-20261123/RESULTS.md).
 
