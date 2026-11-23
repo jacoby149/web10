@@ -90,6 +90,17 @@ class IntegrationTests(unittest.TestCase):
             self.assertEqual(settings[name], 0)
         self.assertEqual(settings['max_execution_time'], 600)
 
+    def test_large_ingest_history_sql_gets_bounded_parser_allowance_only_outside_samples(self):
+        identities = [model.Identity('actor', f'00000000-0000-0000-0000-{i:012d}') for i in range(4096)]
+        statement = build.histories(['source_a', 'source_b', 'source_c'], identities)
+        self.assertGreater(len(statement.encode()), 256 * 1024)
+        with tempfile.TemporaryDirectory() as directory:
+            driver, client = self.driver(directory)
+            driver.query(statement)
+            driver.sample('feed', 'canonical', 'measured', lambda: driver.query(statement))
+        self.assertEqual(client.settings[0]['max_query_size'], 16 * 1024**2)
+        self.assertNotIn('max_query_size', client.settings[1])
+
     def test_fence_is_named_separately_and_inclusive_native_cost_is_not_dropped(self):
         with tempfile.TemporaryDirectory() as directory:
             driver, _ = self.driver(directory)

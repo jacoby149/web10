@@ -10,6 +10,14 @@ are preserved; no active native row statement remained at stop. No full build
 or six typed comparisons were banked. The same-store indexed feed result is
 independent of typed loading. [Results and custody](evidence/skinny-pin-20261122/RESULTS.md).
 
+## 4,096-identity loading batches — source only
+
+The builder now takes up to 4,096 distinct full keys per page instead of 256,
+still loading complete histories and validating staged rows before publishing
+version headers. Large unmeasured queries get a bounded SQL text allowance for
+the generated key lists. Receipt checks and native execution/memory limits stay
+the same. This does not add resume support or establish native fit or speed.
+
 ## Receipt-identity repair —source only
 
 ClickHouse query_log.Settings contains changed settings. An unchanged zero row/
