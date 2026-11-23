@@ -1,3 +1,6 @@
+6.28.7 || 23.11.2026
+research: preserve the 4,096-key typed load and query complete histories per physical source before a single page write/checkpoint. The one-source native probe loaded 462,848 identities in 606.600s; the full composed run passed all feed gates and statement accounting but its first three-source history query stopped with ClickHouse 168 before execution and no typed batch committed. Source regression covers all three lanes, full 4,096-key page and cross-lane tombstone ties. Measured SQL/limits, failed receipts and D117 status unchanged. See `research/experiments/costfn/ROW-MODEL-RUN.md`.
+
 6.28.6 || 22.11.2026
 research: load up to 4,096 complete post identities per typed row-model batch, up from 256. Give large unmeasured SQL key lists a bounded parser allowance without changing measured assembly, native execution/memory limits, or verify-before-publish ordering. Source only; no speed, fit, resume or native-run claim.
 

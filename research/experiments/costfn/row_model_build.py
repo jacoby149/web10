@@ -125,7 +125,10 @@ class Builder:
             keys = [(value.author_key, value.doc_id) for value in identities]
             if keys != sorted(set(keys)) or after is not None and keys[0] <= after:
                 raise ValueError('canonical full-key cursor failed to advance exactly')
-            rows = self.query(histories(self.tables, identities))
+            # A repeated literal key list across all three branches exceeds
+            # ClickHouse's AST cap at 4,096. Keep one exact list per statement,
+            # but ingest and publish the page only after every lane is read.
+            rows = [row for table in self.tables for row in self.query(histories((table,), identities))]
             actual = {(row['author_key'], row['doc_id']) for row in rows}
             if actual != set(keys):
                 raise ValueError('canonical history fetch omitted a complete identity')
