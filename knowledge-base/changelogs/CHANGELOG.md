@@ -1,3 +1,6 @@
+6.28.11 || 27.11.2026
+research: add the baseline-only hybrid K20 runner and fixed-slice constructor. Seed from authenticated scopes and historical dependencies, retain full selected document/link/event histories, compare the slice against the unsliced independent oracle, then rebuild furniture for the slice and run only the original indexed K20. Five new offline controls; no native execution, challenger or fault-suite claim.
+
 6.28.10 || 27.11.2026
 research: add the current-arm adapter for hybrid K20. Reuse the indexed HTTP/oracle cell and reconcile captured SQL, native IDs and stage costs, including peak individual statement memory. Keep request-tagged auxiliary costs separate from captured SQL and report full HTTP wall time separately. Five offline controls; no prepared native slice, challenger measurement or lease.
 

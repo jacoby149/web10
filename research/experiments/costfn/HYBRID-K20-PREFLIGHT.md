@@ -1,8 +1,8 @@
 # D117 refinement: hybrid K20 preflight
 
-**Status:** no-engine model reproduced; current-arm evidence adapter implemented
-and checked offline. The native slice constructor, challenger arms, native
-fault suite, and small native run are pending. The
+**Status:** no-engine model reproduced; baseline-only runner, fixed-slice
+constructor and current-arm evidence adapter checked offline. Native baseline
+reproduction is pending; challenger arms and the fault suite remain deferred. The
 [D117 result](evidence/row-model-4096-20261123/RESULTS.md) rejected maximal
 payload decomposition, not every way to store queryable values separately.
 The next question is whether a hybrid is worth its extra writes and repair
@@ -38,6 +38,17 @@ state transitions model these outcomes; they do not establish ClickHouse
 atomicity, receipt semantics, or cleanup safety under concurrency.
 
 ## Small native comparison
+
+**Execution amendment: baseline first, then stop.** After the fixed-slice
+source merges and the host/window are bound, run `hybrid_k20_run_current.py`
+on the verified snapshot 255003176 and the pinned engine. The constructor
+uses the original authenticated group scopes, retains document/attachment/event
+history by dependency closure, records all three slice lanes and receipts in
+`hybrid-k20-slice.json`, and rejects a slice that disagrees with the independent
+unsliced canonical oracle before measurement. Rebuild furniture and certificates
+for the sliced generation rather than inheriting the snapshot's full-store receipts.
+Report the original indexed K20 reproduction and stop whether it passes or fails;
+the following three-arm plan applies only after a successful baseline.
 
 Use a fixed, representative post-family slice with enough parts/granules to
 expose payload pruning and with real K20 history, policy checks, and ranking.

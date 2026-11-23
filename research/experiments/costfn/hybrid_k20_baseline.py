@@ -127,6 +127,7 @@ def audit_cell(cell):
 def run_current(actions):
     """Run unchanged composition HTTP/oracle code after preparing a native slice."""
     import engagement_pin_index as pins
+    from hybrid_k20_slice import DIRECTIVE
     if not pins.enabled(actions.approval) or not actions.aggregate_ready:
         raise ValueError('indexed composition and both views grains required')
     from arm_f_native import save
@@ -134,6 +135,12 @@ def run_current(actions):
     path = Path(actions.root) / 'hybrid-k20-current.json'
     if path.exists():
         raise FileExistsError(path)
+    manifest = read(path.with_name('hybrid-k20-slice.json'))
+    if (actions.approval.get('hybrid_k20_directive') != DIRECTIVE
+            or manifest.get('status') != 'SOURCE_ORACLE_PARITY'
+            or manifest.get('source_commit') != actions.approval.get('hybrid_k20_source_commit')
+            or str(manifest.get('host')) != str(actions.approval.get('droplet_id'))):
+        raise ValueError('source-bound fixed slice and unsliced oracle parity required')
     actions.stage('uniform-K20', {})
     samples = audit_cell(Path(actions.root) / 'cells' / CELL)
     save(path, dict(arm='current', samples=samples,
