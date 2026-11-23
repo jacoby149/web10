@@ -1,5 +1,15 @@
 # Run the post-family row-model proving cell
 
+## Latest outcome —receipt proof passes, full-family build stopped partial
+
+The B baseline's repaired native preflight proves five exact data IDs and
+separate metadata/observation IDs. The later full-family worker builds
+2,104,576 of 4,000,675 identities before the operator stops the long load in
+favor of a pin-only comparison. Original RUNNING and distinct supervisor STOP
+are preserved; no active native row statement remained at stop. No full build
+or six typed comparisons were banked. The same-store indexed feed result is
+independent of typed loading. [Results and custody](evidence/skinny-pin-20261122/RESULTS.md).
+
 ## Receipt-identity repair —source only
 
 ClickHouse query_log.Settings contains changed settings. An unchanged zero row/

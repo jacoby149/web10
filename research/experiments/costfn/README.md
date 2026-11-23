@@ -1,11 +1,13 @@
 # Access-Control Cost Function Experiment
 
-## Skinny type-aware pin lookup —source only
+## Skinny type-aware pin lookup —native same-store result
 
-The operator requests a research-only skinny placement lookup followed by a
-fresh rerun. Exact full post keys select historical pin candidates, then the
-canonical read resolves only those full identities. No API or document-model
-change. Native proof and cost savings remain pending. [Contract](PIN-INDEX.md).
+On the same frozen store, measured uniform reads fall from 8.85GB to 123.1MB
+with exact parity and the original authorized creative SQL. The two pin reads
+total 56,681 bytes. The operator stopped the unrelated full typed build at
+2,104,576 of 4,000,675 identities; no typed comparisons ran. No added lease,
+platform/API change or production proof. [Contract](PIN-INDEX.md) ·
+[Native results and cleanup](evidence/skinny-pin-20261122/RESULTS.md).
 
 ## Workstream B —skinny pin selection, then exact materialization
 
@@ -313,10 +315,10 @@ private Spaces in the droplet region plus a canonical MinIO copy alongside V2,
 both manifest/digest verified. No public posting before freeze and operator
 review of the 1M statistics; any approved public release comes from MinIO.
 
-**Current source capture after dev integration:** `core-feed-wire-v7.json` plus
-cursor `core-feed-next-page-v5.json`. The merged hashtag/directory changes alter
-feed/SDK/posts/types source pins; all four request payloads and cursor SQL are
-exactly unchanged from wire v6 / cursor v4. Historical
+**Current source capture after dev integration:** `core-feed-wire-v8.json` plus
+cursor `core-feed-next-page-v6.json`. PR#1616 exported the existing exact feed
+engagement reader for Shorts, changing the feed source hash only. All four
+request payloads and cursor SQL are exactly unchanged from wire v7 / cursor v5. Historical
 fixtures/receipts remain intact. This required test fixture is not disposable
 generated-report clutter; no network or benchmark execution occurs in capture CI.
 
