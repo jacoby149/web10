@@ -1,3 +1,6 @@
+6.28.12 || 27.11.2026
+research: bank the hybrid K20 baseline-only native stop. Follow-up Discover scope entered the slice seed (88,200,362 IDs); the first expansion stopped natively at 600.060 s/code 159 before any slice exchange or K20 measurement. Off-host archive integrity and owned cleanup verified, snapshot retained. Baseline and challengers not run; no new lease. [Results](../../research/experiments/costfn/evidence/hybrid-k20-baseline-20261123/RESULTS.md).
+
 6.28.11 || 27.11.2026
 research: add the baseline-only hybrid K20 runner and fixed-slice constructor. Seed from authenticated scopes and historical dependencies, retain full selected document/link/event histories, compare the slice against the unsliced independent oracle, then rebuild furniture for the slice and run only the original indexed K20. Five new offline controls; no native execution, challenger or fault-suite claim.
 
