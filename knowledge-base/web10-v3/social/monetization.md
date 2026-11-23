@@ -1,7 +1,7 @@
 # Monetization (web10-social): The App-Owned Ad Surface
 
 **Current implementation, not the new ad/storage target.** D115 and D116 are
-DECIDED; D117 is DIRECTION (cell pending). Historical read-time ad behaviour
+DECIDED; D117 is MEASURED (maximal rejected). Historical read-time ad behaviour
 below is not authority to implement it in the new proving cell. Definitions
 and unclosed proof gates: [design map](../db/design-revolution.md).
 

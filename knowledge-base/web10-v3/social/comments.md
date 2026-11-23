@@ -2,7 +2,7 @@
 
 **Current implementation/API examples, not replacement storage.** `ref_value`
 and JSON-body assumptions below remain current. D116 (DECIDED) defines N-ref
-relationships; D117 (DIRECTION, cell pending) defines typed-row storage. JSON
+relationships; D117 (MEASURED) rejects maximal payload decomposition. JSON
 API messages do not prescribe physical storage under D118 (DECIDED). See the
 [canonical design map](../db/design-revolution.md).
 

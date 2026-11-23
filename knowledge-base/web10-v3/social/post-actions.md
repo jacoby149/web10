@@ -1,7 +1,7 @@
 # Post Actions — one shared engagement bar for every post
 
 **Current app/API composition, not target storage.** JSON/ref-based examples
-describe today's implementation. D116 (DECIDED), D117 (DIRECTION, cell pending)
+describe today's implementation. D116 (DECIDED), D117 (MEASURED, maximal rejected)
 and D118 (DECIDED) distinguish future relationships/storage from API messages;
 see the [design map](../db/design-revolution.md).
 
