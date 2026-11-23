@@ -1,5 +1,12 @@
 # Access-Control Cost Function Experiment
 
+## D117 row-model proving cell — complete; maximal model rejected
+
+Merged #1620 completed the full post-family load, independent parity, and six
+assembly comparisons. All six crossed D117's pre-committed cost threshold;
+retain queryable values as rows and payload as document content. No production
+change or new admission. [Results and original receipt custody](evidence/row-model-4096-20261123/RESULTS.md).
+
 ## Skinny type-aware pin lookup —native same-store result
 
 On the same frozen store, measured uniform reads fall from 8.85GB to 123.1MB
@@ -162,9 +169,9 @@ is consumed/closed, no automatic retry. Exact failure/cost/custody/cleanup:
 
 ## Directive precedence index
 
-**As of 20 November 2026.** This index owns precedence, not design definitions
+**As of 23 November 2026.** This index owns precedence, not design definitions
 or measured values. The [decision ledger](../../../knowledge-base/strategy/decisions.md)
-owns D115/D116/D118 DECIDED, D117/D119 DIRECTION and D120 PRINCIPLE. Evidence
+owns D115/D116/D118 DECIDED, D117 MEASURED, D119 DIRECTION and D120 PRINCIPLE. Evidence
 reports own numerical facts. Current implementation is still documented in the
 [v3 schema](../../../knowledge-base/web10-v3/db/clickhouse.md); source machinery
 and a chosen direction are not native acceptance or production replacement.
@@ -179,9 +186,9 @@ retroactive waiver of failed or missing gates.
 |---|---|
 |20 November layout/clock amendment above; D122 | **Operative for the newly admitted composition→row cell** — analytics layout mutable, logical events frozen,24h self-kill; supersedes prior raw-layout/four-hour fences only |
 | `README.md`, Governing execution directive below | **Operative** — current execution policy; overrides older row/deadline/client/byte aborts, not receipts |
-| [ALL-FIXES-THEN-MEASURE.md](ALL-FIXES-THEN-MEASURE.md) | **Operative** — composed read treatment and required prechecks; no measured result banked |
-| [ROW-MODEL-QUEUED.md](ROW-MODEL-QUEUED.md) | **Queued behind ALL-FIXES-THEN-MEASURE measurements** — source work precedes both runs; D117 proving cell pending |
-| [ROW-MODEL-RUN.md](ROW-MODEL-RUN.md) | **Operative runbook for the queued ROW-MODEL-QUEUED cell** — explicit host/window/source binding required; not execution evidence |
+| [ALL-FIXES-THEN-MEASURE.md](ALL-FIXES-THEN-MEASURE.md) | **Operative contract** — composed read treatment and prechecks; measured attempts are in the evidence reports |
+| [ROW-MODEL-QUEUED.md](ROW-MODEL-QUEUED.md) | **Executed** — original proving contract; D117 exact parity, maximal assembly rejected |
+| [ROW-MODEL-RUN.md](ROW-MODEL-RUN.md) | **Runbook and attempt lineage** — explicit host/window/source binding; completed result reported separately |
 | [task-block-engagement-ref-redesign.md](task-block-engagement-ref-redesign.md) | **Superseded for new treatment/run selection by ALL-FIXES-THEN-MEASURE** — retains earlier admissions, closed attempts and receipt pointers |
 | [task-block-fanout-arm.md](task-block-fanout-arm.md) | **Executed and banked, qualified Config F history** — later complete-read work proceeds through ALL-FIXES-THEN-MEASURE; unearned F capacity/write gates remain OPEN |
 | [ARM-F-DESIGN-CLOSURE.md](ARM-F-DESIGN-CLOSURE.md) | **Executed and banked, partial/stopped research attempts** — no whole-F acceptance; current composed-read successor is ALL-FIXES-THEN-MEASURE |

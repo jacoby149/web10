@@ -1,7 +1,7 @@
 # Saved collections — playlists on the profile, private by default
 
 **Current implementation/API examples.** The JSON/`ref_value` representation is
-not the replacement target: D116 is DECIDED, D117 is DIRECTION (cell pending),
+not a shipped replacement: D116 is DECIDED, D117 is MEASURED (maximal rejected),
 and D118 is DECIDED about API/export versus storage shape. Canonical definitions
 and proof status: [design map](../db/design-revolution.md).
 

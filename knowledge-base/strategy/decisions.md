@@ -8,12 +8,12 @@ and task breakdowns live in `plan.txt`.
 Status legend: [decided] intent set · [in-progress] · [open] still debating.
 For D115–D120, **DECIDED** records operator intent, **DIRECTION** records a
 chosen design awaiting its proving cell, and **PRINCIPLE** records the lesson.
-None of these labels means implemented, measured or shipped.
+MEASURED records a proving-cell verdict, not implementation or rollout.
 
 **Reading older entries:** original rationale, operator quotations and dated
 implementation receipts are historical, not retroactively revised acceptance.
 Current API/storage examples use JSON and a single `ref_value`; that is not the
-D116 (DECIDED)/D117 (DIRECTION, cell pending) replacement target. D118 is DECIDED
+D116 (DECIDED) relationship target or a shipped D117 refinement. D118 is DECIDED
 about representation separation; the [design map](../web10-v3/db/design-revolution.md)
 links the canonical definitions and reports. Older decisions explicitly
 superseded by a later entry remain visible as history.
@@ -176,7 +176,17 @@ this internal-storage decision. Rejects: export format dictating physical
 layout, deleting canonical research JSON before replacement proof, and using
 storage freedom as permission to break clients. No migration or rollout here.
 
-### D117 — Documents become versioned pointers to immutable typed rows [DIRECTION; cell pending]
+<a id="d117--documents-become-versioned-pointers-to-immutable-typed-rows-direction-cell-pending"></a>
+
+### D117 — Documents become versioned pointers to immutable typed rows [MEASURED; maximal rejected]
+
+**23 November 2026 verdict:** all six post-family comparisons matched exactly
+and crossed the pre-committed order-of-magnitude test. Reject decomposition of
+the full payload in this maximal layout. Retain the refinement: queryable values
+as rows, payload as document content. This is not implementation or native proof
+of a replacement design. [Completed cell and measured costs](../../research/experiments/costfn/evidence/row-model-4096-20261123/RESULTS.md).
+
+**Original hypothesis, retained for context.**
 
 **Jacob Hoffman, 19 November 2026:** these are “revolutionary changes to the
 system.” The chosen direction is the maximal row model, not merely a few
@@ -212,7 +222,7 @@ only the cheaper refinement.
 assembly supports maximal decomposition **at page scale only**. Exact parity
 with order-of-magnitude costlier assembly rejects the maximal version and banks
 the refinement: queryable values as rows, payload as document content. A parity
-mismatch blocks measurement; neither verdict is recorded yet.
+mismatch blocks measurement. The completed cell triggered the rejection rule.
 
 **Proof order and admitted scope:** “make all the fixes, then do the experiments.”
 Row-model source preparation is necessary before spending on runs, but its
@@ -225,7 +235,7 @@ tombstones, shared values and zero-payload documents, then separately price
 displayed-key/feed and full post-open assembly. Other families, garbage
 collection, production and §8 are not admitted by this record. Contract:
 [`ROW-MODEL-QUEUED.md`](../../research/experiments/costfn/ROW-MODEL-QUEUED.md).
-No row-model measurement or production acceptance is claimed.
+The completed cell is isolated post-family assembly evidence, not production acceptance.
 
 ### D116 — Docs are nodes, refs are edges: a generic N-ref satellite [DECIDED]
 
@@ -1902,8 +1912,9 @@ gating.
 ### D63 — The flexible read: the API authorizes app SQL before ClickHouse execution [decided]
 
 **Current implementation, not replacement storage.** JSON/single-ref examples
-retain their present API meaning; D116 is DECIDED, D117 is DIRECTION (cell pending)
-and D118 is DECIDED. See the [design map](../web10-v3/db/design-revolution.md).
+retain their present API meaning; D116 and D118 are DECIDED. D117's measured
+rejection retains queryable rows and document payload as the refinement. See the
+[design map](../web10-v3/db/design-revolution.md).
 
 **The decision.** An app writes a ClickHouse `SELECT` over its **service
 names** (`posts`, `comments`, …); the node compiles it through the safe-query

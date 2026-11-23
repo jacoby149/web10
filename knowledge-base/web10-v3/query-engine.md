@@ -10,8 +10,8 @@ aggregations, raw SQL), the query-language fork (resolved: SQL subset), and
 the phasing.
 
 **Read the tense.** The JSON documents and `ref_value` column below are current
-implementation, not the new storage target. D116 is DECIDED; D117 is DIRECTION
-with its proving cell pending. Their [canonical decision map](db/design-revolution.md)
+implementation, not a shipped replacement. D116 is DECIDED; D117 is MEASURED
+and rejects maximal payload decomposition. Their [canonical decision map](db/design-revolution.md)
 does not claim a production migration. Earlier design alternatives remain
 labelled discussion, not a second description of the implemented SQL interface.
 

@@ -2,7 +2,7 @@
 
 **Current API record shapes.** JSON examples describe app -> API inputs and
 API -> app/UI responses, not a requirement to store JSON. D118 is DECIDED;
-D116 is DECIDED and D117 is DIRECTION (cell pending) for the storage target.
+D116 is DECIDED; D117 is MEASURED and rejects maximal payload decomposition.
 See the [design map](../db/design-revolution.md).
 
 Two concerns. Two contracts. One model.

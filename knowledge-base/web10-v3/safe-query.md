@@ -11,8 +11,8 @@ why the guarantee holds.
 
 **Current implementation.** The JSON-body/single-`ref_value` SQL below describes
 the running v3 design, not the replacement storage. D116 (DECIDED) defines
-derived N-ref relationships; D117 (DIRECTION, cell pending) defines typed-row
-storage. [The design map](db/design-revolution.md) links their canonical definitions.
+derived N-ref relationships; D117's measured refinement keeps queryable values
+as rows and payload as document content. [The design map](db/design-revolution.md) links the evidence.
 At the app -> API boundary, the API validates the caller and submitted SQL.
 At the API -> ClickHouse boundary, it supplies access-filtered SQL for execution.
 

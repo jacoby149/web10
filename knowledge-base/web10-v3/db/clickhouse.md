@@ -5,7 +5,7 @@ The data model. Every table, every index, every pattern.
 **Current implementation, not target DDL.** The JSON-body and single-`ref_value`
 schema below is retained as the current implementation. The canonical design
 definitions live in the [decision map's linked ledger](design-revolution.md):
-D115/D116/D118 are DECIDED, D117 is DIRECTION (cell pending), D119 is DIRECTION,
+D115/D116/D118 are DECIDED, D117 is MEASURED (maximal rejected), D119 is DIRECTION,
 and D120 is PRINCIPLE. Existing projection/JSON examples are not an instruction
 to preserve that physical representation in the replacement. No DDL, native
 evidence or production rollout is changed by this label.
@@ -42,7 +42,7 @@ control and later modern-engine baseline/treatment results are linked from the
 [directive precedence index](../../../research/experiments/costfn/README.md#directive-precedence-index),
 not a request to rerun a banked baseline from this paragraph. `_part_offset`
 was a proposed same-projection comparison; it is not a second admitted layout
-or the D116 (DECIDED)/D117 (DIRECTION, cell pending) target. Current history,
+or the D116 relationship target and D117 refinement. Current history,
 full-key and policy checks remain mandatory; no offset or production acceptance
 is claimed. Historical technology reference:
 <https://clickhouse.com/docs/data-modeling/projections>.

@@ -1,5 +1,9 @@
 # Run the post-family row-model proving cell
 
+**Current verdict:** [the full 23 November proving cell](evidence/row-model-4096-20261123/RESULTS.md)
+completed with exact parity and rejected maximal decomposition on all six
+measured assembly comparisons. Earlier probes and stops below remain history.
+
 ## 23 November — 4,096-key probe and composed history parse stop
 
 Merged #1619's single-source snapshot probe on DO622385751 completed 113
@@ -28,7 +32,7 @@ Neither the AST limit nor native memory or execution limits are raised. A new
 native preflight needs all three source lanes on a 4,096-key page, not another
 single-source timing probe. The stopped run and D117 verdict remain unchanged.
 
-## Latest outcome —receipt proof passes, full-family build stopped partial
+## Earlier outcome —receipt proof passes, full-family build stopped partial
 
 The B baseline's repaired native preflight proves five exact data IDs and
 separate metadata/observation IDs. The later full-family worker builds

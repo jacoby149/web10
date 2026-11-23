@@ -317,13 +317,14 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 
 **19 November design revolution — intent, not shipped storage (D115–D120):**
 The canonical definitions/statuses live in `knowledge-base/strategy/decisions.md`:
-D115 DECIDED, D116 DECIDED, D117 DIRECTION (cell pending), D118 DECIDED,
+D115 DECIDED, D116 DECIDED, D117 MEASURED (maximal rejected), D118 DECIDED,
 D119 DIRECTION, D120 PRINCIPLE. Read the navigation/evidence links in
 `knowledge-base/web10-v3/db/design-revolution.md`; do not copy its linked
-reports' numbers into new guidance. The current JSON/`ref_value` implementation
-is NOT the target or a permanent hybrid. Retain canonical JSON for experimental
-source/oracle/fallback until replacement proof; source machinery is not native
-acceptance or production migration. Old `ref_sorted` receipts remain history.
+reports' numbers into new guidance. D117's completed isolated post-family cell
+rejects maximal payload decomposition; retain queryable values as rows and
+payload as document content. The current JSON/`ref_value` implementation has not
+been replaced, and the refinement is not production proof. Old `ref_sorted`
+receipts remain history.
 
 “Make all the fixes, then do the experiments”: prepare row-model source before
 spending; bank all-fixes measurements before row-model assembly measurements.
