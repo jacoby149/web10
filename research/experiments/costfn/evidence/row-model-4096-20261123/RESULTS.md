@@ -44,6 +44,19 @@ performance claim for an untested replacement.
 | Paired post-open | 8,192 → 252,377 | 169,943 → 22,382,346 | 36.293 → 214.443 | rows, bytes |
 | Fat post-open | 1 → 90,115 | 130 → 7,961,452 | 28.248 → 133.091 | rows, bytes |
 
+| Case | Largest single assembly query, canonical → typed (bytes of memory) | Typed wall time including generation fence (ms) |
+|---|---:|---:|
+| Uniform K20 feed | 9,701,515 → 6,737,205 | 479.194 |
+| Paired P feed | 5,503,842 → 9,317,912 | 302.830 |
+| Paired F feed | 5,503,858 → 9,312,088 | 271.755 |
+| Ordinary post-open | 9,699,643 → 6,737,109 | 401.801 |
+| Paired post-open | 8,038,145 → 9,317,896 | 290.793 |
+| Fat post-open | 5,115,878 → 6,154,471 | 210.366 |
+
+The memory column is the maximum recorded ClickHouse `memory_usage` of any
+individual assembly statement, not request-wide memory or process RSS. It is
+separate from logical read bytes, which drove the rejection in every case.
+
 Numbers are isolated assembly costs, not the whole feed, p95, engagement-thread
 assembly, or native CPU time. The fat control is one post's payload, not its
 engagement thread. Each row compares one warmed observation. The table excludes
