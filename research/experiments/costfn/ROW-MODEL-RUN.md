@@ -1,5 +1,33 @@
 # Run the post-family row-model proving cell
 
+## 23 November — 4,096-key probe and composed history parse stop
+
+Merged #1619's single-source snapshot probe on DO622385751 completed 113
+batches: 462,848 identities in 606.600s (763.0/s, 717.4/s in the second half).
+That projects 87–93 minutes of loading, excluding setup and verification;
+it is not composed-store throughput. The largest single native query used
+81,983,012 bytes (about 78 MiB). Probe receipts verified off-host before cleanup.
+
+The separate full run on DO622389844 passed setup (319 daily slices and 489
+all-time batches), all four parity gates, all three complete-feed cells and
+statement accounting. Its first typed page selected 4,096 identities, but the
+three-source history statement copied the same tuple list into each branch.
+ClickHouse returned `TOO_BIG_AST` (168, 50,000-node limit) before execution:
+zero native reads or writes for that statement, no committed typed batch and
+no assembly comparisons. Final state and original stopped query-log parts
+verified off-host before owned cleanup. The source snapshot was retained.
+The failed exact query ID was `row-model-188e27d6c2384c97890888a5a4758c07`;
+state/native archive SHA-256 prefixes are `cd72cff51543` and `5fc580def85ff`.
+The elapsed compute estimates were $0.0823 for the probe and $0.9476 for the
+full attempt (not invoices; retained snapshot storage is separate).
+
+The source repair reads each named source's complete history separately for the
+same page, validates combined coverage, and writes/checkpoints once for the
+whole 4,096-key page. The canonical assembly and oracle paths are unchanged.
+Neither the AST limit nor native memory or execution limits are raised. A new
+native preflight needs all three source lanes on a 4,096-key page, not another
+single-source timing probe. The stopped run and D117 verdict remain unchanged.
+
 ## Latest outcome —receipt proof passes, full-family build stopped partial
 
 The B baseline's repaired native preflight proves five exact data IDs and
