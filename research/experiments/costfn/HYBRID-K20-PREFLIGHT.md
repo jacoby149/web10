@@ -1,6 +1,8 @@
 # D117 refinement: hybrid K20 preflight
 
-**Status:** no-engine model reproduced; small native comparison pending. The
+**Status:** no-engine model reproduced; current-arm evidence adapter implemented
+and checked offline. The native slice constructor, challenger arms, native
+fault suite, and small native run are pending. The
 [D117 result](evidence/row-model-4096-20261123/RESULTS.md) rejected maximal
 payload decomposition, not every way to store queryable values separately.
 The next question is whether a hybrid is worth its extra writes and repair

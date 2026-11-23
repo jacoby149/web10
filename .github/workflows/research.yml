@@ -52,6 +52,7 @@ jobs:
           python restore_realism.test.py
           python smoke_realism.test.py
           python hybrid_fixture.py
+          python hybrid_k20_baseline.test.py
       - name: Run full F satellite and engagement no-engine suite
         working-directory: research/experiments/costfn
         run: |
