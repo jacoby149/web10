@@ -72,10 +72,16 @@ class Actions(finish.Actions):
         save(self.root / 'checkpoint.json', dict(stage=name, outcome=result['outcome'],
             directive=contract.DIRECTIVE, deadline_utc=self.approval['deadline_utc']))
 
+    def base_infrastructure(self):
+        return prepared.run(self.root)
+
+    def expected_events(self):
+        return 1_600_000_000
+
     def furniture(self, session):
         # All canonical fixture writes precede initial infrastructure/fingerprints.
         # No obsolete ref projection is constructed on either table.
-        initial = prepared.run(self.root)
+        initial = self.base_infrastructure()
         session.query('composition_freeze_copy', 'SYSTEM STOP MERGES engagement_documents')
         projections, _ = session.rows('composition_no_ref_projection', "SELECT count() AS n FROM system.projections "
             "WHERE database='web10' AND table IN ('documents','engagement_documents')")
@@ -97,6 +103,7 @@ class Actions(finish.Actions):
         if window.enabled(self.approval):
             layout = event_layout.rebuild(session, self.root, writers_stopped=True)
         receipts = event_seed.install(session, self.root, writers_stopped=True,
+            expected_events=self.expected_events(),
             buckets_by_day=self.approval.get('aggregate_seed_day_buckets'))
         self.aggregate_ready = True
         if setup.parts(session, 'engagement_documents')[0] != digest:

@@ -80,7 +80,7 @@ def presence(root, epoch, session, name, profile, generation, targets):
     save(root / ('presence-' + name + '.json'), result)
 
 
-def infrastructure(root, name, *, initial=False):
+def infrastructure(root, name, *, initial=False, settle=True):
     root = Path(root)
     cells.stop(root)
     session = modern.Session(root)
@@ -88,7 +88,8 @@ def infrastructure(root, name, *, initial=False):
         # Only explicitly owned derived research layouts. Never canonical data.
         for table in (batching.PARTS, batching.FINAL, 'strings', 'timestamps', 'doc_groups_t', 'fanout'):
             session.query('discard_old_derived_' + table, 'DROP TABLE IF EXISTS ' + table)
-        infra.settle_canonical(session)
+        if settle:
+            infra.settle_canonical(session)
     else:
         for table in ('strings', 'timestamps', 'doc_groups_t'):
             session.query('refresh_derived_' + table, 'DROP TABLE ' + table)

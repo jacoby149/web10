@@ -1,3 +1,9 @@
+6.28.11 || 27.11.2026
+research: add the baseline-only hybrid K20 runner and fixed-slice constructor. Seed from authenticated scopes and historical dependencies, retain full selected document/link/event histories, compare the slice against the unsliced independent oracle, then rebuild furniture for the slice and run only the original indexed K20. Five new offline controls; no native execution, challenger or fault-suite claim.
+
+6.28.10 || 27.11.2026
+research: add the current-arm adapter for hybrid K20. Reuse the indexed HTTP/oracle cell and reconcile captured SQL, native IDs and stage costs, including peak individual statement memory. Keep request-tagged auxiliary costs separate from captured SQL and report full HTTP wall time separately. Five offline controls; no prepared native slice, challenger measurement or lease.
+
 6.28.9 || 23.11.2026
 research: bank the no-engine hybrid K20 model and queue a three-arm native comparison. Exact ordered parity; the hybrid touches 11.15× fewer modeled bytes than a whole-document scan but 11.1% more than projected canonical. Separate the historical 25 MB logical reference, modeled ~73 MB/read gross physical allowance on the R630, and 500 ms latency target. No native result, lease or production change. [Findings and gates](../../research/experiments/costfn/HYBRID-K20-PREFLIGHT.md).
 
