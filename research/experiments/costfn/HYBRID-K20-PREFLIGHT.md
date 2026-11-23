@@ -42,8 +42,11 @@ atomicity, receipt semantics, or cleanup safety under concurrency.
 **Execution amendment: baseline first, then stop.** After the fixed-slice
 source merges and the host/window are bound, run `hybrid_k20_run_current.py`
 on the verified snapshot 255003176 and the pinned engine. The constructor
-uses the original authenticated group scopes, retains document/attachment/event
-history by dependency closure, records all three slice lanes and receipts in
+seeds historical posts using only the authenticated main post scope and reader
+ownership. Follow-up scopes stay authoritative for reads but do not seed the
+global candidate inventory. Inbound dependencies are selected from the fixed
+post roots; only retained keys are parsed for outgoing references. The constructor
+retains document/attachment/event history, records all three slice lanes and receipts in
 `hybrid-k20-slice.json`, and rejects a slice that disagrees with the independent
 unsliced canonical oracle before measurement. Rebuild furniture and certificates
 for the sliced generation rather than inheriting the snapshot's full-store receipts.

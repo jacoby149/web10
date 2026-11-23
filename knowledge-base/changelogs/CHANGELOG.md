@@ -1,3 +1,6 @@
+6.28.13 || 27.11.2026
+research: repair the fixed K20 slice after the native constructor stop documented in PR #1624. Seed only historical post IDs in the authenticated main post scope or owned by the reader; keep follow-up Discover authority separate. Resolve inbound dependencies from fixed roots and parse outgoing refs only for retained IDs. Historical copies, unsliced oracle gate and baseline-only run order unchanged. Offline controls only; no new native result.
+
 6.28.11 || 27.11.2026
 research: add the baseline-only hybrid K20 runner and fixed-slice constructor. Seed from authenticated scopes and historical dependencies, retain full selected document/link/event histories, compare the slice against the unsliced independent oracle, then rebuild furniture for the slice and run only the original indexed K20. Five new offline controls; no native execution, challenger or fault-suite claim.
 

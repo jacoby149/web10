@@ -11,27 +11,26 @@ DIRECTIVE = 'RD4-HYBRID-K20-NATIVE baseline reproduction only'
 TABLES = ('documents', 'doc_groups', 'content_events')
 KEYS = 'hybrid_k20_slice_keys'
 NEXT_KEYS = 'hybrid_k20_slice_next_keys'
+ROOTS = 'hybrid_k20_slice_main_posts'
+COMMENTS = 'hybrid_k20_slice_root_comments'
 BUCKETS = 8
 
 
 def scope(profiles):
     if set(profiles) != {'ordinary', 'fixture'}:
         raise ValueError('original composition profiles required')
-    groups, readers = set(), set()
+    groups, readers, followups = set(), set(), set()
     for profile in profiles.values():
         if profile['dataset_id'] != DATASET or not profile['reader'] or not profile['groups']:
             raise ValueError('frozen dataset and nonempty authenticated profile required')
         readers.add(profile['reader'])
-        groups.update(profile['groups'])
         readable = profile['actual_readable_by_kind']
-        if set(readable) != {'main', 'reactions', 'comments'}:
+        if set(readable) != {'main', 'reactions', 'comments'} or not readable['main'].get('posts'):
             raise ValueError('all original compiler scopes required')
-        for by_service in readable.values():
-            for service_groups in by_service.values():
-                groups.update(service_groups)
-    # Keep full group histories for the selected documents, including Discover
-    # links. The separate views request does not seed every Discover document.
-    return sorted(groups), sorted(readers)
+        groups.update(readable['main']['posts'])
+        for kind in ('reactions', 'comments'):
+            followups.update(readable[kind][kind])
+    return sorted(groups), sorted(readers), sorted(followups)
 
 
 def literals(values):
@@ -39,28 +38,57 @@ def literals(values):
 
 
 def seed_sql(groups, readers):
+    return (f'INSERT INTO {ROOTS} SELECT DISTINCT doc_id FROM documents '
+        "WHERE collection_name='posts' AND doc_id!='' AND ("
+        f'author_key IN ({literals(readers)}) OR doc_id IN ('
+        f'SELECT doc_id FROM doc_groups WHERE group_id IN ({literals(groups)})))')
+
+
+def comment_sql():
+    # All historical refs can nominate an identity. The canonical reader still
+    # selects the live winner under the original service and policy gates.
+    return (f'INSERT INTO {COMMENTS} SELECT DISTINCT doc_id FROM documents '
+        "WHERE collection_name='comments' AND doc_id!='' "
+        f"AND JSONExtractString(body,'post_id') IN (SELECT doc_id FROM {ROOTS})")
+
+
+def support_sql():
+    # Discover/view and follow-up policy remain untouched at read time. Do not
+    # add everything readable in those scopes; gather root-bound dependencies.
     return (f'INSERT INTO {KEYS} SELECT DISTINCT doc_id FROM ('
-        f'SELECT doc_id FROM doc_groups WHERE group_id IN ({literals(groups)}) UNION ALL '
-        f'SELECT doc_id FROM documents WHERE author_key IN ({literals(readers)}) '
-        "OR collection_name='profile' OR has(tags,'node_ad')) WHERE doc_id!=''")
+        f'SELECT doc_id FROM {ROOTS} UNION ALL SELECT doc_id FROM {COMMENTS} UNION ALL '
+        "SELECT doc_id FROM documents WHERE collection_name='reactions' AND ("
+        f'ref_value IN (SELECT doc_id FROM {ROOTS}) OR ref_value IN (SELECT doc_id FROM {COMMENTS})) UNION ALL '
+        "SELECT doc_id FROM documents WHERE collection_name='posts' "
+        f"AND JSONExtractString(body,'repost_of') IN (SELECT doc_id FROM {ROOTS}) UNION ALL "
+        "SELECT doc_id FROM documents WHERE collection_name='placements' "
+        f'AND ref_value IN (SELECT doc_id FROM {ROOTS}) UNION ALL '
+        "SELECT doc_id FROM documents WHERE has(tags,'node_ad')) WHERE doc_id!=''")
 
 
 def expand_sql():
-    # Both directions matter: a comment can be reached by its historical root,
-    # and a retained reply must bring a legacy parent even if the parent moved.
-    # Keep doc_id at this boundary because attachments and events use bare IDs;
-    # the physical document copy retains every author and version for those IDs.
+    # Inbound discovery was bounded by the fixed main post roots above. Walk
+    # only outgoing refs here, including legacy reply parents, and only parse
+    # bodies for retained IDs. Copying by bare ID preserves all author versions
+    # sharing the attachment/event identity; it does not grant read authority.
     edges = ('arrayJoin([ref_value,JSONExtractString(body,\'post_id\'),'
         'JSONExtractString(body,\'parent_id\'),JSONExtractString(body,\'target_id\'),'
         'JSONExtractString(body,\'repost_of\'),JSONExtractString(body,\'ad_id\')])')
     return (f'INSERT INTO {NEXT_KEYS} SELECT DISTINCT doc_id FROM ('
         f'SELECT doc_id FROM {KEYS} UNION ALL '
-        'SELECT doc_id FROM (SELECT doc_id,' + edges + ' AS related FROM documents '
-        "WHERE collection_name IN ('posts','reactions','comments','placements')) "
-        f'WHERE related IN (SELECT doc_id FROM {KEYS}) UNION ALL '
         'SELECT related AS doc_id FROM (SELECT ' + edges + ' AS related FROM documents '
         "WHERE collection_name IN ('posts','reactions','comments','placements') "
         f'AND doc_id IN (SELECT doc_id FROM {KEYS}))) WHERE doc_id!=\'\'')
+
+
+def profile_sql(readers):
+    return (f'INSERT INTO {NEXT_KEYS} SELECT DISTINCT doc_id FROM ('
+        f'SELECT doc_id FROM {KEYS} UNION ALL '
+        "SELECT doc_id FROM documents WHERE collection_name='profile' AND ("
+        f'author_key IN ({literals(readers)}) OR author_key IN ('
+        f'SELECT author_key FROM documents WHERE doc_id IN (SELECT doc_id FROM {KEYS})) '
+        f'OR author_key IN (SELECT posted_by FROM documents WHERE doc_id IN (SELECT doc_id FROM {KEYS})))) '
+        "WHERE doc_id!=''")
 
 
 def copy_sql(table, columns, bucket):
@@ -98,11 +126,11 @@ def build(session, root, profiles, *, writers_stopped):
     path = root / 'hybrid-k20-slice.json'
     if path.exists():
         raise FileExistsError(path)
-    groups, readers = scope(profiles)
+    groups, readers, followups = scope(profiles)
     manifest = dict(status='BUILDING', dataset_id=DATASET, host=session.host_id,
-        groups=groups, readers=readers, buckets=BUCKETS, statements=[], tables={},
+        main_post_groups=groups, followup_groups=followups, readers=readers, buckets=BUCKETS, statements=[], tables={},
         source_commit=session.operation['hybrid_k20_source_commit'],
-        policy_tables='untouched', selection='authenticated scopes and dependency closure, not page winners')
+        policy_tables='untouched', selection='main post scopes; root-bound inbound and retained-key outgoing dependencies')
 
     def execute(label, sql, *, rows=False):
         entry = dict(label=label, sql_sha256=hashlib.sha256(sql.encode()).hexdigest(), status='STARTED')
@@ -124,13 +152,17 @@ def build(session, root, profiles, *, writers_stopped):
     try:
         for table in TABLES:
             execute('freeze_source_' + table, f'SYSTEM STOP MERGES {table}')
-        for key_table in (KEYS, NEXT_KEYS):
+        for key_table in (KEYS, NEXT_KEYS, ROOTS, COMMENTS):
             execute('create_' + key_table, f'CREATE TABLE {key_table} (doc_id String) ENGINE=MergeTree ORDER BY doc_id')
         execute('seed', seed_sql(groups, readers))
-        counts = [count(KEYS, 'seed_count')]
-        manifest['closure_counts'] = counts
-        if not counts[0]:
+        manifest['main_root_count'] = count(ROOTS, 'main_root_count')
+        if not manifest['main_root_count']:
             raise ValueError('empty authenticated scope slice')
+        execute('comments', comment_sql())
+        manifest['root_comment_count'] = count(COMMENTS, 'root_comment_count')
+        execute('support', support_sql())
+        counts = [count(KEYS, 'support_count')]
+        manifest['closure_counts'] = counts
         while True:
             execute('expand', expand_sql())
             current = count(NEXT_KEYS, 'closure_count')
@@ -141,6 +173,12 @@ def build(session, root, profiles, *, writers_stopped):
             counts.append(current)
             execute('exchange_keys', f'EXCHANGE TABLES {KEYS} AND {NEXT_KEYS}')
             execute('reset_next_keys', f'TRUNCATE TABLE {NEXT_KEYS}')
+        execute('reset_next_keys_for_profiles', f'TRUNCATE TABLE {NEXT_KEYS}')
+        execute('profiles', profile_sql(readers))
+        manifest['retained_key_count'] = count(NEXT_KEYS, 'all_keys_count')
+        if manifest['retained_key_count'] < counts[-1]:
+            raise ValueError('profile enrichment omitted a retained identity')
+        execute('activate_keys', f'EXCHANGE TABLES {KEYS} AND {NEXT_KEYS}')
 
         for table in TABLES:
             shadow = 'hybrid_k20_slice_' + table
