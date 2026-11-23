@@ -320,6 +320,7 @@ class RowModelTests(unittest.TestCase):
         self.assertEqual((result['identities'], result['versions']), (1,2))
         self.assertEqual(store.read([model.Identity('a','p')])[model.Identity('a','p')]['body'], {'text':'new'})
         self.assertEqual(len(checkpoints), 1)
+        self.assertTrue(all(query.count('LIMIT 4096') == 2 for query in queries if query.startswith('SELECT DISTINCT')))
         self.assertNotIn('LIMIT', next(q for q in queries if not q.startswith('SELECT DISTINCT')))
         with self.assertRaisesRegex(ValueError, 'frozen'):
             build.Builder(source, store, checkpoints.append, source_tables=['engagement_documents'])

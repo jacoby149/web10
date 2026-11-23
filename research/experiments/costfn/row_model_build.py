@@ -11,6 +11,7 @@ from arm_satellite_sql import identifier, literal as q
 
 COLUMNS = ('doc_id', 'author_key', 'collection_name', 'body', 'ref_value', 'tags',
     'created_at', 'updated_at', 'deleted', 'ad_mode', 'ad_target', 'posted_by')
+IDENTITY_BATCH_SIZE = 4096
 
 
 def lake(tables):
@@ -20,8 +21,8 @@ def lake(tables):
         + " WHERE collection_name='posts'" for table in tables) + ')'
 
 
-def identity_page(tables, after=None, size=256):
-    if type(size) is not int or not 1 <= size <= 4096:
+def identity_page(tables, after=None, size=IDENTITY_BATCH_SIZE):
+    if type(size) is not int or not 1 <= size <= IDENTITY_BATCH_SIZE:
         raise ValueError('bounded complete-identity ingest page required')
     predicate = '' if after is None else ' AND (author_key,doc_id)>(' + q(after[0]) + ',' + q(after[1]) + ')'
     # Exact top-K union: a globally first K distinct identity must be in the

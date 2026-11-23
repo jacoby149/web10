@@ -1,3 +1,6 @@
+6.28.6 || 22.11.2026
+research: load up to 4,096 complete post identities per typed row-model batch, up from 256. Give large unmeasured SQL key lists a bounded parser allowance without changing measured assembly, native execution/memory limits, or verify-before-publish ordering. Source only; no speed, fit, resume or native-run claim.
+
 6.28.5 || 22.11.2026
 research: bank the indexed same-store Discover result on merged #1612: complete measured uniform 8,847,767,874→123,119,689 logical bytes with exact parity; pin stages 8,724,706,238→56,681 bytes, largest query memory 779,239,804→119,265,441 bytes, HTTP sample 9,589.268→7,017.152ms. All four gates, all three feed cells and statement inventory PASS; warmup delivery-history differences and one-time build/census costs stay separate. Operator stops B's unrelated typed build at 2,104,576/4,000,675, zero active native row work; original RUNNING preserved plus partial STOP, no six typed comparisons. Later scope uses same frozen B store/original DO622231325 lease, no typed rebuild or MinIO/production changes. Final state and stopped native parts verify off-host; owned cleanup 23:44:41 UTC, estimated compute $2.963705/not invoice, snapshot retained. [Results](../../research/experiments/costfn/evidence/skinny-pin-20261122/RESULTS.md).
 
