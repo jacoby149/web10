@@ -63,7 +63,7 @@ class Actions(finish.Actions):
         if name in contract.CELLS:
             return self.complete('all-fixes-' + name, 'uniform',
                 profile='ordinary' if name == 'uniform-K20' else 'fixture',
-                serving='P_DOCUMENT_STREAM_V1' if name == 'paired-P' else 'F_DOCUMENT_STREAM_V1')
+                serving=contract.CELL_SERVING_MODES[name])
         if name == 'decomposition':
             return self.decomposition()
         raise ValueError('unknown composition stage')

@@ -35,7 +35,7 @@ class CurrentArm(unittest.TestCase):
             self.harvest.append(dict(native[0], query_id=f'{phase}-aux', type='QueryFinish',
                 log_comment='F_WRITE:' + request, memory_usage='2000'))
             (self.traces / (request + '.jsonl')).write_text('\n'.join(map(json.dumps, traces)))
-            self.samples[phase] = dict(phase=phase, parity='PASS', path_mode='P_DOCUMENT_STREAM_V1',
+            self.samples[phase] = dict(phase=phase, parity='PASS', path_mode='F_DOCUMENT_STREAM_V1',
                 elapsed_ms=26.5, request_ids=[request], native=native)
 
     def audit(self):
@@ -53,9 +53,9 @@ class CurrentArm(unittest.TestCase):
             self.assertEqual(result['request_tagged_totals']['largest_statement_memory_bytes'], 2000)
 
     def test_refuses_oracle_mismatch_and_fallback(self):
-        for value in (dict(parity='FAIL'), dict(path_mode='canonical_fallback')):
+        for value in (dict(parity='FAIL'), dict(path_mode='canonical_fallback'), dict(path_mode='P_DOCUMENT_STREAM_V1')):
             with self.subTest(value=value):
-                self.samples['warmup'].update(parity='PASS', path_mode='P_DOCUMENT_STREAM_V1')
+                self.samples['warmup'].update(parity='PASS', path_mode='F_DOCUMENT_STREAM_V1')
                 self.samples['warmup'].update(value)
                 with self.assertRaisesRegex(ValueError, 'original indexed path and oracle parity'):
                     self.audit()

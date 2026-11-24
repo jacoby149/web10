@@ -1,8 +1,9 @@
 # D117 refinement: hybrid K20 preflight
 
-**Status:** no-engine model reproduced; baseline-only runner, fixed-slice
-constructor and current-arm evidence adapter checked offline. Native baseline
-reproduction is pending; challenger arms and the fault suite remain deferred. The
+**Status:** the [indexed baseline samples](evidence/hybrid-k20-fingerprint-20261124/RESULTS.md)
+passed the original oracle. The original wrapper STOP is retained and the
+receipt audit reconciles offline after correcting its mode declaration. The
+challengers and fault suite did not run. The
 [D117 result](evidence/row-model-4096-20261123/RESULTS.md) rejected maximal
 payload decomposition, not every way to store queryable values separately.
 The next question is whether a hybrid is worth its extra writes and repair

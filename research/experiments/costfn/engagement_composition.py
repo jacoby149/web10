@@ -15,6 +15,8 @@ import engagement_billboards as billboards
 DIRECTIVE = 'Jacob Hoffman 2026-11-19 all fixes first then one experiment'
 GATES = ('refs', 'paired-tallies', 'views', 'ads')
 CELLS = ('uniform-K20', 'paired-P', 'paired-F')
+CELL_SERVING_MODES = {'uniform-K20': 'F_DOCUMENT_STREAM_V1', 'paired-P': 'P_DOCUMENT_STREAM_V1',
+    'paired-F': 'F_DOCUMENT_STREAM_V1'}
 SETUP = ('banked', 'restore', 'read-setup', 'migrate', 'billboard-fixtures', 'furniture')
 
 
