@@ -128,12 +128,15 @@ class Actions:
             total_restore_and_rehearsal_seconds=time.perf_counter() - started, engine=modern.ENGINE,
             snapshot_id=restored.get('snapshot_id'))
 
+    def reference(self, profile, name):
+        return reads.reference(self.root, profile=profile, name=name)
+
     def read_setup(self):
         restored = json.loads((self.root / 'modern-restore.json').read_bytes())
         fixture = engagement_setup.profiles(self.root, restored_fixture=restored.get('fixture'))
         for name in ('ordinary', 'fixture'):
             profile = json.loads((self.root / ('profile-' + name + '.json')).read_bytes())
-            self.expected[name] = reads.reference(self.root, profile=profile, name='reference-' + name)
+            self.expected[name] = self.reference(profile, 'reference-' + name)
         coverage = reads.fixture_coverage(fixture, self.expected['fixture'])
         save(self.root / 'modern-fixture-coverage.json', coverage)
         return dict(fixture_coverage=coverage,

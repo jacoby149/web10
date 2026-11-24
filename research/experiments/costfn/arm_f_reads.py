@@ -12,11 +12,13 @@ from arm_satellite_sql import literal as q
 import restore_realism as restore
 
 
-def reference(root, *, profile=None, name='F-reference'):
+def reference(root, *, profile=None, name='F-reference', legacy_node_ad_order=None):
     root = Path(root)
     directory = root / name
     directory.mkdir(mode=0o700, exist_ok=False)
     profile = profile or json.loads((root / 'profile/inventory.json').read_bytes())
+    if legacy_node_ad_order is not None:
+        profile = {**profile, 'legacy_node_ad_order': legacy_node_ad_order}
     save(directory / 'input.json', profile)
     session = Session(root)
     # A separate canonical-only process. No token or treatment output supplies

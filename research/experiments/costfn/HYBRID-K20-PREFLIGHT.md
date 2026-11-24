@@ -50,6 +50,10 @@ retains document/attachment/event history, records all three slice lanes and rec
 `hybrid-k20-slice.json`, and rejects a slice that disagrees with the independent
 unsliced canonical oracle before measurement. Rebuild furniture and certificates
 for the sliced generation rather than inheriting the snapshot's full-store receipts.
+Both K20 setup oracles order eligible legacy node ads by full creative identity
+before the unchanged round-robin assignment. The indexed path and exact parity
+gate do not change; the previous mismatch remains recorded in
+[#1626](https://github.com/jacoby149/web10/pull/1626).
 Report the original indexed K20 reproduction and stop whether it passes or fails;
 the following three-arm plan applies only after a successful baseline.
 

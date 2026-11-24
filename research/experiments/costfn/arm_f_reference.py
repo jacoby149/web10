@@ -15,6 +15,23 @@ import arm_satellite_ad_parity as ads
 import core_feed
 
 
+LEGACY_AD_FULL_KEY_ORDER = 'author-key-doc-id-v1'
+
+
+def legacy_ads(eligible, order):
+    if order is None:
+        return eligible
+    if order != LEGACY_AD_FULL_KEY_ORDER:
+        raise ValueError('unrecognized research oracle legacy ad order')
+    by_key = {}
+    for ad in eligible:
+        key = ad['author_key'], ad['doc_id']
+        if key in by_key:
+            raise ValueError('duplicate legacy creative identity in oracle')
+        by_key[key] = ad
+    return [by_key[key] for key in sorted(by_key)]
+
+
 def contract(sql):
     tree = sqlglot.parse_one(sql, read='clickhouse')
     # Independently spell the approved contract rather than calling the F builder.
@@ -109,6 +126,8 @@ def build(directory):
     eligible = [row for row in eligible if row['body'].get('status') == 'active']
     if not eligible:
         raise ValueError('independent eligible ad inventory missing')
+    ad_order = spec.get('legacy_node_ad_order')
+    eligible = legacy_ads(eligible, ad_order)
     ch.get_active_node_ads = lambda: list(eligible[:20])
     prepared = endpoint._prepare_rows(rows, reader, PrepareSpec(**capture['requests'][0]['payload']['prepare']), scopes['main'], True)
     engagements = []
@@ -124,7 +143,8 @@ def build(directory):
     (directory / 'expected.json').write_text(json.dumps(result, sort_keys=True))
     (directory / 'summary.json').write_text(json.dumps(dict(kind='CANONICAL_DOCUMENT_STREAM_REFERENCE',
         native=native, contract='DOCUMENT_STREAM_V1', rows=len(prepared), input_sha256=hashlib.sha256((directory / 'input.json').read_bytes()).hexdigest(),
-        source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), serving_measurement=False)))
+        source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), serving_measurement=False,
+        **({'legacy_node_ad_order': ad_order} if ad_order else {}))))
 
 
 if __name__ == '__main__':

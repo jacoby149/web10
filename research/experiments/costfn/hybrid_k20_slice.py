@@ -224,7 +224,6 @@ def build(session, root, profiles, *, writers_stopped):
 def prepare(actions):
     """Use the original authenticated profiles and independent oracle twice."""
     from arm_f_native import save
-    import arm_f_reads as reads
     import engagement_cells as cells
     import engagement_modern as modern
 
@@ -241,7 +240,7 @@ def prepare(actions):
     manifest['oracle'] = {}
     try:
         for name, profile in profiles.items():
-            after = reads.reference(root, profile=profile, name=f'slice-reference-{name}')
+            after = actions.reference(profile, f'slice-reference-{name}')
             oracle_matches(actions.expected[name], after)
             manifest['oracle'][name] = dict(parity='PASS', kept_original_expected=True,
                 source_response_sha256=hashlib.sha256((root / f'reference-{name}/expected.json').read_bytes()).hexdigest(),

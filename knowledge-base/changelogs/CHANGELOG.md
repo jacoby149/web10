@@ -1,3 +1,6 @@
+6.28.15 || 27.11.2026
+research: make legacy node-ad selection reproducible for both K20 setup oracles by ordering the same eligible pool by full creative identity. Keep exact sliced/unsliced comparison and the indexed billboard path unchanged. Two added offline controls, no native acceptance. Prior native mismatch stays recorded in PR #1626.
+
 6.28.13 || 27.11.2026
 research: repair the fixed K20 slice after the native constructor stop documented in PR #1624. Seed only historical post IDs in the authenticated main post scope or owned by the reader; keep follow-up Discover authority separate. Resolve inbound dependencies from fixed roots and parse outgoing refs only for retained IDs. Historical copies, unsliced oracle gate and baseline-only run order unchanged. Offline controls only; no new native result.
 
