@@ -5,8 +5,11 @@ import math
 from pathlib import Path
 from uuid import UUID
 
+from engagement_composition import CELL_SERVING_MODES
 
-CELL = 'all-fixes-uniform-K20'
+
+CELL_NAME = 'uniform-K20'
+CELL = 'all-fixes-' + CELL_NAME
 PHASES = ('warmup', 'measured')
 METRICS = ('read_rows', 'read_bytes', 'query_duration_ms', 'memory_usage')
 
@@ -45,7 +48,7 @@ def totals(rows):
 
 
 def sample_evidence(cell, sample, all_native):
-    if sample.get('parity') != 'PASS' or sample.get('path_mode') != 'P_DOCUMENT_STREAM_V1':
+    if sample.get('parity') != 'PASS' or sample.get('path_mode') != CELL_SERVING_MODES[CELL_NAME]:
         raise ValueError('current arm requires the original indexed path and oracle parity')
     wall = sample['elapsed_ms']
     if type(wall) not in (int, float) or not math.isfinite(wall) or wall <= 0:
@@ -141,7 +144,7 @@ def run_current(actions):
             or manifest.get('source_commit') != actions.approval.get('hybrid_k20_source_commit')
             or str(manifest.get('host')) != str(actions.approval.get('droplet_id'))):
         raise ValueError('source-bound fixed slice and unsliced oracle parity required')
-    actions.stage('uniform-K20', {})
+    actions.stage(CELL_NAME, {})
     samples = audit_cell(Path(actions.root) / 'cells' / CELL)
     save(path, dict(arm='current', samples=samples,
         comparison_status='NOT_RUN', peak_memory_scope='largest individual statement, not concurrent memory'))

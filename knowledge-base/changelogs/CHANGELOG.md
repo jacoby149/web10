@@ -1,3 +1,6 @@
+6.28.18 || 27.11.2026
+research: bank two native indexed K20 complete responses with exact oracle parity and retain the original wrapper STOP. Share the existing F-stream uniform-K20 mode between the runner and receipt adapter; corrected offline replay reconciles 150 captured statements without rewriting native history. Measured 627,581,412 logical bytes and 9,187.433 ms HTTP. No challenger or fault-suite verdict; custody and cleanup verified. [Results](../../research/experiments/costfn/evidence/hybrid-k20-fingerprint-20261124/RESULTS.md).
+
 6.28.17 || 27.11.2026
 research: persist the fresh sliced K20 fingerprint at the tally builder's expected path before binding the certificate. Verify the producer handoff offline and refuse generation mismatch before writing. No gate relaxation or native result; the prior STOP remains in PR #1628.
 
