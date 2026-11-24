@@ -7,6 +7,8 @@ import time
 
 from arm_f_failure import details
 from arm_f_native import save
+import arm_f_reads as reads
+from arm_f_reference import LEGACY_AD_FULL_KEY_ORDER
 import engagement_cells as cells
 import engagement_certificates as certificates
 import engagement_composition as contract
@@ -42,6 +44,9 @@ def source_guard(approval):
 
 
 class Actions(original.Actions):
+    def reference(self, profile, name):
+        return reads.reference(self.root, profile=profile, name=name, legacy_node_ad_order=LEGACY_AD_FULL_KEY_ORDER)
+
     def restore(self):
         # Snapshot-only: the full-store fallback can download/setup other inputs.
         modern.operation(self.root)

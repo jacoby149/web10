@@ -6,9 +6,29 @@ import unittest
 from unittest.mock import Mock, patch
 
 import hybrid_k20_run_current as runner
+from arm_f_reference import legacy_ads
 
 
 class BaselineOnly(unittest.TestCase):
+    def test_legacy_oracle_pool_is_stable_under_native_row_permutations(self):
+        entries = [dict(author_key=a, doc_id=d) for a, d in [('B', '1'), ('A', '2'), ('A', '1')]]
+        ordered = legacy_ads(entries, runner.LEGACY_AD_FULL_KEY_ORDER)
+        self.assertEqual(ordered, legacy_ads(list(reversed(entries)), runner.LEGACY_AD_FULL_KEY_ORDER))
+        self.assertEqual([(a['author_key'], a['doc_id']) for a in ordered], [('A', '1'), ('A', '2'), ('B', '1')])
+        self.assertIs(legacy_ads(entries, None), entries)
+        with self.assertRaisesRegex(ValueError, 'duplicate legacy creative identity'):
+            legacy_ads(entries + entries[:1], runner.LEGACY_AD_FULL_KEY_ORDER)
+
+    def test_both_setup_oracles_use_same_order(self):
+        actions = runner.Actions.__new__(runner.Actions)
+        actions.root = Path('/bound/root')
+        profile = dict(reader='synthetic')
+        with patch.object(runner.reads, 'reference') as reference:
+            for name in ('reference-ordinary', 'slice-reference-ordinary'):
+                actions.reference(profile, name)
+                reference.assert_called_with(actions.root, profile=profile, name=name,
+                    legacy_node_ad_order=runner.LEGACY_AD_FULL_KEY_ORDER)
+
     def exercise(self, fail=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
