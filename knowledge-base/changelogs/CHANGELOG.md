@@ -1,3 +1,6 @@
+6.28.20 || 24.11.2026
+research: apply the November 24 task scheduling directive to RD4. A task keeps one admission, a 24-hour host-only backstop, source lineage and reusable validated preparation. Resume exact event-seed receipts without repeating confirmed writes; retain transport stops and stop on ordered-response divergence. Preserve the operator-stopped old-clock run; neither arm measured. No production change.
+
 6.28.19 || 24.11.2026
 research: add a projected canonical K20 arm for mixed resolution and document preparation. Defer bodies until the exact canonical version is known. Preserve the fixed slice and complete ordered oracle; add a separately admitted comparison harness for native pruning evidence and complete-read costs. Offline controls only; no native run, hybrid arm or production change.
 

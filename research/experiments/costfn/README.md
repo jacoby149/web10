@@ -1,5 +1,33 @@
 # Access-Control Cost Function Experiment
 
+## Governing scheduling and handoff — 24 November 2026
+
+Jacob's task directive replaces the older scheduling and handoff rules for
+future costfn execution. One explicit admission covers the task, not each
+repair, attempt, or affected measurement restart. Commit source fixes as they
+are made and retain the starting and ending revisions plus the reason for
+each repair. No new admission, binding, or pull request is needed inside the
+task. The droplet's **24-hour poweroff timer is a failsafe, not a work deadline**;
+it does not release the provider resource or guarantee billing stops. The agent
+still verifies custody and deletes owned temporary resources at task end.
+
+Keep the validated slice, seeds, fixtures and prepared store on the owned host.
+Check the existing slice manifest, canonical generation fingerprint and native
+receipts before reuse. Repair or rebuild only invalid work. An uncertain insert
+is not evidence that nothing ran; resolve its exact original native ID before
+replaying it. Repair setup defects in the same task. If a repair changes what
+the arm measures, preserve the old attempt and restart that measurement only.
+An exact ordered response divergence against the independent oracle stops the
+task and publishes no comparison costs.
+
+Use task-mode admissions (`costfn_run_rules` and `costfn_task_id`), not older
+work-window packets. For RD4 step 2 see the [fixed-slice run contract](HYBRID-K20-PREFLIGHT.md).
+The 18 November statement-level measurement policy still applies. Keep rows,
+logical read bytes, largest individual statement memory, summed native duration
+(not CPU time) and complete HTTP wall time distinct. The original snapshot
+`255003176` remains retained. Verify private archives by SHA-256 before cleanup;
+report estimated compute separately from storage and the invoice.
+
 ## D117 row-model proving cell — complete; maximal model rejected
 
 Merged #1620 completed the full post-family load, independent parity, and six

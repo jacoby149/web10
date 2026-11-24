@@ -78,10 +78,14 @@ class Actions(finish.Actions):
     def expected_events(self):
         return 1_600_000_000
 
+    def setup_step(self, name, action, *, tables=(), validate=None):
+        return action()
+
     def furniture(self, session):
         # All canonical fixture writes precede initial infrastructure/fingerprints.
         # No obsolete ref projection is constructed on either table.
-        initial = self.base_infrastructure()
+        initial = self.setup_step('infrastructure', self.base_infrastructure,
+            validate=lambda: __import__('engagement_certificates').verify(self.root))
         session.query('composition_freeze_copy', 'SYSTEM STOP MERGES engagement_documents')
         projections, _ = session.rows('composition_no_ref_projection', "SELECT count() AS n FROM system.projections "
             "WHERE database='web10' AND table IN ('documents','engagement_documents')")
@@ -93,9 +97,12 @@ class Actions(finish.Actions):
             lossless_proof='CITED_BANKED_NOT_REPEATED', fixtures=setup.digest(self.root / 'billboards/build.json'),
             current_parts_query_id=query_id, constructor_sha256=finish.CONSTRUCTOR)
         save(self.root / 'copy-proof.json', proof)
-        tally = tallies.run(self.root)  # Existing recipes/build/verifier, unchanged.
-        satellite = setup.build_pairs(session, self.root)
-        pins = setup.build_pin_index(session, self.root) if pin_index.enabled(self.approval) else None
+        tally = self.setup_step('tallies', lambda: tallies.run(self.root), tables=('counting_numbers_tally',
+            'tally_verify_documents', 'tally_verify_links'))
+        satellite = self.setup_step('pairs', lambda: setup.build_pairs(session, self.root),
+            tables=('pairs_refs', 'pairs_refs_fat'))
+        pins = (self.setup_step('pin-index', lambda: setup.build_pin_index(session, self.root), tables=(pin_index.TABLE,))
+            if pin_index.enabled(self.approval) else None)
         # Setup build is explicitly admitted; banked Stage B timings/diagnosis
         # are cited, not rerun. Install MV before disjoint day seeds, writers down.
         cells.stop(self.root)

@@ -21,6 +21,13 @@ DOCTL = '/opt/homebrew/bin/doctl'
 TALLY_INTEL = 'Jacob Hoffman 2026-11-18 tally Intel32GiB640GiB at0.28571 per hour'
 
 
+def task(lease):
+    if not lease.get('costfn_task_id') and not lease.get('costfn_run_rules'):
+        return False
+    import engagement_window
+    return engagement_window.task(lease)
+
+
 def api(*args):
     result = subprocess.run([DOCTL, '--http-retry-max', '0', '--output', 'json', *args],
                             capture_output=True, timeout=100)
@@ -43,7 +50,10 @@ def save(path, value):
 def validate(lease):
     legacy = (lease.get('max_usd') == 2
         and lease.get('deadline', 0) - lease.get('created_epoch', 0) == 14400)
-    if lease.get('layout_clock_directive'):
+    if task(lease):
+        import engagement_window as window
+        window_ok = window.valid(lease, lease.get('deadline', 0) - lease.get('created_epoch', 0), cloud=True)
+    elif lease.get('layout_clock_directive'):
         import engagement_window as window
         window_ok = window.enabled(lease) and window.valid(lease,
             lease.get('deadline', 0) - lease.get('created_epoch', 0), cloud=True)
@@ -57,7 +67,7 @@ def validate(lease):
             or lease.get('region') != 'nyc3' or not hardware
             or not window_ok
             or not lease.get('account_uuid')):
-        raise ValueError('exact granted Config F four-hour/$2 lease required')
+        raise ValueError('exact owned Config F host and backstop required')
     if lease.get('ssh_source_cidr'):
         source = ipaddress.ip_network(lease['ssh_source_cidr'], strict=True)
         if source.version != 4 or source.prefixlen != 32:
@@ -151,7 +161,8 @@ def tick(path, stop=False):
         try:
             account(lease)
             lease.update(watchdog_seen_epoch=time.time(), watchdog_api_verified=True)
-            if stop or (not lease.get('cleanup_verified') and (lease.get('cancelled') or time.time() >= lease['deadline'])):
+            expired_legacy = not task(lease) and time.time() >= lease['deadline']
+            if stop or (not lease.get('cleanup_verified') and (lease.get('cancelled') or expired_legacy)):
                 cleanup(lease)
         except Exception as error:
             lease['watchdog_error_class'] = type(error).__name__
@@ -179,7 +190,8 @@ def watchdog_program(script, lease, *, executable=None):
     return [str(python), '-I', '-S', str(script), 'tick', '--lease', str(lease)]
 
 
-def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None, hardware_override=None, layout_clock=False):
+def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None, hardware_override=None,
+               layout_clock=False, task_id=None):
     state = Path(state)
     if scope not in (None, 'F_DEPLOY_REHEARSAL', 'F_GATES_ONLY'):
         raise ValueError('unknown F admission scope')
@@ -213,7 +225,11 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
     if layout_clock:
         import engagement_window as window
         lease.update(layout_clock_directive=window.DIRECTIVE, composition_admitted=True, row_model_admitted=True,
-            max_usd=window.PROGRAMME_USD, deadline=created + window.SECONDS)
+             max_usd=window.PROGRAMME_USD, deadline=created + window.SECONDS)
+    if task_id is not None:
+        import engagement_window as window
+        lease.update(costfn_task_id=task_id, costfn_run_rules=window.TASK_RULES,
+            deadline=created + window.SECONDS)
     if scope:
         lease['scope'] = scope
     if ssh_source_cidr:
@@ -249,7 +265,7 @@ def create(path, *, snapshot=None):
             image = str(snapshot)
             lease['restored_snapshot_id'] = image
         if (lease.get('cancelled') or lease.get('droplet_id') or lease.get('creation_uncertain')
-                or time.time() >= lease['deadline'] - 1800):
+                or (not task(lease) and time.time() >= lease['deadline'] - 1800)):
             raise ValueError('closed/existing admission; no creation')
         if api('compute', 'droplet', 'list'):
             raise ValueError('another host exists')
@@ -275,7 +291,7 @@ def create(path, *, snapshot=None):
         save(path, lease)
         checked = api('compute', 'firewall', 'get', str(row['id']))
         firewall_verified(checked[0] if isinstance(checked, list) else checked, lease)
-        halt = datetime.fromtimestamp(lease['deadline'] - 120, UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
+        halt = datetime.fromtimestamp(lease['deadline'] - (0 if task(lease) else 120), UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
         cloud = {'ssh_deletekeys': False, 'ssh_genkeytypes': [], 'ssh_pwauth': False, 'disable_root': False,
             'ssh_keys': {'ed25519_private': (root / 'host-key').read_text(),
                          'ed25519_public': (root / 'host-key.pub').read_text().strip()},
@@ -319,7 +335,7 @@ def bind_ready_host(path, *, seconds=120):
         lease = json.loads(path.read_bytes())
         validate(lease)
         if (lease.get('cancelled') or lease.get('cleanup_verified') or not lease.get('droplet_id')
-                or time.time() >= lease['deadline'] - 300):
+                or (not task(lease) and time.time() >= lease['deadline'] - 300)):
             raise ValueError('closed/unguarded host-readiness admission')
         rows = api('compute', 'droplet', 'get', str(lease['droplet_id']))
         row = rows[0] if isinstance(rows, list) else rows
@@ -348,9 +364,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['init', 'create', 'tick', 'stop'])
     parser.add_argument('--lease', type=Path)
+    parser.add_argument('--task-id')
     args = parser.parse_args()
     if args.action == 'init':
-        initialize()
+        if not args.task_id:
+            parser.error('new runs require --task-id')
+        initialize(task_id=args.task_id)
     elif args.action == 'create':
         create(args.lease)
     else:

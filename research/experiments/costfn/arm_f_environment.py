@@ -1,6 +1,5 @@
 """Owned fresh trial stores and API modes. Original Step0 and frozen files stay put."""
 import asyncio
-from datetime import UTC, datetime
 import hashlib
 import json
 from pathlib import Path
@@ -16,6 +15,7 @@ import arm_satellite_metadata as metadata
 import arm_satellite_presence as presence
 import arm_satellite_verify as parity
 import arm_t
+import engagement_window as window
 import restore_dataset
 import restore_realism as restore
 
@@ -120,7 +120,7 @@ def fresh(parent, name):
         raise ValueError('bounded fresh trial name required')
     approval = json.loads((parent / 'admission.json').read_bytes())
     deadline = admitted(approval, arm_t.digitalocean_id())
-    if (deadline - datetime.now(UTC)).total_seconds() < 1800:
+    if window.work_seconds(approval, deadline) < 1800:
         raise TimeoutError('not enough original lease for another full restore; gate UNREACHED')
     free = shutil.disk_usage(parent).free
     if free < 150 * 1024**3:

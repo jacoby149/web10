@@ -12,6 +12,7 @@ import arm_f
 from arm_f_native import save
 from arm_satellite_sql import literal as q
 import core_feed
+import engagement_window as window
 
 
 class HTTP:
@@ -34,7 +35,8 @@ class HTTP:
         if setup_group:
             if path != '/v3/groups/create':
                 raise ValueError('long setup timeout is only for fixture group creation')
-            remaining = (self.session.deadline - datetime.now(UTC)).total_seconds() - 180
+            remaining = (float('inf') if window.task(getattr(self.session, 'operation', {})) else
+                (self.session.deadline - datetime.now(UTC)).total_seconds() - 180)
             if remaining <= 0:
                 raise TimeoutError('fixture group setup reached original cleanup margin')
             options['timeout'] = min(600, remaining)

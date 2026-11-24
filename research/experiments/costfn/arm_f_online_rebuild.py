@@ -7,6 +7,7 @@ memberships and current canonical document/link winners, then atomic EXCHANGE.
 No public endpoint, multiworker claim, pause in the R+W cell, or canonical drop.
 """
 from datetime import UTC, datetime
+import engagement_window as run_window
 import hashlib
 import json
 from pathlib import Path
@@ -44,7 +45,8 @@ def run(root, p, journal, fence, approval, active):
         def query(self, label, sql, *, setup_seconds=120, settings=None):
             active()
             deadline = admitted(approval, p.host)
-            left = int((deadline - datetime.now(UTC)).total_seconds()) - 180
+            seconds = run_window.work_seconds(approval, deadline)
+            left = seconds if run_window.task(approval) else int(seconds) - 180
             if left < 30:
                 raise TimeoutError('rebuild exhausted original cleanup margin')
             from arm_f_population import LIMITS

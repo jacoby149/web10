@@ -47,7 +47,8 @@ start, deadline = (datetime.fromisoformat(admission[key]) for key in ('approved_
 if (admission.get('configuration') != 'F' or admission.get('droplet_id') != p.host
         or admission.get('approved_by') != 'Jacob'
         or admission.get('cutoff') != f.CUTOFF or admission.get('sort_order_arm_admitted') is not False
-        or not window.valid(admission, (deadline - start).total_seconds()) or not start <= datetime.now(UTC) < deadline):
+        or not window.valid(admission, (deadline - start).total_seconds())
+        or not window.working(admission, start, deadline, datetime.now(UTC))):
     raise RuntimeError('exact current parent F admission required')
 build = json.loads((ROOT / 'build.json').read_bytes())
 banked_comparator = (admission.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
@@ -175,7 +176,7 @@ p.ch.client.query = query
 
 def active():
     admitted(admission, p.host)
-    if fatal.is_set() or (ROOT / 'F.stop').exists() or not start <= datetime.now(UTC) < deadline:
+    if fatal.is_set() or (ROOT / 'F.stop').exists():
         raise HTTPException(503, 'research admission closed')
 
 

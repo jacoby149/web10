@@ -40,7 +40,7 @@ def wait_for_ssh(private, destination, *, jump=None, seconds=120):
     started = time.monotonic()
     last = None
     while time.monotonic() - started < seconds:
-        if lease.get('cancelled') or time.time() >= lease['deadline'] - 300:
+        if lease.get('cancelled') or (not window.task(lease) and time.time() >= lease['deadline'] - 300):
             raise ValueError('SSH readiness admission closed')
         try:
             result = subprocess.run(command, capture_output=True, timeout=15)
@@ -60,10 +60,10 @@ def wait_for_ssh(private, destination, *, jump=None, seconds=120):
     raise error from last
 
 
-def worker_command(remaining, here, *, detach=False, scoped=False, read_first=False, layout_clock=False):
-    if type(remaining) is not int or not 300 <= remaining <= (window.SECONDS - 300 if layout_clock else 14100):
+def worker_command(remaining, here, *, detach=False, scoped=False, read_first=False, layout_clock=False, task=False):
+    if not task and (type(remaining) is not int or not 300 <= remaining <= (window.SECONDS - 300 if layout_clock else 14100)):
         raise ValueError('worker must fit the original four-hour lease and cleanup margin')
-    return ['systemd-run', '--unit=fanout-step0', '--property=RuntimeMaxSec=' + str(remaining),
+    return ['systemd-run', '--unit=fanout-step0', *([] if task else ['--property=RuntimeMaxSec=' + str(remaining)]),
         '--property=WorkingDirectory=/opt/fanout/repo',
         *(['--property=StandardOutput=append:/opt/fanout/step0-service.log',
            '--property=StandardError=append:/opt/fanout/step0-service.log'] if detach else ['--wait', '--pipe']),
@@ -91,7 +91,8 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     cloud.tick(state['lease'])
     lease = json.loads(Path(state['lease']).read_bytes())
     host = json.loads((private / 'host.json').read_bytes())
-    if lease.get('cancelled') or lease['droplet_id'] != host['id'] or time.time() > lease['deadline'] - 1800:
+    task = window.task(lease)
+    if lease.get('cancelled') or lease['droplet_id'] != host['id'] or (not task and time.time() > lease['deadline'] - 1800):
         raise ValueError('closed or mismatched guarded host')
     options = ssh_options(private, state.get('ssh_jump'))
     destination = 'root@' + host['ip']
@@ -117,6 +118,8 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     if window.enabled(lease):
         admission.update(layout_clock_directive=window.DIRECTIVE, composition_admitted=True, row_model_admitted=True,
             budget_usd=window.PROGRAMME_USD)
+    if task:
+        admission.update(costfn_task_id=lease['costfn_task_id'], costfn_run_rules=lease['costfn_run_rules'])
     scoped = state.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
     if scoped:
         import arm_f_banked
@@ -170,13 +173,14 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
         '/usr/bin/env', 'API_PORT=6098', 'COSTFN_RESEARCH_DIR=' + here, 'COSTFN_REPO_DIR=/opt/fanout/repo',
         '/usr/bin/docker', 'compose', '-f', here + 'compose.yml', '-f', here + 'research.compose.yml',
         '-f', here + 'realism.compose.yml', '-p', 'web10-costfn-frozen-satellite-fstep0', 'stop']
-    ssh(shlex.join(stop_command))
-    ssh('systemctl is-active fanout-container-stop.timer fanout-hard-stop.timer')
+    if not task:
+        ssh(shlex.join(stop_command))
+        ssh('systemctl is-active fanout-container-stop.timer fanout-hard-stop.timer')
     remaining = int(lease['deadline'] - time.time()) - 300
-    if remaining < 1800:
+    if not task and remaining < 1800:
         raise ValueError('insufficient remaining original admission before restore')
     command = worker_command(remaining, here, detach=detach, scoped=scoped, read_first=state.get('read_first', False),
-        layout_clock=window.enabled(lease))
+        layout_clock=window.enabled(lease), task=task)
     print('[arm-f] guarded archive restore and P setup starting; deadline=' + admission['deadline_utc'], flush=True)
     if detach:
         # A VPN/SSH disconnect must not tear down the worker's stdout pipe.
