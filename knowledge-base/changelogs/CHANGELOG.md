@@ -1,3 +1,6 @@
+6.28.16 || 27.11.2026
+research: record the deterministic-ad K20 retry. Both setup oracles pass exact parity; migration and billboard fixtures pass; furniture stops on the missing sliced canonical fingerprint handoff. No indexed K20 or challengers ran. Off-host archives and owned cleanup verified. [Results](../../research/experiments/costfn/evidence/hybrid-k20-ad-order-20261124/RESULTS.md).
+
 6.28.15 || 27.11.2026
 research: make legacy node-ad selection reproducible for both K20 setup oracles by ordering the same eligible pool by full creative identity. Keep exact sliced/unsliced comparison and the indexed billboard path unchanged. Two added offline controls, no native acceptance. Prior native mismatch stays recorded in PR #1626.
 
