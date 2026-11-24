@@ -7,6 +7,7 @@ import time
 
 from arm_f_failure import details
 from arm_f_native import save
+import costfn_task
 import arm_f_reads as reads
 from arm_f_reference import LEGACY_AD_FULL_KEY_ORDER
 import engagement_cells as cells
@@ -36,6 +37,9 @@ def source_guard(approval):
             or not re.fullmatch(r'[0-9a-f]{40}', expected) or expected == PREFLIGHT):
         raise ValueError('explicit baseline-only source/snapshot binding required')
     repo = Path(__file__).resolve().parents[3]
+    if window.task(approval):
+        subprocess.run(['git', 'merge-base', '--is-ancestor', PREFLIGHT, expected], cwd=repo, check=True)
+        return costfn_task.source(repo, expected)
     actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()
     if actual != expected:
         raise ValueError('running source differs from bound baseline-only source')

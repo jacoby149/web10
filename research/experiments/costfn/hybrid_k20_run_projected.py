@@ -7,6 +7,7 @@ from arm_f_native import save
 from arm_satellite_sql import literal as q
 import engagement_cells as cells
 import engagement_modern as modern
+import engagement_window as window
 import hybrid_k20_baseline as baseline
 import hybrid_k20_projected as projected
 import hybrid_k20_run_current as current
@@ -85,12 +86,17 @@ def pruning(records):
         for stage, rows in by_stage.items()}
 
 
-def run(root):
+def run(root, *, repair_note=None, restart_measurement=None):
     root = Path(root).resolve()
     approval = baseline.read(root / 'admission.json')
     if not projected.enabled(approval):
         raise ValueError('separate projected-only K20 admission required')
-    current.source_guard(approval)
+    source = current.source_guard(approval)
+    if window.task(approval):
+        from hybrid_k20_task import run as run_task
+        return run_task(root, approval, source, repair_note=repair_note, restart_measurement=restart_measurement)
+    if repair_note or restart_measurement:
+        raise ValueError('legacy one-attempt admission cannot be resumed')
     path = root / 'hybrid-k20-projected-comparison.json'
     if path.exists():
         raise FileExistsError(path)
@@ -113,7 +119,7 @@ def run(root):
             raise ValueError('K20 exact version seek requires the pinned millisecond schema')
         if modern.remaining(approval) < 120:
             raise TimeoutError('projected K20 reached cleanup margin')
-        expected = baseline.read(root / 'reference-ordinary/expected.json')
+        expected = baseline.read(root / 'reference-ordinary/expected-billboards.json')
         print('[hybrid-k20-projected] projected challenger', flush=True)
         cells.run_complete(root, CELL, 'ordinary', 'uniform', expected, aggregate=True, projected=True,
             serving_mode=baseline.CELL_SERVING_MODES[baseline.CELL_NAME])
@@ -140,4 +146,7 @@ def run(root):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path)
-    run(parser.parse_args().root)
+    parser.add_argument('--repair-note')
+    parser.add_argument('--restart-measurement', choices=('indexed', 'projected', 'both'))
+    args = parser.parse_args()
+    run(args.root, repair_note=args.repair_note, restart_measurement=args.restart_measurement)

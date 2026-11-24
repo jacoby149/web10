@@ -101,10 +101,18 @@ author. Missing or conflicting exact bodies and saturated prepare results stop
 the cell. Face authorization still needs JSON at read time and remains
 unchanged, as do pin/creative preparation, follow-ups and delivery.
 
-After **separate native admission**, use `hybrid_k20_run_projected.py` with the
+On the **admitted task**, use `hybrid_k20_run_projected.py` with the
 original current-arm source/host/window binding plus
 `hybrid_k20_projected_directive='RD4-HYBRID-K20 projected canonical comparison only'`,
 `hybrid_k20_projected_admitted=true` and `hybrid_k20_hybrid_admitted=false`.
+Set `costfn_run_rules='Jacob Hoffman 2026-11-24 costfn task continuation'` and a
+stable `costfn_task_id`. The `deadline_utc` wire value is the host backstop,
+not a work deadline. To continue after a repair, run the same command over the
+same root and add `--repair-note 'what changed and why'`; do not rewrite the
+original admission. To repeat only a treatment-changing measurement add
+`--restart-measurement indexed`, `projected`, or `both` as appropriate. A failed
+receipt or incomplete preparation is not a reusable verdict; if an input or
+part check disagrees, repair just that component before continuing.
 The runner rebuilds the same slice with the original constructor and unsliced
 oracle, checks the banked event census, and runs both arms sequentially over
 that one store. Each must pass the existing complete HTTP/oracle checks. The

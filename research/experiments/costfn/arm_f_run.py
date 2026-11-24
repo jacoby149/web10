@@ -51,7 +51,7 @@ def operation(root):
     if (admission.get('configuration') != 'F' or admission.get('approved_by') != 'Jacob'
             or admission.get('droplet_id') != host or admission.get('dataset_id') != arm_t.DATASET
             or not window.valid(admission, (deadline - start).total_seconds())
-            or not start <= datetime.now(UTC) < deadline
+            or not window.working(admission, start, deadline, datetime.now(UTC))
             or not __import__('arm_f_runtime').cleanup_approved(admission)):
         raise ValueError('current exact Config F admission required')
     # Explicit subordinate P-only baseline operation on the F lease. Not F build

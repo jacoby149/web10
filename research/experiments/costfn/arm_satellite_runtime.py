@@ -28,7 +28,7 @@ def admitted(operation, host_id, now=None):
                 and operation.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
                 and operation.get('parent_admission_sha256')))
             or not window.valid(operation, (deadline - start).total_seconds(), subordinate=True)
-            or not start <= now < deadline):
+            or not window.working(operation, start, deadline, now)):
         raise ValueError("current own-host Config P canonical-source approval required")
     return deadline
 
@@ -74,7 +74,7 @@ class Session:
         admitted(self.operation, self.host_id)
         if self.stopped:
             raise ValueError("stopped Config P session cannot execute another cell")
-        remaining = int((self.deadline - datetime.now(UTC)).total_seconds()) - 180
+        remaining = float('inf') if window.task(self.operation) else int((self.deadline - datetime.now(UTC)).total_seconds()) - 180
         if remaining < 30:
             raise ValueError("cleanup margin exhausted")
         budget = min(10 if measured else setup_seconds, remaining)

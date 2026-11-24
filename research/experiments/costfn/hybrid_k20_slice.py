@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from arm_satellite_sql import literal as q
+from costfn_task import ParityDivergence
 
 
 DATASET = '2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd'
@@ -102,7 +103,7 @@ def copy_sql(table, columns, bucket):
 def oracle_matches(before, after):
     for field in ('rows', 'lower_rows', 'ids', 'views_readable_groups'):
         if json.dumps(before[field], sort_keys=True) != json.dumps(after[field], sort_keys=True):
-            raise ValueError('slice canonical oracle differs: ' + field)
+            raise ParityDivergence('slice canonical oracle differs: ' + field)
     for field in ('followups', 'eligible_ads'):
         if field == 'followups':
             left = [sorted(json.dumps(row, sort_keys=True) for row in rows) for rows in before[field]]
@@ -111,7 +112,7 @@ def oracle_matches(before, after):
             left = sorted(json.dumps(row, sort_keys=True) for row in before[field])
             right = sorted(json.dumps(row, sort_keys=True) for row in after[field])
         if left != right:
-            raise ValueError('slice canonical oracle differs: ' + field)
+            raise ParityDivergence('slice canonical oracle differs: ' + field)
 
 
 def build(session, root, profiles, *, writers_stopped):
@@ -226,29 +227,56 @@ def prepare(actions):
     from arm_f_native import save
     import engagement_cells as cells
     import engagement_modern as modern
+    import engagement_window as window
 
     root = Path(actions.root)
     if actions.approval.get('hybrid_k20_directive') != DIRECTIVE:
         raise ValueError('baseline-only hybrid scope required')
     path = root / 'hybrid-k20-slice.json'
-    if path.exists():
+    resume = window.task(actions.approval) and path.exists()
+    if path.exists() and not resume:
         raise FileExistsError(path)
-    actions.read_setup()
+    if not resume:
+        actions.read_setup()
     profiles = {name: json.loads((root / f'profile-{name}.json').read_bytes()) for name in ('ordinary', 'fixture')}
     cells.stop(root)
-    manifest = build(modern.Session(root), root, profiles, writers_stopped=True)
-    manifest['oracle'] = {}
+    session = modern.Session(root)
+    if resume:
+        manifest = json.loads(path.read_bytes())
+        if (manifest['status'] not in ('COPIED_PENDING_ORACLE', 'SOURCE_ORACLE_PARITY')
+                or manifest['host'] != session.host_id or manifest['dataset_id'] != DATASET
+                or set(manifest['tables']) != set(TABLES)):
+            raise ValueError('no complete retained slice: repair the failed slice stage before continuing')
+        for table, record in manifest['tables'].items():
+            parts, _ = session.rows('reuse_slice_' + table, 'SELECT name,rows,marks FROM system.parts WHERE active '
+                'AND database=currentDatabase() AND table=' + q(table) + ' ORDER BY name')
+            if parts != record['parts']:
+                raise ValueError('retained slice parts changed before oracle: ' + table)
+        actions.expected = {name: json.loads((root / f'reference-{name}/expected.json').read_bytes()) for name in profiles}
+    else:
+        manifest = build(session, root, profiles, writers_stopped=True)
+    manifest.setdefault('oracle', {})
     try:
         for name, profile in profiles.items():
-            after = actions.reference(profile, f'slice-reference-{name}')
+            expected = root / f'slice-reference-{name}/expected.json'
+            if resume and expected.is_file():
+                after = json.loads(expected.read_bytes())
+            else:
+                if resume and expected.parent.exists():
+                    from uuid import uuid4
+                    expected.parent.rename(expected.parent.with_name(expected.parent.name + '-incomplete-' + uuid4().hex))
+                after = actions.reference(profile, f'slice-reference-{name}')
             oracle_matches(actions.expected[name], after)
             manifest['oracle'][name] = dict(parity='PASS', kept_original_expected=True,
                 source_response_sha256=hashlib.sha256((root / f'reference-{name}/expected.json').read_bytes()).hexdigest(),
                 slice_response_sha256=hashlib.sha256((root / f'slice-reference-{name}/expected.json').read_bytes()).hexdigest())
         manifest['status'] = 'SOURCE_ORACLE_PARITY'
         return manifest
-    except BaseException:
+    except ParityDivergence:
         manifest['status'] = 'STOP'
+        raise
+    except BaseException:
+        manifest['status'] = 'COPIED_PENDING_ORACLE' if window.task(actions.approval) else 'STOP'
         raise
     finally:
         save(path, manifest)

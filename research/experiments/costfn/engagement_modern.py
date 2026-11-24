@@ -166,4 +166,6 @@ def operation(root):
 
 
 def remaining(value):
+    if window.task(value):
+        return float('inf')
     return int((datetime.fromisoformat(value['deadline_utc']) - datetime.now(UTC)).total_seconds()) - 180

@@ -3,7 +3,6 @@
 No measured workload, provisioning, API/grant substitution or production data.
 Uses a separate exact-name container; always stops it before the main restore.
 """
-from datetime import UTC, datetime
 import hashlib
 import json
 from pathlib import Path
@@ -13,6 +12,7 @@ import uuid
 
 import arm_f_runtime
 import arm_t
+import engagement_window as window
 import arm_satellite_metadata as metadata
 import arm_satellite_reconcile as reconcile
 
@@ -41,7 +41,7 @@ def run(root, *, trim_only=False, engagement_only=False, engagement_engine=None)
     class Session:
         def query(self, label, sql, *, setup_seconds=10, settings=None):
             arm_f_runtime.admitted(approval, host)
-            if (deadline - datetime.now(UTC)).total_seconds() < 300:
+            if window.work_seconds(approval, deadline) < 300:
                 raise ValueError('original cleanup margin exhausted')
             query_id = 'checker-fixture-' + uuid.uuid4().hex
             (output / (query_id + '.sql')).write_text(sql)

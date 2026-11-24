@@ -6,6 +6,7 @@ import uuid
 
 from arm_f_native import save
 from arm_satellite_sql import literal as q
+from costfn_seed_resume import setup_writes
 import engagement_billboards as ads
 import engagement_pairs as pairs
 import engagement_pin_index as pin_index
@@ -29,6 +30,7 @@ def migrate(session, root):
     # Cite the unchanged banked semantics constructor, but do NOT inherit its
     # obsolete projection furniture. No source projection is ever installed.
     checks, statements = migration.migration()
+    session = setup_writes(session, root / 'task-setup/migration', 'documents')
     receipts = {}
     for name, sql in checks.items():
         rows, query_id = session.rows('composition_migration_' + name, sql)
@@ -65,7 +67,9 @@ def fixtures(session, root, expected, *, node_ratio, seed):
     subset = sorted(posts)[::4]
     plan = ads.plan(list(posts.values()), authors, nodes, author_posts=subset, node_ratio=node_ratio, seed=seed)
     directory = root / 'billboards'
-    directory.mkdir(mode=0o700, exist_ok=False)
+    session = setup_writes(session, root / 'task-setup/billboards', 'documents')
+    from engagement_window import task
+    directory.mkdir(mode=0o700, exist_ok=task(getattr(session, 'operation', {})))
     save(directory / 'setup.json', plan)
     # No API write path, reader targeting or live selection is introduced.
     # Canonical synthetic creatives and pins are setup data on the copied lake.
@@ -99,6 +103,7 @@ def fixtures(session, root, expected, *, node_ratio, seed):
 
 
 def build_pairs(session, root):
+    session = setup_writes(session, root / 'task-setup/pairs', 'engagement_documents', 'tally_verify_documents')
     for table in ('engagement_documents', 'tally_verify_documents'):
         rows, query_id = session.rows('pairs_validate_' + table, pairs.validate_source(table))
         save(root / ('pairs-source-validation-' + table + '.json'), dict(query_id=query_id, rows=rows))
@@ -118,6 +123,7 @@ def build_pairs(session, root):
 
 
 def build_pin_index(session, root):
+    session = setup_writes(session, root / 'task-setup/pins', 'engagement_documents')
     receipt = dict(parity='INCOMPLETE', statements=[])
     path = root / 'billboards/pin-index-build.json'
     for label, sql in (('ddl', pin_index.DDL), ('insert', f'INSERT INTO {pin_index.TABLE} ' + pin_index.source()),

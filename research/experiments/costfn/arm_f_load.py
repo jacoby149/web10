@@ -7,6 +7,7 @@ the measured window, without counting drain as achieved sustained throughput.
 """
 import asyncio
 from datetime import UTC, datetime
+import engagement_window as window
 import json
 import math
 from pathlib import Path
@@ -214,8 +215,9 @@ async def run(root, output):
     if seed.get('seeded_fraction') != 1 or seed.get('outcome') != 'SEEDED_PENDING_POPULATED_T6_T5_RW':
         raise ValueError('R+W requires actual full-population seed')
     session = environment.boot(root)
-    deadline = admitted(json.loads((root / 'admission.json').read_bytes()), session.host_id)
-    if (deadline - datetime.now(UTC)).total_seconds() < 1200 or shutil.disk_usage(root).free < 100 * 1024**3:
+    approval = json.loads((root / 'admission.json').read_bytes())
+    deadline = admitted(approval, session.host_id)
+    if window.work_seconds(approval, deadline) < 1200 or shutil.disk_usage(root).free < 100 * 1024**3:
         raise TimeoutError('load needs remaining fixed window and100GiB reserve; do not extend')
     http = HTTP(root, session, output)
     result = dict(verified=False, population_fraction=1, duration_seconds=0, lead_in_seconds=LEAD_IN,

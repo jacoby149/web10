@@ -22,7 +22,7 @@ def admitted(operation, host, now=None):
             or not cleanup_approved(operation)
             or operation.get('cutoff') != 2000 or operation.get('T7_admitted') is not False
             or operation.get('sort_order_arm_admitted') is not False
-            or not window.valid(operation, (deadline - start).total_seconds()) or not start <= now < deadline):
+            or not window.valid(operation, (deadline - start).total_seconds()) or not window.working(operation, start, deadline, now)):
         raise ValueError('current exact isolated F approval required, not an old P lease')
     return deadline
 
@@ -47,7 +47,7 @@ class Session(p.Session):
         admitted(self.operation, self.host_id)
         if self.stopped or (self.root / 'F.stop').exists() or (self.root / 'fanout-state/F.stop').exists():
             raise ValueError('F arm stopped; no further cell')
-        remaining = int((self.deadline - datetime.now(UTC)).total_seconds()) - 180
+        remaining = float('inf') if window.task(self.operation) else int((self.deadline - datetime.now(UTC)).total_seconds()) - 180
         if remaining < 30:
             raise ValueError('original cleanup margin exhausted')
         budget = min(10 if measured else setup_seconds, remaining)

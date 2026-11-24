@@ -9,6 +9,7 @@ from arm_f_native import save
 from arm_f_runtime import Session
 from arm_satellite_ad_parity import validate_main
 from arm_satellite_sql import literal as q
+from costfn_task import exact, ParityDivergence
 import restore_realism as restore
 
 
@@ -37,17 +38,17 @@ def rowset(rows):
 
 
 def compare(sample, expected, observation):
-    validate_main(sample['rows'], expected['rows'], expected['eligible_ads'])
+    exact(validate_main, sample['rows'], expected['rows'], expected['eligible_ads'])
     for actual, wanted in zip(sample['followups'][:2], expected['followups'], strict=True):
         if rowset(actual.get('rows', [])) != rowset(wanted):
-            raise ValueError('complete canonical engagement follow-up mismatch')
+            raise ParityDivergence('complete canonical engagement follow-up mismatch')
     checks = observation.get('fanout_view_checks', [])
     if len(checks) != 1:
         raise ValueError('exact same-snapshot canonical view check missing')
     values = {doc: {'impressions': count, 'reach': reach} for doc, count, reach in checks[0]['values']}
     actual = sample['followups'][2]
     if actual != values:
-        raise ValueError('HTTP views differ from checked canonical snapshot')
+        raise ParityDivergence('HTTP views differ from checked canonical snapshot')
     if set(values) - set(expected['ids']):
         raise ValueError('unrequested view values')
 
