@@ -1,8 +1,8 @@
 # D117 refinement: hybrid K20 preflight
 
-**Status:** no-engine model reproduced; baseline-only runner, fixed-slice
-constructor and current-arm evidence adapter checked offline. Native baseline
-reproduction is pending; challenger arms and the fault suite remain deferred. The
+**Status:** the [root-seed retry](evidence/hybrid-k20-root-seed-20261123/RESULTS.md)
+copied the slice, then stopped on an exact setup-oracle mismatch in one legacy
+node-ad choice. The indexed baseline, challengers and fault suite did not run. The
 [D117 result](evidence/row-model-4096-20261123/RESULTS.md) rejected maximal
 payload decomposition, not every way to store queryable values separately.
 The next question is whether a hybrid is worth its extra writes and repair

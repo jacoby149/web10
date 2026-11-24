@@ -1,3 +1,6 @@
+6.28.14 || 27.11.2026
+research: bank the native K20 root-seed retry. The slice copies and activates all three lanes; the ordinary pre-measurement oracle stops on one legacy node-ad creative choice despite identical ordered keys, non-ad fields, follow-ups and eligible inventory. Indexed baseline not run. Off-host custody and cleanup verified; no retry. [Results](../../research/experiments/costfn/evidence/hybrid-k20-root-seed-20261123/RESULTS.md).
+
 6.28.13 || 27.11.2026
 research: repair the fixed K20 slice after the native constructor stop documented in PR #1624. Seed only historical post IDs in the authenticated main post scope or owned by the reader; keep follow-up Discover authority separate. Resolve inbound dependencies from fixed roots and parse outgoing refs only for retained IDs. Historical copies, unsliced oracle gate and baseline-only run order unchanged. Offline controls only; no new native result.
 
