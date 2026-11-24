@@ -65,6 +65,9 @@ class Actions(original.Actions):
         state = certificates.fingerprint(session)
         if state['canonical_generation'] != generation:
             raise ValueError('slice generation changed during infrastructure build')
+        # The existing tally constructor re-reads this fresh fingerprint to
+        # verify that its certificate refresh preserves canonical content.
+        save(self.root / 'before-projection-fingerprint.json', state)
         provenance = dict(kind='K20_FIXED_SLICE_REBUILT',
             slice_sha256=certificates.digest(self.root / 'hybrid-k20-slice.json'),
             canonical_content_sha256=state['canonical_content_sha256'])
