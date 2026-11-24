@@ -1,3 +1,6 @@
+6.28.17 || 27.11.2026
+research: persist the fresh sliced K20 fingerprint at the tally builder's expected path before binding the certificate. Verify the producer handoff offline and refuse generation mismatch before writing. No gate relaxation or native result; the prior STOP remains in PR #1628.
+
 6.28.15 || 27.11.2026
 research: make legacy node-ad selection reproducible for both K20 setup oracles by ordering the same eligible pool by full creative identity. Keep exact sliced/unsliced comparison and the indexed billboard path unchanged. Two added offline controls, no native acceptance. Prior native mismatch stays recorded in PR #1626.
 
