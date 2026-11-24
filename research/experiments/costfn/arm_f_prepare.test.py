@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from sqlglot import exp
 
 from arm_f_prepare import install
+from hybrid_k20_projected import preparation
 
 API = Path(__file__).resolve().parents[3] / 'api'
 sys.path.insert(0, str(API))
@@ -88,6 +89,25 @@ class PrepareTests(unittest.TestCase):
         for author in (None, '', "alice' OR 1=1 --"):
             with self.assertRaises(HTTPException):
                 self.endpoint._canonical_prepare_docs([dict(doc_id='active', author_key=author)], 'reader', {'posts': ['allowed']})
+
+    def test_projected_binder_still_checks_live_history_and_policy_before_payload(self):
+        self.db.create_function('toUnixTimestamp64Milli', 1, int)
+        self.db.create_function('unhex', 1, lambda text: bytes.fromhex(text).decode())
+        execute = self.ch.execute_query.__wrapped__
+        self.ch.execute_query = lambda sql, **kwargs: execute(
+            sql.replace(' PREWHERE ', ' WHERE ').replace('engagement_documents', 'documents'), **kwargs)
+        self.endpoint._canonical_prepare_docs = self.original
+        install(self.endpoint, project=preparation)
+        self.collision()
+        rows = [dict(doc_id='active', author_key=a, body='FORGED') for a in ('bob', 'alice', 'bob')]
+        bound = self.endpoint._canonical_prepare_docs(rows, 'reader', {'posts': ['allowed']})
+        self.assertEqual([row['body'] for row in bound], ['bob canonical', 'current', 'bob canonical'])
+        self.db.execute("INSERT INTO group_hidden_docs VALUES ('allowed','active',4,0)")
+        self.queries.clear()
+        with self.assertRaises(HTTPException):
+            self.endpoint._canonical_prepare_docs(rows, 'reader', {'posts': ['allowed']})
+        self.assertEqual(len(self.queries), 1)
+        self.assertIn('projected_preparation_keys', self.queries[0])
 
 
 if __name__ == '__main__':

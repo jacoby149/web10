@@ -94,3 +94,16 @@ e.p.ch.attach_pinned_ads = attach
 e.p.ch.attach_node_ads = lambda docs, reader: docs  # Both settled pin kinds attach above; never select twice.
 e.p.ch.get_active_node_ads = forbidden_inventory
 application = e.application
+
+if os.environ.get('HYBRID_K20_PROJECTED') == '1':
+    import hybrid_k20_projected as k20
+    if not indexed or not k20.enabled(e.f.admission):
+        raise ValueError('projected K20 requires admitted indexed composition')
+    original_execute = e.p._execute
+
+    def execute_resolution(sql, settings=None):
+        if sql.startswith(k20.MAIN_MARKER):
+            return k20.resolution(lambda query: original_execute(query, settings=settings), sql)
+        return original_execute(sql, settings=settings)
+
+    e.p._execute = execute_resolution

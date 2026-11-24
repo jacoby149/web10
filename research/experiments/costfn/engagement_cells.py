@@ -60,9 +60,16 @@ def serving_state(parent, cell, profile_name):
     return profile
 
 
-def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False):
+def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False, projected=False):
     parent = Path(parent)
-    completion = json.loads((parent / 'admission.json').read_bytes()).get('engagement_completion_admitted') is True
+    approval = json.loads((parent / 'admission.json').read_bytes())
+    completion = approval.get('engagement_completion_admitted') is True
+    if projected:
+        from hybrid_k20_projected import enabled
+        if (not enabled(approval) or approval.get('composition_admitted') is not True
+                or (name, profile_name, mode, serving_mode, aggregate) !=
+                ('projected-K20', 'ordinary', 'uniform', 'F_DOCUMENT_STREAM_V1', True)):
+            raise ValueError('projected overlay is limited to the admitted fixed K20 cell')
     if completion:
         from engagement_certificates import verify
         verify(parent)
@@ -75,6 +82,8 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
     env = dict(FANOUT_CONFIG_F='1', FANOUT_STATE='/fanout-state', FANOUT_STAGE_DIR='/fanout-stages',
         FANOUT_SERVING_MODE=serving_mode, FANOUT_BOOT_ID=boot_id, ENGAGEMENT_READ_MODE=mode,
         ENGAGEMENT_VIEWS_AGGREGATED='1' if aggregate else '0', ENGAGEMENT_COPY_PROOF='/copy-proof.json')
+    if projected:
+        env['HYBRID_K20_PROJECTED'] = '1'
     volumes = [str(cell / 'fanout-state') + ':/fanout-state', str(stages) + ':/fanout-stages']
     if mode == 'uniform':
         volumes.append(str(parent / 'copy-proof.json') + ':/copy-proof.json:ro')
@@ -185,7 +194,7 @@ async def complete(parent, cell, profile, expected, *, uniform=False, serving_mo
         stop(parent)
 
 
-def run_complete(parent, name, profile_name, mode, expected, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False):
-    cell = boot(parent, name, profile_name, mode, serving_mode=serving_mode, aggregate=aggregate)
+def run_complete(parent, name, profile_name, mode, expected, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False, projected=False):
+    cell = boot(parent, name, profile_name, mode, serving_mode=serving_mode, aggregate=aggregate, projected=projected)
     profile = json.loads((Path(parent) / ('profile-' + profile_name + '.json')).read_bytes())
     return asyncio.run(complete(parent, cell, profile, expected, uniform=mode == 'uniform', serving_mode=serving_mode))
