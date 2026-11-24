@@ -511,7 +511,13 @@ p.ch.execute_query = execute_query
 # The declared document-stream contract includes same-ID/different-author rows.
 # Retain the node's canonical authority check; narrow its exact-ID lookup to
 # each requested author rather than bypassing its doc_id ambiguity refusal.
-install_full_key_prepare(query_endpoint)
+if os.environ.get('HYBRID_K20_PROJECTED') == '1':
+    import hybrid_k20_projected as k20
+    if not k20.enabled(admission):
+        raise ValueError('K20 projection requires separate admission')
+    install_full_key_prepare(query_endpoint, project=k20.preparation)
+else:
+    install_full_key_prepare(query_endpoint)
 
 
 def inventory():

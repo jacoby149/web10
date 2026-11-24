@@ -3,7 +3,8 @@
 **Status:** the [indexed baseline samples](evidence/hybrid-k20-fingerprint-20261124/RESULTS.md)
 passed the original oracle. The original wrapper STOP is retained and the
 receipt audit reconciles offline after correcting its mode declaration. The
-challengers and fault suite did not run. The
+challengers and fault suite did not run on that lease. The projected canonical
+arm now has source and offline controls; native evidence is pending. The
 [D117 result](evidence/row-model-4096-20261123/RESULTS.md) rejected maximal
 payload decomposition, not every way to store queryable values separately.
 The next question is whether a hybrid is worth its extra writes and repair
@@ -87,6 +88,39 @@ Separate setup, auxiliary receipt work, and write/rebuild costs; record cache
 conditions and repeated samples without calling the small fixture a p95 or
 capacity measurement. Keep assembly-to-assembly and complete-to-complete
 comparisons separate.
+
+### Projected canonical: source ready, native comparison pending
+
+At the research API -> ClickHouse boundary, the projected cell runs the same
+mixed resolution/tally query without post and profile bodies in the history,
+policy and ranking pass. It fetches the selected bodies by service, author,
+document ID and exact millisecond version, then restores their original ordered
+rows. Preparation still runs the unmodified canonical binder. Its document
+lookup resolves authorized versions before fetching bodies for the requested
+author. Missing or conflicting exact bodies and saturated prepare results stop
+the cell. Face authorization still needs JSON at read time and remains
+unchanged, as do pin/creative preparation, follow-ups and delivery.
+
+After **separate native admission**, use `hybrid_k20_run_projected.py` with the
+original current-arm source/host/window binding plus
+`hybrid_k20_projected_directive='RD4-HYBRID-K20 projected canonical comparison only'`,
+`hybrid_k20_projected_admitted=true` and `hybrid_k20_hybrid_admitted=false`.
+The runner rebuilds the same slice with the original constructor and unsliced
+oracle, checks the banked event census, and runs both arms sequentially over
+that one store. Each must pass the existing complete HTTP/oracle checks. The
+comparison requires equal quiet delivery history for the two measured samples;
+warmups are archived separately. This fixed order does not control server cache
+carryover or establish repeatable latency.
+
+Review the native `EXPLAIN PLAN` read headers, actions and indexes for both
+targeted stages, alongside exact measured query IDs, query-log columns and
+actual costs. The keys statements should not read `body`; the payload statements
+should read it only through the exact-key/version `PREWHERE`. If the native
+plans still scan broad granules, report that separately from column omission.
+Do not infer physical I/O from logical bytes or present the in-request queries
+as the cost of EXPLAIN and receipt collection. Compare each full measured HTTP
+sequence with captured and request-tagged costs side by side. Do not implement
+the hybrid arm before reviewing that native comparison.
 
 Before advancing, run the publish/repair faults on the isolated native store:
 crash before commit; dropped data write; lost commit acknowledgment then retry
