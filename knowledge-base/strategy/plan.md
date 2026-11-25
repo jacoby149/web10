@@ -1719,6 +1719,8 @@ render). Spec'd in `knowledge-base/web10-v3/social/shorts.md`.
 
 ## Music: The Audio Track Feed — web10-social
 
+- [✓ 6.29.4 local] **Music Explore first paint** — publish playable tracks from the stable prefix of the signed-in Discover mix, without waiting for unused feed totals or ads. Preserve ranking, source order, and settled-page cursors. Live timing is not measured after the change.
+
 A music track is a `posts` doc on the discover group whose single media is a
 **real audio file** (`audio/*`) — no new collection, no new group (the Music
 feed is a *view* over the discover group, filtered to music). Same model as

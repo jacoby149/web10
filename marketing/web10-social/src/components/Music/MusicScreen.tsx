@@ -66,9 +66,11 @@ export default function MusicScreen() {
     if (playbackOwner.current !== tuned.owner && musicRef.current.current?.readOnlySource) musicRef.current.clear();
     playbackOwner.current = tuned.owner;
   }, [tuned.owner]);
-  const [loading, setLoading] = useState(true);
+  const [legacyLoading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [hasMore, setHasMore] = useState(false);
+  const [legacyHasMore, setHasMore] = useState(false);
+  const loading = tuned.enabled ? tuned.loading : legacyLoading;
+  const hasMore = tuned.enabled ? tuned.hasMore : legacyHasMore;
   const [offset, setOffset] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
@@ -152,11 +154,6 @@ export default function MusicScreen() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [session, refresh, tuned.enabled]);
-
-  useEffect(() => {
-    if (!tuned.enabled) return;
-    setLoading(tuned.loading); setHasMore(tuned.hasMore);
-  }, [tuned.enabled, tuned.posts, tuned.loading, tuned.hasMore, tuned.home]);
 
   useEffect(() => {
     const current = ++generation.current;
@@ -447,6 +444,7 @@ export default function MusicScreen() {
               <button data-testid="music-track-card" aria-label={`Play ${title(track)}`} onClick={() => start(track)} className={cn('flex min-w-0 flex-1 items-center gap-3 rounded text-left sm:gap-4', focus)}><span className="hidden w-5 text-center text-xs tabular-nums text-muted-foreground sm:block">{current && musicTrackKey(current) === musicTrackKey(track) && music.isPlaying ? <Pause className="h-4 w-4 text-brand-300" /> : index + 1}</span><Artwork track={track} className="w-12" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{title(track)}</span><span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><span className="truncate">{artist(track)}</span><span className="shrink-0 tabular-nums">· {time(track.media.duration_seconds || 0)}</span></span></span></button>{actions(track)}
             </article>)}</div>}
             {!loading && !playlistLoading && (view === 'explore' || libraryReady) && !filtered.length && !(view === 'explore' ? error : playlistError || libraryError) && <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center"><Music className="mx-auto mb-3 h-8 w-8 text-brand-300" strokeWidth={1} /><p className="text-sm text-muted-foreground">{q ? 'No tracks match your search.' : view === 'saved' ? 'Your favorites start here. Save a track to add it to Saved Music.' : view === 'playlists' ? 'No playable music in this collection yet. Add a track from Explore.' : 'No music yet. Be the first to share a track.'}</p></div>}
+            {view === 'explore' && tuned.enabled && loading && tracks.length > 0 && !hasMore && <p role="status" className="mt-6 text-center text-sm text-muted-foreground">Loading more music…</p>}
             {view === 'explore' && hasMore && <div className="mt-6 text-center"><Button variant="outline" className="h-11" disabled={loading} onClick={loadMore}>{loading ? 'Loading music...' : 'Explore more music'}</Button></div>}
           </section>
         </>}
