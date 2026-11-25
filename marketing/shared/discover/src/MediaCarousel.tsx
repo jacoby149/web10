@@ -82,8 +82,14 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
                   testId={testId ? `${testId}-video-${i}` : undefined}
                 />
               ) : (
+                // An image slide renders the ORIGINAL (the thumbnailing
+                // contract: an image doc's representative is its read_url —
+                // `thumbnail_url` is the client's 480px tile rendition + the
+                // video poster + the audio cover). Preferring the thumbnail
+                // upscaled it to fill the frame and read as grainy (the
+                // feed-vs-profile operator report, 25.11.2026).
                 <ReliableImage
-                  src={item.thumbnail_url || item.url}
+                  src={item.url || item.thumbnail_url}
                   alt={item.alt_text || ''}
                   className={cn('h-full w-full', fit === 'cover' ? 'object-cover' : 'object-contain')}
                   loading="lazy"
