@@ -154,12 +154,12 @@ def run(root):
     certificate = root / 'certification-tally'
     if resumable and (certificate / 'certificate.json').exists():
         certificates.verify(root)
-        stored = json.loads((output / 'build.json').read_bytes())
+        receipt = json.loads((output / 'build.json').read_bytes())
         parts, _ = session.rows('tally_current_parts', "SELECT name,toString(rows) AS rows,toString(data_version) AS data_version FROM system.parts "
             "WHERE database='web10' AND table='" + sql.TABLE + "' AND active ORDER BY name")
-        if not stored['verified'] or hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest() != stored['parts_sha256']:
+        if not receipt['verified'] or hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest() != receipt['parts_sha256']:
             raise ValueError('retained tally differs from its verified parts')
-        return stored
+        return receipt
     output.mkdir(mode=0o700, exist_ok=resumable)
     session = setup_writes(session, root / 'task-setup/tallies', 'engagement_documents', 'doc_groups')
     started = time.perf_counter()

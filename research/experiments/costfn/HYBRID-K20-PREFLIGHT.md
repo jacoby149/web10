@@ -130,6 +130,20 @@ as the cost of EXPLAIN and receipt collection. Compare each full measured HTTP
 sequence with captured and request-tagged costs side by side. Do not implement
 the hybrid arm before reviewing that native comparison.
 
+### Step 3: attachment-history layout
+
+Step 2's [native comparison](evidence/k20-projected-20261125/RESULTS.md) showed
+that body pruning did not reduce complete-read costs. At the research API ->
+ClickHouse boundary, the Step 3 arm substitutes a skinny, 256-row-granularity
+attachment history for the two expensive projected key statements only. It
+keeps every canonical version/tombstone and the original policy, tally, rank,
+body materialization and response assembly. The driver uses the retained
+Step 2 store and its same-host manifest/generation; it does not re-prepare it.
+An exact native multiset census and a refusal for ambiguous tombstone ties
+precede serving. Both canonical and satellite part fingerprints are checked
+on the request and their costs are charged. Compare against indexed control
+twice in reversed order and retain the per-statement plans and complete reads.
+
 Before advancing, run the publish/repair faults on the isolated native store:
 crash before commit; dropped data write; lost commit acknowledgment then retry
 of the same immutable operation; deliberately committed version missing a
