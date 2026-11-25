@@ -741,8 +741,8 @@ the missing steps.
   --color-classic-border: #2b337e;
   --color-classic-foreground: #fafafa;
   --color-classic-muted-foreground: #a9b1d6;
-   --color-classic-ink: #090c22;
-   --color-classic-sky-bright: #b5e6f8;
+  --color-classic-ink: #090c22;
+  --color-classic-sky-bright: #b5e6f8;
   --color-classic-sky: #87ceeb;
   --color-classic-brand-muted: #1a2260;
 
@@ -800,7 +800,7 @@ primary foreground for prose over the scrim, and deep ink text on sky fill.
 | Token | Value | Role |
 |---|---|---|
 | `--color-classic-background` | `#101648` | The deep navy — measured from the hero base (the fractal's field), not the plan's guessed `#1a1a2e`. Page background. |
-| `--color-classic-surface` | `#161d5e` | Cards, the stats band — one step up from the navy, same hue. |
+| `--color-classic-surface` | `#161d5e` | The pledge band — one step up from the navy, same hue. |
 | `--color-classic-elevated` | `#1d2570` | Hover fills, second step up. |
 | `--color-classic-border` | `#2b337e` | 1px borders on navy. |
 | `--color-classic-foreground` | `#fafafa` | Primary text on navy. |
