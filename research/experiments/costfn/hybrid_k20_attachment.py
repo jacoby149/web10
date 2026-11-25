@@ -35,8 +35,8 @@ def fingerprints(execute, source=SOURCE, table=TABLE):
     return {name: parts_digest(execute(parts_sql(name))) for name in (source, table)}
 
 
-def verify_parts(execute, proof):
-    if fingerprints(execute) != proof['parts']:
+def verify_parts(execute, proof, *, source=SOURCE, table=TABLE):
+    if fingerprints(execute, source, table) != proof['parts']:
         raise ValueError('hybrid attachment history is not the published canonical generation')
 
 
@@ -103,5 +103,16 @@ def build(session, root):
         raise ValueError('canonical attachment generation changed during hybrid build')
     proof = dict(parity='PASS', host=session.host_id, parts=parts, checks=checks, writes=writes,
         table=TABLE, historical_multiplicity_preserved=True)
+    return publish(path, proof)
+
+
+def publish(path, proof):
+    if proof['parity'] != 'PASS' or any(row['mismatches'] or row['ties'] for row in proof['checks']):
+        raise ValueError('unverified attachment history is not publishable')
+    if path.exists():
+        existing = read(path)
+        if existing != proof:
+            raise ValueError('conflicting immutable attachment publication')
+        return existing
     save(path, proof)
     return proof

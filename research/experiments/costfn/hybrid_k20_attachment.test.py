@@ -1,6 +1,8 @@
 """Offline controls for the exact attachment history substitution."""
 import unittest
 from unittest.mock import Mock
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import sqlglot
 from sqlglot import exp
@@ -41,6 +43,18 @@ class AttachmentTests(unittest.TestCase):
         for actual in ([canonical, []], [canonical, [{'name': 'skinny', 'content': 'corrupt'}]], [satellite, satellite]):
             with self.subTest(parts=actual), self.assertRaises(ValueError):
                 links.verify_parts(Mock(side_effect=actual), proof)
+
+    def test_publish_is_idempotent_and_cannot_overwrite_original(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'proof.json'
+            proof = dict(parity='PASS', checks=[dict(mismatches=0, ties=0)], parts={'table': 'approved'})
+            with self.assertRaisesRegex(ValueError, 'not publishable'):
+                links.publish(path, {**proof, 'checks': [dict(mismatches=1, ties=0)]})
+            self.assertFalse(path.exists())
+            self.assertEqual(links.publish(path, proof), proof)
+            self.assertEqual(links.publish(path, proof), proof)
+            with self.assertRaisesRegex(ValueError, 'conflicting'):
+                links.publish(path, {**proof, 'parts': {}})
 
 
 if __name__ == '__main__':
