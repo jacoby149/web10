@@ -1,3 +1,6 @@
+6.29.7 || 25.11.2026
+fix(marketing): render the bundled founder portrait through the shared image component so the media inventory passes without an exception. Keep its square crop and lazy loading, and retry the same local asset after a load error.
+
 6.29.6 || 25.11.2026
 fix(social): Music Explore shows playable tracks before slower sources finish when their place in the mix is known. Already visible rows stay in order; Load more waits for the complete page. The signed-in track list skips attached ads and three follow-up feed totals requests, retaining server-side music filtering, ranking, media preparation and on-demand player engagement. Other tabs and the signed-out reader keep their existing behavior.
 
