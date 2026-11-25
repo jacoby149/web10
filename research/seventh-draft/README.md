@@ -1,9 +1,9 @@
 # Draft v7 — Your Data, Your Rules, One Query
 
 This is Jacob Hoffman's named working manuscript, with **Independent** as the
-sole affiliation. [Draft v6](../sixth-draft/main.tex) remains untouched. From
-the repository root, build with `tectonic -o .context/paper-v7 research/seventh-draft/main.tex`
-after creating the output directory. The working manuscript is not a
+sole affiliation. [Open the built PDF](main.pdf). [Draft v6](../sixth-draft/main.tex)
+remains untouched. From the repository root, rebuild with
+`tectonic research/seventh-draft/main.tex`. The working manuscript is not a
 double-anonymous submission artifact.
 
 ## Drafting checks
