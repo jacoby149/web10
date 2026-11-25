@@ -144,8 +144,8 @@ if (screen === 'install-prompt') {
 }
 // The post-detail capture: the PostLightbox is a fixed overlay, so render it
 // directly (no Layout chrome) — the modal is the whole shot.
-if (screen === 'post-detail' || screen === 'group-post-detail') {
-  createRoot(document.getElementById('root')!).render(<PostDetailHarness group={screen === 'group-post-detail'} />);
+if (screen === 'post-detail' || screen === 'group-post-detail' || screen === 'post-detail-essay') {
+  createRoot(document.getElementById('root')!).render(<PostDetailHarness group={screen === 'group-post-detail'} essay={screen === 'post-detail-essay'} />);
 } else if (screen === 'post-detail-audio') {
   createRoot(document.getElementById('root')!).render(<PostDetailHarness audio />);
 } else if (screen === 'post-detail-portrait') {
@@ -185,6 +185,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
      : screen === 'discover-explore' ? '/discover?tab=explore'
       : screen === 'watch' ? '/watch/dp-1'
       : screen === 'watch-hls' ? '/watch/dp-5'
+      : screen === 'watch-essay' ? '/watch/dp-essay'
       : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
       : screen === 'shorts-lens' ? '/shorts/dp-2'
      : screen === 'shorts-searched' ? '/shorts?q=studio'

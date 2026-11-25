@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import type { MediaRecord, PostRecord } from '@/data/types';
 import { MUSIC_TRACKS } from './mock-music';
+import { ESSAY_TEXT } from './mock-data';
 
 // A portrait (9:16) photo creative — the lightbox's "photobox" cap evidence
 // (60vh desktop frame + the black side bars, the grainy-feed PR).
@@ -61,7 +62,17 @@ const POST: PostRecord = {
   author_provider: 'web10',
 };
 
-export function PostDetailHarness({ group = false, audio = false, portrait = false }: { group?: boolean; audio?: boolean; portrait?: boolean }) {
+// The D125 essay variant: a text-only post whose body is essay-length (the
+// operator's "a post that takes over the feed" case) — the lightbox capture
+// shows the detail's 12-line clamp + the "See more" toggle.
+const ESSAY_POST: PostRecord = {
+  ...POST,
+  _id: 'pd-essay',
+  title: 'The long way around',
+  text: ESSAY_TEXT,
+};
+
+export function PostDetailHarness({ group = false, audio = false, portrait = false, essay = false }: { group?: boolean; audio?: boolean; portrait?: boolean; essay?: boolean }) {
   // The portrait variant: a tall photo post — the lightbox's "photobox" cap
   // (60vh desktop frame + the black side bars) capture.
   if (portrait) {
@@ -100,11 +111,12 @@ export function PostDetailHarness({ group = false, audio = false, portrait = fal
       </MemoryRouter>
     );
   }
+  const post = essay ? ESSAY_POST : group ? { ...POST, author_key: 'web10/groups/users/me/studio', author_username: 'Northstar Studio', posted_by: 'another-operator' } : POST;
   return (
     <MemoryRouter>
       <div className="flex min-h-screen items-center justify-center bg-background" data-testid="post-detail-harness">
         <PostLightbox
-          post={group ? { ...POST, author_key: 'web10/groups/users/me/studio', author_username: 'Northstar Studio', posted_by: 'another-operator' } : POST}
+          post={post}
           mediaMap={{}}
           onClose={() => {}}
           postAuthor="nova"

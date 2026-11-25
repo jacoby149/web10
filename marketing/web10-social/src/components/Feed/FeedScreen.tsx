@@ -46,6 +46,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { PostActions } from './PostActions';
 import { TextWithLinks } from './LinkEmbed';
 import { PostBody } from './PostBody';
+import { ExpandablePostBody } from './ExpandablePostBody';
 import { AdBlock } from './AdBlock';
 import { AttachedAd } from './AttachedAd';
 import { AdPicker } from './AdPicker';
@@ -733,7 +734,11 @@ export function PostCard({
             </h3>
           )}
           <div className="text-sm text-foreground">
-            <PostBody text={post.text} density="full" />
+            {/* The card's body (D125): essay-length posts (20+ lines of text)
+                clamp to the card's 6-line budget + a "See more" toggle, so an
+                essay stops dominating the feed; a post that fits renders
+                exactly as before (no button, no clamp style). */}
+            <ExpandablePostBody text={post.text} density="full" collapsedLines={6} testId="post-card-see-more" />
           </div>
         </div>
       ) : post.title && !post.repost_of ? (

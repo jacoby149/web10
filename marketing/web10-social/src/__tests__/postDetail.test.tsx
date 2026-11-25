@@ -98,9 +98,13 @@ describe('PostDetail — the post-detail system (rich-text.md)', () => {
   it('sets the body at a reading measure (max-w-prose) — the content-sized column', () => {
     renderDetail();
     // The body wrapper carries the reading measure (a text-only post gets a
-    // centered reading column, not 320px-in-896px dead space).
+    // centered reading column, not 320px-in-896px dead space). The body sits
+    // inside the expandable-body wrapper (D125), so walk up to the first
+    // ancestor that owns the measure.
     const body = screen.getByTestId('post-body');
-    expect(body.parentElement?.className).toMatch(/max-w-prose/);
+    let ancestor: Element | null = body.parentElement;
+    while (ancestor && !/max-w-prose/.test(ancestor.className || '')) ancestor = ancestor.parentElement;
+    expect(ancestor?.className).toMatch(/max-w-prose/);
   });
 
   it('renders the quiet stats row ("N likes · M comments")', () => {
