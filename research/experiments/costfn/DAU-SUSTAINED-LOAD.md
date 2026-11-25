@@ -415,3 +415,7 @@ which is what the test exists to find.
   stand; this test adds the sustained-rate dimension to the same store.
 - **paper-submission.md:** strategy only; nothing here authorizes a
   submission or changes banked evidence.
+- **DESIGN-OUTCOMES.md:** the design-outcomes record of the experiment
+  programme (sixteen entries). This test validates the capacity
+  statement's form (entry 16), and its steady-state precondition is the
+  cleanup regime's (entry 15) first at-scale receipt.
