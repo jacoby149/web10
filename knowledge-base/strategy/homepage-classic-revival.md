@@ -1,7 +1,33 @@
 # Classic homepage revival + landing A/B
 
-Status: planned (17.11.2026). Lane: `homepage-classic-revival` in
-`parallel-execution.md`. No implementation started; Phases 0–1 gate the rest.
+Status: DECIDED + shipped-locally (25.11.2026, D125). Lane:
+`homepage-classic-revival` in `parallel-execution.md`.
+
+**Operator decision (25.11.2026):** the classic page is the marketing page,
+shipped directly at `/` — no observation window, no A/B. Rationale (verbatim):
+the current creator-pitch landing is "not working", "influencers dont bring
+their audience, people have to feel like this shit is just cool", "that
+revolution was cool shit". Phases 3–5 (observe / A-B / decide) are RETIRED by
+this decision; measurement falls back to the observational before/after
+comparison ab-testing.md prescribes (Phase 0 baseline still wanted). The
+creator pitch survives, demoted, at `/audience`. Follow-up calls the same
+day: the actual 2022 type and layered treatment, the founder photo back in a
+3-column team grid (square crops,
+first card anchored left, "not in the middle", built to grow), single entry
+CTA **"Enter web10 social" → SOCIAL_ORIGIN** (supersedes the dual CTA below:
+"should JUST be Enter web10 social"), and no hairline dividers — sections
+separate by color blocks, the "serious style" of 2022.
+
+**Visual reference:** the 2022 original is `home/index.html` and
+`home/layouts/styles/{framework,layout}.css` at `f3d695394`, not the later
+Bulma port described below. It paired regular, all-caps Georgia headings with Lineto
+Brown Pro body text and used a dark translucent overlay on `back2.jpg`,
+a sky-blue heading accent and a simple solid sky-blue CTA. Restore Georgia
+and use self-hosted OFL Jost for the geometric body face; the archived
+Brown Pro binaries have no verified redistribution license. Keep the current
+copy, destination and content, but carry the navy treatment into the homepage
+header and use distinct, borderless section bands. The fractal stays visible
+on phones without fixed attachment.
 
 ## Why
 
@@ -103,11 +129,32 @@ New deep-linkable route (name: operator may rename), built on modern bones
 — current stack, current stats endpoint, current handoff wiring, D108-aware
 shell — and faithful in soul:
 
-- **Hero**: fractal background (desktop), “The web10 Revolution”, original
-  sub copy. Two CTAs: primary **“Enter web10” → AUTH_ORIGIN** (the signup
-  ask, through the existing decorated handoff) and secondary **“Explore
-  web10” → SOCIAL_ORIGIN** (D111 preserved).
-- **Features**: Peer to Peer / Own Your Data / Data Freedom — original copy.
+- **Hero**: fractal background (desktop), “The web10 Revolution”,
+  **operator-approved sub copy (25.11.2026)**: “Use a web10 app. Sign up
+  for an account. Start owning your photos, music, and data on the
+  internet. The key to the vault is your domain name.” (An added
+  “that only you control” clause was drafted and cut as too much.)
+  Reading: “domain name” = the user’s **own web10 address**
+  (the `web10.app/jacoby149`-style profile URL they get at signup), not a
+  DNS purchase — web10 does not sell or issue domains (the D41 property
+  that the address stays the user’s is what makes the metaphor hold).
+  Evolution: the 2022 original (“Get a domain name to
+  start owning…”) was first kept as-is, then the operator tightened it to
+  the vault-key line; a TXT-record rewrite (“Point your domain at it with a
+  TXT record…”) was discussed and rejected as harder to understand. The
+  real-DNS-domain claim (a TXT record at `web10.<yourdomain.com>`
+  attaching the user’s own domain; repointing the record moves the vault
+  between nodes without changing the address) remains a separate, deeper
+  feature, documented in `web10-v3/identity/domain-identity.md` +
+  `web10-v3/setup/custom-domain.md` — not the hero’s pitch, and do not
+  “correct” the sub copy toward a registrar/DNS framing. Two CTAs:
+  primary **“Enter web10” → AUTH_ORIGIN** (the signup ask, through the
+  existing decorated handoff) and secondary **“Explore web10” → SOCIAL_ORIGIN**
+  (D111 preserved).
+- **Features**: Peer to Peer / Own Your Data / Data Freedom — original copy,
+  with one operator-approved adjustment (25.11.2026): the Own Your Data
+  body’s “it’s **on** your domain” → “it’s **with** your domain” — the
+  domain is the key to the vault, not storage the data sits on.
 - **Stats band**: classic navy, live `POST /v3/stats` — users / apps in the
   store / data liberated (existing fields only).
 - **Pledge quote** (2022) — kept.

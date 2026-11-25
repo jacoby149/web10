@@ -1,3 +1,6 @@
+6.29.1 || 25.11.2026
+fix(marketing): restyle the Revolution homepage from the actual 2022 source: all-caps Georgia titles, self-hosted OFL Jost in place of the archived Brown Pro font, the shaded fractal on desktop and mobile, and borderless navy bands. Keep the single hero CTA, founder portrait and live stats. Verified locally; no deployment.
+
 6.28.26 || 25.11.2026
 research: reconcile draft v7's R630 storage budget with the four-drive SATA mirror layout and manufacturer rating. Distinguish indexed and projected hybrid logical demand from rated gross physical supply, and record the pending on-array mixed-load measurement without delaying submission. No device measurement, rented load test, or change to the memory, CPU, or latency verdicts.
 
