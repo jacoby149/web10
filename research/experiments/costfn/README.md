@@ -42,8 +42,10 @@ cell. It separates modeled bytes, native logical bytes, and R630 physical I/O.
 The [full-store hybrid contract](FULL-STORE-HYBRID.md) defines the next RD4
 measurement: the hybrid (dual) layout on the full frozen store — the missing
 cell that is ratio arithmetic today (36.2 MB/read → ~0.54 GB/s at the
-contract peak). Satellite build from canonical history, two frozen uniform
-K20 hybrid reads, exact ordered oracle parity, indexed baseline cited from
+contract peak), on the post-cleanup steady state (OPTIMIZE + parts census
+precondition; the slice's −70.6% remains the transient pre-merge regime
+reference). Satellite build from canonical history, two frozen uniform K20
+hybrid reads, exact ordered oracle parity, indexed baseline cited from
 banked PR #1618. Settles the disk-demand line only; six-case, supply and
 production remain separate. Planning contract only: no source change, host,
 admission or measurement.

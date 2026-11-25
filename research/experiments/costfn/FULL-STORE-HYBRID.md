@@ -20,10 +20,13 @@ contract peak. This run replaces that row with a measurement.
 it the budget's disk-*demand* line on the dual layout (the derived
 production cap arithmetic — array rating ÷ measured demand — follows in the
 receipt, labelled arithmetic). The measured ratio may differ from the
-slice's −70.6% in either direction: the slice is deliberately
-attachment-history-heavy (323+54 granules), the full-store fixture is
-lighter and text-only; the receipt reports the measured ratio, not the
-slice's.
+slice's −70.6% in either direction, and the regimes are named: the slice's
+retained pre-merge history is the **transient regime** — what production's
+`ReplacingMergeTree` merges and the declared cleanup interval bound, since
+history is a sawtooth, not an accumulation — while this run, on the
+post-cleanup full store, prices the **steady state**. The receipt reports
+the measured steady-state ratio, not the slice's; the slice's numbers remain
+the transient-regime reference, banked as-is and not relabelled.
 
 **Not settled:** live concurrent publish/cleanup (the six-case gate stays
 closed — this run is reads on a frozen store), any array's net *supply*
