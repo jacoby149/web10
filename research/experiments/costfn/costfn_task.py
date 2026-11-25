@@ -45,6 +45,17 @@ class Task:
             admission_sha256=digest(self.root / 'admission.json'),
             source_start=approval['hybrid_k20_source_commit'], host_backstop_utc=approval['deadline_utc'])
         self.source = source
+        self.initial_source = self.identity['source_start']
+
+    def next_phase(self, name, parent_report):
+        if not name.isascii() or not name.isalnum() or read(self.path)['status'] != 'COMPLETE':
+            raise ValueError('completed same-task predecessor required')
+        parent = read(parent_report)
+        if any(parent.get(key) != value for key, value in self.identity.items()):
+            raise ValueError('predecessor report does not belong to this task')
+        self.path = self.root / ('costfn-task-' + name + '.json')
+        self.identity['predecessor_sha256'] = digest(parent_report)
+        self.initial_source = self.source
 
     @contextmanager
     def attempt(self, note=None):
@@ -63,7 +74,7 @@ class Task:
                 raise ValueError('record the interrupted attempt or source repair before resuming')
             if previous and previous['status'] == 'RUNNING':
                 previous.update(status='INTERRUPTED', ended_utc=utc())
-            if not previous and self.source != self.identity['source_start']:
+            if not previous and self.source != self.initial_source:
                 raise ValueError('first execution must use the admitted starting source')
             attempt = dict(number=len(self.state['attempts']) + 1, source=self.source, repair_note=note,
                 status='RUNNING', started_utc=utc(), reused=[])

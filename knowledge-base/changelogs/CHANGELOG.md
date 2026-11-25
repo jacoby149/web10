@@ -1,3 +1,9 @@
+6.28.22 || 25.11.2026
+research: add the Step 3 skinny attachment-history arm against the retained K20 slice. Keep exact versions, tombstones, multiplicity and original response authority; independently verify the copied history and charge its generation fences. Source controls only; native comparison and fault outcomes pending.
+
+6.28.21 || 25.11.2026
+research: native indexed and projected K20 both pass exact complete-response parity on the fixed slice. Native plans and columns show payload pruning, but projected captured logical reads rise 620.85→622.46 MB and the two HTTP samples are essentially tied at 6.02 s. An in-task source repair reused validated preparation without a new binding. Step 3 targets broad attachment-history granules. [Results](../../research/experiments/costfn/evidence/k20-projected-20261125/RESULTS.md).
+
 6.28.20 || 24.11.2026
 research: apply the November 24 task scheduling directive to RD4. A task keeps one admission, a 24-hour host-only backstop, source lineage and reusable validated preparation. Resume exact event-seed receipts without repeating confirmed writes; retain transport stops and stop on ordered-response divergence. Preserve the operator-stopped old-clock run; neither arm measured. No production change.
 
