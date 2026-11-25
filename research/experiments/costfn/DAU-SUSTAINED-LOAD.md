@@ -32,8 +32,8 @@ Three-receipt map, no substitution between them:
 
 | Receipt | Machine | Line it upgrades |
 |---|---|---|
-| **This test** — sustained contract rate, mixed load, clog criterion | the budget's reference node (or scoped rental, §10), frozen store | clogging / steady state / CPU / memory on the machine the budget names |
-| R630 on-array run (seventh-draft README, pending hardware) | assembled R630, four transplanted drives | reference-array net disk supply (rated → measured); shares machine and restore with this test |
+| **This test** — sustained contract rate, mixed load, clog criterion | a DigitalOcean host sized to the budget (≥64 threads / ≥128 GB / NVMe, §10), frozen store | clogging / steady state / CPU / memory at the contract rate — the software lines; the disk *demand* line stands as derived arithmetic, met or not by a given production array |
+| R630 on-array run (seventh-draft README, pending hardware) | assembled R630 | production disk-supply check — an ops matter, not part of the paper's claim structure |
 | Full-store hybrid run (separate admission) | admitted host, frozen store + built satellite | hybrid band (0.54 GB/s ratio-transfer → measured) |
 
 ## 2. Store, host, and identity bindings
@@ -43,38 +43,36 @@ Three-receipt map, no substitution between them:
   banked costfn run. Before reuse, check the existing slice manifest,
   canonical generation fingerprint and native receipts (24 November
   scheduling directive); repair or rebuild only invalid work.
-- **Host class — the budget's machine, or nothing.** The claim this test
-  supports is the budget's: *this* machine at *this* load. A test earns its
-  place by running on the machine the budget names; on any other machine the
-  result floats free of the claim (a pass would prove the budget
-  over-specified, a failure would prove only about the foreign machine). The
-  primary host is therefore the reference node of
-  `ubuntu-deployment/HARDWARE-UPGRADE-PLAN.md`: Dell R630, 2× Xeon E5-2698 v3
-  (32C/64T total), 128 GB / 8-channel DDR4 (transplanted sticks, ~136 GB/s),
-  four 2 TB SanDisk SSD Plus in two mirror pairs (~4 TB usable, 1.09 GB/s
-  rated one-drive-per-pair), 10 GbE. Restore target: an owned research
-  volume/VM on that machine (the hardware plan's new-pool VM), never the
-  production stack. Gated on the hardware landing; not purchased or
-  assembled as of the 22.11.2026 ledger.
-  A **scoped rental alternative** is admitted only for the window before the
-  hardware lands: a 64-thread / ≥128 GB cloud rental matches the CPU and
-  memory dimensions but cannot match the SATA mirror array — cloud storage is
-  not the budget's disk line and the array is not rentable. On such a host
-  storage must be NVMe-backed and calibration-measured non-binding per §10,
-  and the receipt carries the scope restriction: CPU/memory/concurrency
-  clogging established; the disk line remains the R630 receipt. Availability
-  is verified at admission; the actual provisioned shape is verified into the
-  receipt, never assumed from the catalogue label.
-  The banked 8-vCPU droplet is **not** a test host: at 15 reads/s the banked
-  single-read costs (~1.1–1.3 s summed native duration each) ask for
-  ~17–20 thread-seconds of engine work per second against 8 available
-  vCPUs — it clogs by arithmetic before the first measurement, and its
-  breaking point would be the droplet's, not the design's. An optional
-  machinery-validation run on it (scoped "no claim, pipeline check only") is
-  default-off and never banked as a result.
+- **Host class — a DigitalOcean host sized to the budget.** The test runs
+  on DigitalOcean by design: a committed runner, a frozen workload and a
+  re-runnable droplet — reproducible in the sense the paper's evidence
+  needs. The host is sized so that no hardware line binds by arithmetic,
+  because a clog on such a host is a statement about the software, not the
+  box. The budget, derived from the banked single-read costs, asks at the
+  contract peak for ~17–20 thread-seconds of engine work per second
+  (~1.1–1.3 s summed native duration per read × 15 reads/s) plus the
+  application-side share of the ~7 s per-read wall time, with ~105 reads in
+  flight — so the class floor is **≥64 threads / ≥128 GB RAM, NVMe-backed**
+  (DO dedicated-CPU or storage-optimized class or equivalent; region
+  verified at admission). NVMe plus calibration-measured headroom against
+  the ~1.85 GB/s peak read demand removes disk as a candidate binding line
+  (§8 step 4). The actual provisioned SKU, price, region and shape are
+  verified at admission and into the receipt, never assumed from the
+  catalogue label.
+  The banked 8-vCPU droplet is **not** a test host: at 15 reads/s it clogs
+  by arithmetic (~17–20 thread-seconds demanded against 8 available), and
+  its breaking point would be the droplet's, not the design's. An optional
+  machinery-validation run on it (scoped "no claim, pipeline check only")
+  is default-off and never banked as a result.
+  Production hardware choices — including the R630 serving-machine upgrade
+  under `ubuntu-deployment/` — are ops matters (an upgrade of the serving
+  node), out of scope for this contract and for the paper's claim
+  structure. The budget derives disk *demand* from the measured per-read
+  cost; whether any particular production array meets that demand is a
+  deployment judgment, not a claim of this receipt.
 - **Engine:** ClickHouse 26.10.4.207 (pinned for single-read cost
-  comparability). Memory envelope: the banked 32/28/22 GiB on the rental
-  path; the reference node's own declared limits on the primary path.
+  comparability). Memory envelope declared at admission, recorded in the
+  receipt.
 - **Engine boundary:** at the API -> ClickHouse boundary, the API supplies
   authorized SQL; the engine executes it. The load test exercises that
   boundary under concurrency; it adds no node surface, no policy-bypass flag,
@@ -160,7 +158,7 @@ Banked under `evidence/dau-sustain-YYYYMMDD/`:
   trace, §6 G1), host RSS peak + trace, CPU utilization, ClickHouse
   parts/merge pressure, engine memory against its declared cap, OS counter
   deltas for bytes read and written with counter units and elapsed time. On
-  a rental these are virtual-device counters; the receipt says so, and no
+  a droplet these are virtual-device counters; the receipt says so, and no
   disk-supply claim is made for any machine other than the one measured.
 - **Native statement receipts** via the pinned driver's existing receipt
   adapter: rows, logical bytes, largest individual statement memory, and
@@ -169,10 +167,11 @@ Banked under `evidence/dau-sustain-YYYYMMDD/`:
 - **Identity receipt:** source revision, runner SHA-256, engine version,
   snapshot ID, dataset ID, schedule hash, host SKU/region/price/dates,
   admission ID and window.
-- **Cost receipt:** estimated compute (seconds × $0.25/hour), **not an
-  invoice**, separate from storage; provider cleanup verified by readback,
-  droplet list confirmed empty, snapshot `255003176` retained, private
-  archives SHA-256 verified before cleanup.
+- **Cost receipt:** estimated compute (seconds × the admitted rate,
+  verified at admission), **not an invoice**, separate from storage;
+  provider cleanup verified by readback, droplet list confirmed empty,
+  snapshot `255003176` retained, private archives SHA-256 verified before
+  cleanup.
 
 ## 6. Gates and pre-declared stops
 
@@ -233,17 +232,15 @@ break" into "where it actually broke."
 
 ## 7. Claim boundary (carried verbatim into RESULTS.md)
 
-**Established, if the gates pass on the reference node:** the machine the
-budget names sustains the realism contract's peak offered rate (15 complete
-uniform K20 reads/s) and its daily-average rate (2.9 reads/s) against the
-frozen one-million-author store, under mixed load, reaching steady state
-without unbounded growth and draining when the load stops. The budget was
-right, stated as a measurement on the named machine, and the "sizing target,
-not measured capacity" line for the contract load is retired.
-
-**Established, if the gates pass on a scoped rental:** the CPU/memory/
-concurrency dimensions of the budget hold at the contract rate with storage
-proven non-binding; the budget's disk line remains the R630 receipt.
+**Established, if the gates pass:** the software sustains the realism
+contract's peak offered rate (15 complete uniform K20 reads/s) and its
+daily-average rate (2.9 reads/s) against the frozen one-million-author
+store, under mixed load, on a host sized to the budget, reaching steady
+state without unbounded growth and draining when the load stops — with
+measured headroom on every line, storage included. The budget's
+CPU/memory/concurrency lines are validated by measurement, and the "sizing
+target, not measured capacity" line for the contract load is retired on the
+software side.
 
 **Not established, stated in the receipt:**
 
@@ -252,10 +249,12 @@ proven non-binding; the budget's disk line remains the R630 receipt.
   scope and named as such.
 - The stepped concurrent-user funnel (1k–20k VUs) — Study L, separate
   remainder, unchanged.
-- The reference-array disk supply line under mixed load — stays rating-based
-  until the R630 receipt banks it. On a rental it stays out of scope by the
-  §2 scope restriction, and no disk-supply claim is made for any machine
-  other than the one measured.
+- Physical disk supply on production hardware — an ops matter, out of scope
+  for this test. The budget derives disk *demand* from the measured per-read
+  cost; whether a given production array meets it (and what account count it
+  caps) is a deployment judgment. This test's storage is NVMe with measured
+  headroom, and no disk-supply claim is made for any machine other than the
+  one measured.
 - Full-store hybrid savings — the 0.54 GB/s remains ratio-transfer arithmetic
   until the full-store hybrid arm runs.
 - Audience diversity, media, engagement and the app's four-call page — the
@@ -277,20 +276,18 @@ proven non-binding; the budget's disk line remains the R630 receipt.
    divergence stop; calibration-vs-measured separation. `bench.py` is not
    touched and not reused.
 2. **Green checks, merge.** Source only; the merge grants no admission.
-3. **Restore preflight** on the admitted host: store, oracle, furniture,
+3. **Restore preflight** on the admitted droplet: store, oracle, furniture,
    writer actors and read receipts verified (the banked restore path). Setup,
-   not measurement. On the reference node this is the same restore the
-   seventh-draft on-array measurement uses — the two receipts share machine
-   and store.
+   not measurement.
 4. **Calibration run:** 2.9 reads/s for 120 s plus a 15 reads/s burst of 60 s,
    verifying the measurement pipeline, oracle comparison, counter deltas and
    the clog-trace instruments (§6 G1/G2), and establishing which resource
    lines (disk, memory, CPU, connections) have headroom at the contract
-   peak. Banked as calibration, explicitly not a result. On a rental host
-   the sustained window is additionally admitted **only if storage is
-   provably non-binding** (NVMe-backed, headroom measured); on the reference
-   node no line is excluded — the criterion's job is to find and name
-   whichever binds first, disk included.
+   peak. Banked as calibration, explicitly not a result. The sustained
+   window is admitted **only if storage is provably non-binding** (NVMe-
+   backed, headroom measured against the ~1.85 GB/s peak demand). No other
+   line is excluded by design — the clog gate's job is to find and name
+   whichever binds first.
 5. **Sustained run:** phase W → A → B → D per §3, under the task-mode
    admission, agent supervision at ~300 s intervals and the provider
    backstop (24 November directive: the poweroff timer is a failsafe, not a
@@ -303,13 +300,12 @@ proven non-binding; the budget's disk line remains the R630 receipt.
 
 | Parameter | Value |
 |---|---|
-| Host (primary) | the budget's reference node — R630 per `ubuntu-deployment/HARDWARE-UPGRADE-PLAN.md` (2× E5-2698 v3 32C/64T, 128 GB / 8ch DDR4, 4× 2 TB SanDisk SSD Plus in two mirror pairs, 10 GbE), owned research volume/VM, production stack untouched; gated on hardware landing |
-| Host (scoped rental alternative) | 64-thread / ≥128 GB cloud rental, NVMe-backed storage proven non-binding in calibration per §10; receipt scoped per §2; availability verified at admission |
-| Storage headroom | rental path only: calibration-measured before the sustained window, must exceed the contract-peak read demand (~1.85 GB/s logical aggregate, planning arithmetic from the banked single-read cost). Reference-node path: no exclusion — the clog gate names the binding line |
-| Engine / envelope | ClickHouse 26.10.4.207; 32/28/22 GiB on the rental path, declared reference-node limits on the primary path |
+| Host | DigitalOcean droplet, ≥64 threads / ≥128 GB, NVMe-backed (dedicated-CPU or storage-optimized class or equivalent); SKU/price verified at admission, provisioned shape verified into the receipt |
+| Storage headroom | calibration-measured before the sustained window; must exceed the contract-peak read demand (~1.85 GB/s logical aggregate, planning arithmetic from the banked single-read cost) |
+| Engine / envelope | ClickHouse 26.10.4.207; memory envelope declared at admission, recorded in the receipt |
 | Store | snapshot `255003176`, generation fingerprint and receipts checked before reuse |
-| Provider backstop | rental path: 12 h poweroff failsafe. Reference-node path: task window bound by the admission, owned machine, no provider timer |
-| Compute ceiling | rental path: **$25.00** total task (64-thread class rate verified at admission; storage/egress separate, reported separately; not an invoice). Reference-node path: owned hardware, no per-hour cost; time/electricity reported as estimate, not an invoice |
+| Provider backstop | 12 h poweroff failsafe |
+| Compute ceiling | **$25.00** total task (64-thread class rate verified at admission; storage/egress separate, reported separately; not an invoice); the ceiling binds |
 | Admission mode | task-mode (`costfn_run_rules` + `costfn_task_id`); one admission covers the task; routine repairs re-admit nothing but each repair is bound to its executing source |
 | Workload | §3 exactly as frozen; any rate change is a new admission, not a parameter tweak |
 | Stops | §6 as pre-declared; the operator's cancellation always wins |
@@ -318,46 +314,45 @@ Issuance requires: step 1 merged, step 2 green, and an explicit operator
 admission of this packet. This document, and any merge of it, grants none of
 those three.
 
-## 10. Design note: the test runs on the machine the budget names
+## 10. Design note: sized to the budget, run on DigitalOcean
 
-The budget's job is to derive what one million accounts need — as a machine:
-this much CPU, this much storage bandwidth, this much memory. A sustained
-test earns its place by running on *that* machine; run it on a different one
-and the result floats free of the claim. The arithmetic makes the small-host
-case explicit: at 15 reads/s the banked single-read costs (~1.1–1.3 s summed
-native duration each) ask for ~17–20 thread-seconds of engine work per
-second. An 8-vCPU droplet has 8 thread-seconds available. It clogs by
-arithmetic before the first measurement, and its breaking point — the
-droplet's CPU — is a statement about the droplet, not the design. Even a
-clean pass on a foreign, smaller machine would only prove the budget
-over-specified. So the host is the reference node, full stop, with one
-scoped exception below.
+The paper's claim is not about any specific server model. It is the derived
+budget — what one million accounts need, from the measured per-read cost —
+plus the proof that the software sustains that load. Production hardware,
+including the R630 serving-machine upgrade, is an ops matter (an upgrade of
+the serving node), and it is out of scope here by design. The test runs on
+DigitalOcean because that is the reproducible, re-runnable test bed: a
+committed runner, a frozen workload, and a droplet anyone can re-run.
 
-On the reference node **no resource line is excluded by design** — including
-storage, where the arithmetic already says indexed peak demand (~1.85 GB/s
-logical aggregate from the banked single-read cost) exceeds the array's
-rated supply (1.09 GB/s one-drive-per-pair). That is not a flaw in the test;
-it is the test. The clog criterion (§6 G1/G2) does not presuppose which line
-binds: it finds the line, names it, and banks the curve. If the disk line
-clogs first on the reference node, the receipt says exactly that — which is
-the paper's storage argument measured, and the full-store hybrid arm's case,
-not a failed test.
+The host is sized to the budget, and the sizing is the point. The budget
+derives demand from the banked single-read costs: at the contract peak
+(15 reads/s), ~1.1–1.3 s summed native duration per read asks for ~17–20
+thread-seconds of engine work per second, plus the application-side share of
+the ~7 s per-read wall time (auth, compile, prepare, assembly, delivery
+work), with ~105 reads in flight. A host smaller than that clogs by
+arithmetic, and its breaking point would be the host's, not the design's —
+the banked 8-vCPU SKU is exactly that case (8 thread-seconds available
+against ~17–20 demanded). The ≥64-thread / ≥128 GB floor is the inverse:
+large enough that no hardware line binds trivially.
 
-The scoped rental exception exists for the window before the hardware lands.
-A 64-thread rental matches the CPU and memory dimensions but cannot match
-the SATA mirror array — the budget's disk line is not rentable. Storage is
-therefore made deliberately non-binding on a rental (NVMe-backed, headroom
-calibration-measured per §8 step 4), and the receipt carries the scope
-restriction. The asymmetry there is the same as before:
+Storage is NVMe and calibration-measured non-binding against the ~1.85 GB/s
+peak read demand. The asymmetry:
 
-- **A pass on a rental is necessary but not sufficient for the array
-  claim.** It establishes that the software — CPU, memory, app-side
-  concurrency, delivery work — sustains the contract rate with storage
-  headroom to spare; the disk line remains the R630 receipt.
-- **A failure on a rental is universal.** If the node breaks while storage
-  has measured headroom, the break is software and it breaks on every
-  machine, reference node included. That failure binds the program, not just
-  the rental.
+- **A pass on a sized host validates the software lines.** CPU, memory,
+  app-side concurrency and delivery work hold at the contract rate with
+  measured headroom on every line, storage included. The budget's non-disk
+  lines stand as measurements, the disk *demand* line stands as derived
+  arithmetic, and any production array that meets that demand inherits the
+  result.
+- **A failure on a sized host is universal.** If the node clogs with
+  measured headroom on every hardware line, the clog is in the software —
+  queueing, concurrency limits, the application side — and it clogs on
+  every machine that serves the node, production included.
+
+What a pass does not do: establish day-scale durability, the stepped
+funnel, or any claim about a machine that does not meet the derived demand.
+What a failure does not do: indict the budget — it indicts the software,
+which is what the test exists to find.
 
 ## 11. Relationship to the standing records
 
@@ -367,11 +362,11 @@ restriction. The asymmetry there is the same as before:
   point lands at or above the contract peak, Study L's low levels are the
   natural next measurement; if it lands below, the application-side
   remainder (fence/assembly latency, concurrency) is prioritized before L.
-- **Seventh-draft README (pending on-array measurement):** shares the
-  machine and the restore with this test on the reference node; the two
-  receipts sequence at the operator's choice once the hardware lands. This
-  test does not substitute for the disk-supply measurement — the clog gate
-  names the binding line, the on-array receipt measures the net supply.
+- **Seventh-draft README (pending on-array measurement):** the on-array
+  disk-supply measurement is a production-hardware matter on the serving
+  node — an ops workstream, not part of this test's claim structure.
+  Separate machine, separate purpose; no dependency either way, and this
+  test's result does not transfer to its disk-supply line.
 - **HYBRID-K20-FINDINGS / RD4:** the single-read costs and the
   application-side naming (fence latency, live publish/cleanup unproven)
   stand; this test adds the sustained-rate dimension to the same store.
