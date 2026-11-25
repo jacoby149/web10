@@ -154,12 +154,17 @@ Banked under `evidence/dau-sustain-YYYYMMDD/`:
   across windows with sample counts and uncertainty, 429/4xx/5xx/timeout
   counts — failures are counted and reported, never dropped, and no
   successful-request percentile is labelled as all traffic.
-- **Resource traces:** in-flight request count across the window (the clog
-  trace, §6 G1), host RSS peak + trace, CPU utilization, ClickHouse
-  parts/merge pressure, engine memory against its declared cap, OS counter
-  deltas for bytes read and written with counter units and elapsed time. On
-  a droplet these are virtual-device counters; the receipt says so, and no
-  disk-supply claim is made for any machine other than the one measured.
+- **Debt-quantity trends (§6 G1):** for each debt-carrying quantity —
+  parts count per table, bytes sitting in the merge queue, pending
+  mutations, in-flight requests, host RSS + engine memory, disk free —
+  the **start value, end value, and slope**, banked in the calibration and
+  in both measured windows, with the raw traces retained. These are the
+  quantities that can turn into debt; everything else is reported, not
+  trended.
+- **Resource traces:** CPU utilization, OS counter deltas for bytes read
+  and written with counter units and elapsed time. On a droplet these are
+  virtual-device counters; the receipt says so, and no disk-supply claim
+  is made for any machine other than the one measured.
 - **Native statement receipts** via the pinned driver's existing receipt
   adapter: rows, logical bytes, largest individual statement memory, and
   summed native duration per statement class — kept distinct from CPU time
@@ -180,19 +185,32 @@ faster than it drains until the node chokes? A node where every read is slow
 but completes at the rate it arrives runs forever; a node where reads arrive
 at 15/s and complete at 13/s is dead in an hour, no matter how fast the first
 read was. The primary gates say that directly; the latency percentiles are
-banked in the receipt and **reported, not gated**.
+banked in the receipt and **reported, not gated**. And the gate is on the
+*slope* of the debt, not its level: a level tells you whether it clogged in
+ten minutes; a slope tells you whether it ever will.
 
 Bank the receipt as "sustained at the contract rate" only if all hold:
 
-- **G1 steady state, no unbounded growth (the clog gate):** across the
-  phase-A window, after the warm-up conversion, the in-flight count levels
-  off and stays bounded (declared band, no sustained upward trend across the
-  window); host RSS and engine memory plateau; the ClickHouse parts count
-  and merge backlog stay bounded (merges keep up with the writer stream and
-  delivery writes); and achieved holds ≥ 95% of the offered 15 reads/s with
-  no unexplained scheduler deficit. Any one of these climbing without bound
-  is the clog forming — it is named as the failing line, and that naming is
-  the result.
+- **G1 debt slope (the clog gate):** for every debt quantity (§5), the
+  receipt banks start value, end value and slope in the calibration and in
+  both measured windows. "Sustained" is pre-declared: positive slope in both
+  halves of the peak window. Outcomes:
+  - **Clean pass (the strong sentence):** at the contract peak, every debt
+    quantity is flat or shrinking — the debt is being paid down under the
+    worst conditions the contract offers, and no window length changes that
+    conclusion. Combined with G2, the receipt states: *at the contract peak,
+    every quantity that could turn into debt was flat or shrinking.*
+  - **Named debt (qualified bank):** any debt quantity with a sustained
+    positive slope is the named debt, and **time-to-bind = remaining
+    headroom ÷ rate** (memory: to its declared cap; disk quantities: to
+    disk free; in-flight: to the saturation-stop threshold) — banked without
+    waiting for the bind. The "sustains the contract load" claim is then
+    qualified to: sustained for the window, with named debt X binding in T
+    at this load.
+  - **Rate component:** achieved holds ≥ 95% of the offered 15 reads/s with
+    no unexplained scheduler deficit across the full phase-A window — a
+    collapsing achieved rate is the clog's signature in the completion
+    stream, whatever the debt traces say.
 - **G2 drain (the verdict):** when the offered load stops, the backlog
   empties — all in-flight work completes within the declared drain bound
   (3× the median single-read wall time from load stop, pre-declared here, not
@@ -232,21 +250,27 @@ break" into "where it actually broke."
 
 ## 7. Claim boundary (carried verbatim into RESULTS.md)
 
-**Established, if the gates pass:** the software sustains the realism
-contract's peak offered rate (15 complete uniform K20 reads/s) and its
-daily-average rate (2.9 reads/s) against the frozen one-million-author
-store, under mixed load, on a host sized to the budget, reaching steady
-state without unbounded growth and draining when the load stops — with
-measured headroom on every line, storage included. The budget's
-CPU/memory/concurrency lines are validated by measurement, and the "sizing
-target, not measured capacity" line for the contract load is retired on the
-software side.
+**Established, if the gates pass with a clean G1 outcome:** the software
+sustains the realism contract's peak offered rate (15 complete uniform K20
+reads/s) and its daily-average rate (2.9 reads/s) against the frozen
+one-million-author store, under mixed load, on a host sized to the budget:
+at the contract peak, every quantity that could turn into debt was flat or
+shrinking (start/end/slope banked in the calibration and both windows), and
+when the load stops the backlog drains to baseline — with measured headroom
+on every line, storage included. The budget's CPU/memory/concurrency lines
+are validated by measurement, and the "sizing target, not measured capacity"
+line for the contract load is retired on the software side.
 
 **Not established, stated in the receipt:**
 
-- Day-scale durability — the windows are bounded (≤ 40 min measured);
-  long-horizon merges, TTL reconciliation and background jobs are out of
-  scope and named as such.
+- Day-scale durability beyond the slope receipt's reach — the windows are
+  bounded (≤ 40 min measured). The debt-slope gate does support
+  extrapolation to longer horizons **at or below the peak offered load**,
+  under the stated assumption that debt dynamics are monotone in offered
+  load: every debt quantity flat or shrinking at peak cannot accumulate
+  below peak. Above-peak loads, regime changes (merge-policy transitions,
+  TTL reconciliation events, background-job cycles) remain out of scope and
+  named as such.
 - The stepped concurrent-user funnel (1k–20k VUs) — Study L, separate
   remainder, unchanged.
 - Physical disk supply on production hardware — an ops matter, out of scope
@@ -286,13 +310,14 @@ software side.
    measurement.
 4. **Calibration run:** 2.9 reads/s for 120 s plus a 15 reads/s burst of 60 s,
    verifying the measurement pipeline, oracle comparison, counter deltas and
-   the clog-trace instruments (§6 G1/G2), and establishing which resource
-   lines (disk, memory, CPU, connections) have headroom at the contract
-   peak. Banked as calibration, explicitly not a result. The sustained
-   window is admitted **only if storage is provably non-binding** (NVMe-
-   backed, headroom measured against the ~1.85 GB/s peak demand). No other
-   line is excluded by design — the clog gate's job is to find and name
-   whichever binds first.
+   the debt-quantity trend instruments (§6 G1: start/end/slope banked for
+   each debt quantity in calibration), and establishing each debt quantity's
+   post-restore baseline and which resource lines (disk, memory, CPU,
+   connections) have headroom at the contract peak. Banked as calibration,
+   explicitly not a result. The sustained window is admitted **only if
+   storage is provably non-binding** (NVMe-backed, headroom measured against
+   the ~1.85 GB/s peak demand). No other line is excluded by design — the
+   clog gate's job is to find and name whichever binds first.
 5. **Sustained run:** phase W → A → B → D per §3, under the task-mode
    admission, agent supervision at ~300 s intervals and the provider
    backstop (24 November directive: the poweroff timer is a failsafe, not a
