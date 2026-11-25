@@ -448,11 +448,18 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // (the audio player sizes to its own content; a 4:3 black stage around a
   // music bar would read as a dead video frame).
   const frameRatio = strip[0]?.width && strip[0]?.height ? strip[0].width / strip[0].height : 4 / 3;
+  // A portrait frame (first slide's ratio < 1) wears the feed's "photobox"
+  // cap (60vh desktop — the feed's MediaItem maxHeight) instead of the 88vh
+  // desktop cap: an 88vh photo dominates the panel and pushes the caption +
+  // engagement row off-screen (25.11.2026 operator report: "more black space
+  // on the sides, less vertical height"). The object-contain slide
+  // letterboxes the remainder as black bars (the pane's bg-black).
+  const isPortraitFrame = !musicAudio && frameRatio < 1;
   const mediaPane = hasMedia && (
     <div
       className={cn(
         'relative w-full overflow-hidden rounded-lg',
-        musicAudio ? '' : 'bg-black max-h-[50vh] sm:max-h-[88vh]',
+        musicAudio ? '' : isPortraitFrame ? 'bg-black max-h-[50vh] sm:max-h-[60vh]' : 'bg-black max-h-[50vh] sm:max-h-[88vh]',
       )}
       style={{ aspectRatio: musicAudio ? undefined : frameRatio }}
       data-testid="post-lightbox-media-pane"

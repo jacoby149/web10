@@ -193,6 +193,39 @@ describe('FeedScreen', () => {
     expect((screen.getByTestId('media-image').querySelector('img') as HTMLImageElement).className).toContain('object-cover');
   });
 
+  it('a feed photo renders the ORIGINAL, not the 480px tile rendition (grainy-feed report, 25.11.2026)', async () => {
+    const { readFeedPage } = await import('@/data');
+    // The composer uploads both: the original (read_url) + a client-side 480px
+    // webp (thumbnail_url). The card is the full-bleed reading surface — it
+    // must render the original. Preferring the thumbnail upscaled it and read
+    // as grainy (the profile wall renders the original, the feed did not).
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [
+        {
+          _id: 'p-orig', text: 'the photo', author_username: 'testuser', author_provider: 'test.localhost',
+          created_at: new Date().toISOString(),
+          media_refs: [{
+            doc_id: 'm-orig', mime_type: 'image/jpeg', width: 3000, height: 4000,
+            read_url: 'http://media.test/original.jpg',
+            thumbnail_url: 'http://media.test/thumb-480.webp',
+          }],
+        },
+      ],
+      has_more: false, next_cursor: null,
+    });
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(
+      <MemoryRouter>
+        <FeedScreen />
+      </MemoryRouter>,
+    );
+    const frame = await screen.findByTestId('media-image');
+    const img = frame.querySelector('img') as HTMLImageElement;
+    expect(img.src).toBe('http://media.test/original.jpg');
+    // And never the tile rendition on this surface.
+    expect(img.src).not.toBe('http://media.test/thumb-480.webp');
+  });
+
   it('a portrait (tall) photo is centered in the card (the "photobox" letterbox), not left-aligned', async () => {
     const { readFeedPage } = await import('@/data');
     // A 9:16 photo: its reserved frame is capped at 60vh, so the frame width

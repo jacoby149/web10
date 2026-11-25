@@ -40,6 +40,19 @@ describe('MediaCarousel — the shared multi-media carousel (video-player.md)', 
     expect(videoSlide.querySelector('video')?.getAttribute('src')).toBe('http://x/v.mp4');
   });
 
+  it('an image slide renders the ORIGINAL, not the 480px tile rendition (grainy-feed report, 25.11.2026)', async () => {
+    const { MediaCarousel } = await import('@/components/Feed/MediaCarousel');
+    const hd = {
+      _id: 'hd', url: 'http://media.test/original.jpg', created_at: '', mime_type: 'image/jpeg',
+      width: 3000, height: 4000, thumbnail_url: 'http://media.test/thumb-480.webp',
+    };
+    render(<MediaCarousel items={[hd, img('b', 'http://x/b.png')]} testId="mc8" />);
+    const slide = screen.getByTestId('mc8-image-0') as HTMLImageElement;
+    await expect(slide).toHaveAttribute('src', 'http://media.test/original.jpg');
+    // The tile rendition is never the feed's image src.
+    expect(slide.getAttribute('src')).not.toBe('http://media.test/thumb-480.webp');
+  });
+
   it('cover fit crops (object-cover), contain letterboxes (object-contain)', async () => {
     const { MediaCarousel } = await import('@/components/Feed/MediaCarousel');
     const { unmount } = render(<MediaCarousel items={[img('a', 'http://x/a.png')]} fit="cover" testId="mc5" />);

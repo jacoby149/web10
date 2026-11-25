@@ -123,8 +123,13 @@ function DiscoverImage({ media, maxHeight }: { media: MediaItem; maxHeight?: str
       style={{ aspectRatio: `${ratio}`, maxHeight }}
       data-testid="discover-media-image"
     >
+      {/* The photo renders the ORIGINAL — the card is the full-bleed reading
+          surface (the feed's PostCard shape), and the client's 480px tile
+          rendition (`thumbnail_url`) upscaled to it reads as grainy (the
+          thumbnailing contract: an image doc's representative is its
+          read_url; the small rendition is for tile grids / posters / covers). */}
       <ReliableImage
-        src={media.thumbnail_url || media.url}
+        src={media.url || media.thumbnail_url}
         alt={media.alt_text || ''}
         className="w-full h-full object-cover"
         loading="lazy"
@@ -257,8 +262,10 @@ function RepostEmbed({
             <DiscoverVideo media={first} />
           ) : first?.url ? (
             <div className="aspect-[4/3] w-full overflow-hidden rounded-md">
+              {/* The original (the image doc's read_url), not the 480px tile
+                  rendition — the thumbnailing contract. */}
               <ReliableImage
-                src={first.thumbnail_url || first.url}
+                src={first.url || first.thumbnail_url}
                 alt={first.alt_text || ''}
                 className="h-full w-full object-cover"
                 loading="lazy"

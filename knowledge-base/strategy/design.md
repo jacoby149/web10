@@ -132,7 +132,7 @@ Rules of use:
 | `ui/public/hub.png`, `ui/public/hub.jpg` | **Apple's App Store logo.** A trademark we have no right to ship, referenced as `apple-touch-icon` in `ui/index.html`. | Replace immediately with the keys mark. This is a legal fix, not an aesthetic one. |
 | `ui/public/home.png` | Clipart house. | Delete; use a Lucide icon. |
 | `*/public/favicon.ico` | Unverified boilerplate. | Regenerate all three from the square keys mark. |
-| `marketing/marketing-ui/public/layouts/images/*` (berk, cmu, mit, stan, gonzaga, thumbnail, back*.jpg, sky, mountains…) | The "web10 for education" era — old pitch, old fonts, old navy palette, university logos. | The marketing rebuild (§10) decides per file; default is delete. University logos are other people's trademarks — same rule as hub.png. |
+| `marketing/marketing-ui/public/layouts/images/*` (berk, cmu, mit, stan, gonzaga, thumbnail, back*.jpg, sky, mountains…) | The "web10 for education" era — old pitch, old fonts, old navy palette, university logos. | The marketing rebuild (§10) decides per file; default is delete. University logos are other people's trademarks — same rule as hub.png. **D125 exception:** `back2.jpg` (the electric-blue fractal with the keyhole at its center) is restored as `marketing/marketing-ui/public/hero-fractal.jpg` — the one permitted decorative flourish on the classic landing surface (§13 classic tokens). Everything else in the directory stays delete. |
 | `ui/public/YourOrgsLogo/*` (key_white/black, generic_school_logo) | Feature fixtures — placeholder art for a provider's own branding slot. Not web10 brand assets. | Keep, but they are white-label placeholders; label them as such where shown. |
 
 ### Asset debt (queued work, lane D unless noted)
@@ -733,6 +733,19 @@ the missing steps.
   --color-glow-intense: rgba(139, 92, 246, 0.35);
   --color-glow-danger: rgba(239, 68, 68, 0.25);
 
+  /* classic landing surface — D125, always-dark, scoped to the page root
+     via [data-classic="true"] (see the "Classic landing surface" note) */
+  --color-classic-background: #101648;
+  --color-classic-surface: #161d5e;
+  --color-classic-elevated: #1d2570;
+  --color-classic-border: #2b337e;
+  --color-classic-foreground: #fafafa;
+  --color-classic-muted-foreground: #a9b1d6;
+  --color-classic-ink: #090c22;
+  --color-classic-sky-bright: #b5e6f8;
+  --color-classic-sky: #87ceeb;
+  --color-classic-brand-muted: #1a2260;
+
   /* semantic (§4) */
   --color-success: #22c55e;
   --color-warning: #f59e0b;
@@ -769,3 +782,61 @@ White-label note (D22): creator nodes wear their brand by overriding
 these CSS variables at runtime — which is exactly why every color in
 every component must come through a token. A hardcoded hex isn't just
 ugly, it breaks phase-4 theming.
+
+### Classic landing surface (D125, 25.11.2026)
+
+The classic "web10 Revolution" landing — the pre-D13 own-your-data page
+revived as the primary marketing surface (`homepage-classic-revival.md`)
+— is an **always-dark, scoped** page: it renders in the classic palette
+regardless of the visitor's D108 theme choice; only `/` and its navbar
+use it. The docs, App Store, and `/audience` keep system/light/dark theming.
+The scope is a `data-classic="true"` attribute, which
+remaps the standard utility namespaces onto the classic values (so
+`bg-background`, `text-muted-foreground`, `bg-brand`, … all resolve
+inside the page without any component knowing it is on the classic
+surface). Use `foreground` and `muted-foreground` on the solid navy steps,
+primary foreground for prose over the scrim, and deep ink text on sky fill.
+
+| Token | Value | Role |
+|---|---|---|
+| `--color-classic-background` | `#101648` | The deep navy — measured from the hero base (the fractal's field), not the plan's guessed `#1a1a2e`. Page background. |
+| `--color-classic-surface` | `#161d5e` | The pledge band — one step up from the navy, same hue. |
+| `--color-classic-elevated` | `#1d2570` | Hover fills, second step up. |
+| `--color-classic-border` | `#2b337e` | 1px borders on navy. |
+| `--color-classic-foreground` | `#fafafa` | Primary text on navy. |
+| `--color-classic-muted-foreground` | `#a9b1d6` | Secondary text (slate-blue; reads as part of the palette, not a foreign gray). |
+| `--color-classic-ink` | `#090c22` | Deep ink for the nav, stats and footer, the hero scrim, and the text on sky fills. |
+| `--color-classic-sky-bright` | `#b5e6f8` | Hover fill for the sky CTA. |
+| `--color-classic-sky` | `#87ceeb` | The original hero accent (CSS `skyblue` on "Revolution"). Display text + brand-tinted text on navy. |
+| `--color-classic-brand-muted` | `#1a2260` | Brand-tinted background inside the scope (pills, selected fills). |
+
+In the `@theme` copy, `brand` and `ring` map to `sky`, the CTA hover
+maps to `sky-bright`, and its text maps to `ink`. Use `--font-classic-display`
+(Georgia, Times New Roman, Times, serif) at regular weight; render the
+hero and section headings uppercase, and use italics for the pledge.
+Use `--font-classic-body` (Jost, system-ui,
+sans-serif) for prose and navigation. The 2022 source (`f3d695394:home/`)
+used Georgia and Lineto Brown Pro; Jost is the self-hosted OFL stand-in,
+not a claim that the original used Jost. No third-party font requests.
+
+The hero asset (`public/hero-fractal.jpg`, 1332×850, ~258 KB, restored
+from `e01e4b6c3^`) is the one permitted decorative flourish on the
+surface (§4); a layered ink scrim shades the center for text and deepens
+at the bottom. Use a scroll background on touch, narrow, and reduced-motion
+viewports, retaining the art. The founder photo (`public/founder-2022.jpg`,
+640×640, ~109 KB, restored + cropped from `e01e4b6c3^`) is a real portrait,
+not decoration.
+
+**Section separation: color blocks, never hairlines.** The 2022 page
+separated sections by background blocks (navy band between lighter
+sections, navy footer) — no 1px divider lines anywhere. On the classic
+surface the features and team sit on `background`, the pledge on `surface`,
+and the header, stats and footer on `ink`. A 1px `border-border` line reads as a
+"stretchy divider" (operator, 25.11.2026, against a first capture:
+"these dividers look stretchy … take some notes on the serious style
+that 2022 page did! i think it was using transparency different cool
+shit") and is a review rejection on this surface.
+
+White-label note (D22) applies to the classic tokens too — they are
+override-able CSS variables, so a partner node can re-skin the landing
+by re-pointing the scope.
