@@ -126,3 +126,7 @@ document, and any merge of it, grants neither.
   sequences the two.
 - **paper-submission.md:** strategy only; this run authorizes no submission
   and changes no banked evidence — it adds one measured cell.
+- **DESIGN-OUTCOMES.md:** the design-outcomes record of the experiment
+  programme (sixteen entries). This run prices the steady state of the
+  hybrid read path (entry 5); the slice's −70.6% is that entry's transient
+  pre-merge regime reference.
