@@ -1,16 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Send, Inbox, ShieldCheck, Users, Layers, HardDrive } from 'lucide-react'
+import { KeyRound, Network, Unlock, Users, Layers, HardDrive } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
-import {
-  REACH_GAP_EXAMPLE,
-  WEB10_DELIVERY_PERCENT,
-  deliveryPercent,
-  formatFollowerCount,
-} from '../lib/reachGap'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
-import BrandLogo from '../components/BrandLogo'
+
+// D125: the classic "web10 Revolution" landing is the marketing page.
+// Layout and type reference: the 2022 home/ sources at f3d695394.
+// Keep the modern stats endpoint and the single social entry CTA.
 
 function nodeApi(): string {
   if (typeof window !== 'undefined') {
@@ -63,15 +59,14 @@ function CountUp({ value, duration = 1200 }: { value: number; duration?: number 
   return <>{formatNumber(display)}</>
 }
 
-/* --- HomeStatsBar --- */
+/* --- Live node stats band (users / apps in the store / data liberated) --- */
 interface HomeStats {
   users: number
   app_count: number
-  active_users: { users_1d: number; users_30d: number; users_90d: number; users_1y: number }
   storage: number
 }
 
-function HomeStatsBar() {
+function StatsBand() {
   const [stats, setStats] = useState<HomeStats | null>(null)
   const [error, setError] = useState(false)
 
@@ -88,7 +83,6 @@ function HomeStatsBar() {
         setStats({
           users: data.users ?? 0,
           app_count: data.app_count ?? 0,
-          active_users: data.active_users ?? { users_1d: 0, users_30d: 0, users_90d: 0, users_1y: 0 },
           storage: data.storage ?? 0,
         })
       })
@@ -100,6 +94,7 @@ function HomeStatsBar() {
     return () => { alive = false }
   }, [])
 
+  // The band is live evidence, not filler: no numbers, no band.
   if (!stats || error) return null
 
   const storage = formatBytes(stats.storage)
@@ -109,18 +104,21 @@ function HomeStatsBar() {
     { value: storage.value, unit: storage.unit, label: 'data liberated', icon: HardDrive },
   ]
 
+  // No hairline dividers on this surface — the 2022 page separated sections
+  // with color blocks (surface step), never 1px lines (design.md §13 classic
+  // note, "the serious style"). The band is the block.
   return (
-    <div className="reveal mx-auto mt-14 max-w-3xl [animation-delay:400ms]">
-      <div className="grid grid-cols-3 gap-4">
-        {items.map((item, i) => {
+    <section aria-label="Network statistics" className="bg-classic-ink px-6 py-14 sm:py-16">
+      <div className="mx-auto grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-4">
+        {items.map((item) => {
           const Icon = item.icon
           return (
-            <div
-              key={item.label || i}
-              className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-6 sm:px-6 sm:py-8"
-            >
-              <Icon className="h-4 w-4 text-brand-400 opacity-60" strokeWidth={1.5} />
-              <span className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground tabular-nums sm:text-3xl">
+            <div key={item.label} className="flex flex-col items-center gap-2 text-center">
+              <Icon className="size-6 text-brand-300" strokeWidth={1.5} />
+              <span className="mt-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                {item.label}
+              </span>
+              <span className="font-display text-3xl leading-none text-foreground tabular-nums sm:text-4xl">
                 <CountUp value={item.value} />
                 {item.unit && (
                   <span className="ml-1 text-[0.6em] font-medium text-muted-foreground">
@@ -128,158 +126,130 @@ function HomeStatsBar() {
                   </span>
                 )}
               </span>
-              <span className="text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
-                {item.label}
-              </span>
             </div>
           )
         })}
       </div>
-    </div>
-  )
-}
-
-function Hero() {
-  return (
-    <section className="relative overflow-hidden border-b border-border bg-background px-4 pt-24 pb-20 sm:px-6 sm:pt-32 sm:pb-28">
-      {/* the one permitted decorative flourish (design.md §4) */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-16 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-brand opacity-20 blur-[120px]"
-      />
-      <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
-        <p className="reveal mb-6 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
-          The web10 node
-        </p>
-        <BrandLogo
-          className="reveal mb-8 h-10 [animation-delay:80ms] sm:h-12"
-        />
-        <h1 className="reveal font-display text-4xl font-bold leading-[1.1] tracking-[-0.02em] [animation-delay:160ms] sm:text-5xl lg:text-[3.5rem]">
-          Your audience.
-        </h1>
-        <p className="reveal mt-6 max-w-xl text-lg leading-[1.6] text-muted-foreground [animation-delay:240ms]">
-          Every post reaches every follower. Not a promise the algorithm can
-          revoke — an architecture that can't.
-        </p>
-        <div className="reveal mt-10 [animation-delay:320ms]">
-          <Button asChild size="lg" variant="brand">
-            <a href={SOCIAL_ORIGIN}>Explore web10</a>
-          </Button>
-        </div>
-        <HomeStatsBar />
-      </div>
     </section>
   )
 }
 
-function ReachGapBar({
-  label,
-  shown,
-  followers,
-  tone,
-}: {
-  label: string
-  shown: number
-  followers: number
-  tone: 'muted' | 'brand'
-}) {
-  const pct = deliveryPercent(shown, followers)
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between text-sm">
-        <span className="font-medium text-foreground">{label}</span>
-        <span className="font-mono tabular-nums text-muted-foreground">
-          {formatFollowerCount(shown)} / {formatFollowerCount(followers)} shown ({pct}%)
-        </span>
-      </div>
-      <div className="h-3 w-full overflow-hidden rounded-full bg-elevated">
-        <div
-          className={`h-full rounded-full ${tone === 'brand' ? 'bg-brand' : 'bg-muted-foreground/60'}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-function ReachGap() {
-  return (
-    <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
-      <div className="mx-auto max-w-3xl">
-        <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
-          The reach gap is real.
-        </h2>
-        <p className="reveal mt-4 max-w-xl text-muted-foreground [animation-delay:80ms]">
-          A million followers, and the platform decides which 300,000 see the
-          next post. Subscribing was never delivery — it was permission for
-          the algorithm to maybe show you. That gap is visible in your own
-          analytics right now.
-        </p>
-
-        <div className="reveal mt-10 flex flex-col gap-6 [animation-delay:160ms]">
-          <ReachGapBar
-            label="Elsewhere"
-            shown={REACH_GAP_EXAMPLE.shownElsewhere}
-            followers={REACH_GAP_EXAMPLE.followers}
-            tone="muted"
-          />
-          <ReachGapBar
-            label="On your web10 node"
-            shown={REACH_GAP_EXAMPLE.followers}
-            followers={REACH_GAP_EXAMPLE.followers}
-            tone="brand"
-          />
-        </div>
-
-        <p className="reveal mt-8 text-sm text-muted-foreground [animation-delay:240ms]">
-          Same following. Same post. {WEB10_DELIVERY_PERCENT}% delivery on
-          your node is architecture, not a setting someone can change.
-        </p>
-      </div>
-    </section>
-  )
-}
-
-const HOW_IT_WORKS = [
+const FEATURES = [
   {
-    icon: Send,
-    title: 'You post once',
-    description: 'Text, photos, video — published from your node, on your domain.',
+    icon: Network,
+    title: 'Peer to Peer',
+    body: 'High speed experiences, connecting device to device via WebRTC datachannel technology.',
   },
   {
-    icon: Inbox,
-    title: 'It lands in every inbox',
-    description:
-      "Every follower's inbox gets the post the instant you publish. No feed algorithm decides who's shown.",
+    icon: KeyRound,
+    title: 'Own Your Data',
+    body: "Bring your data with you across all the internet. Your data isn't stuck anymore, it's with your domain on your terms.",
   },
   {
-    icon: ShieldCheck,
-    title: '100% delivery, by architecture',
-    description:
-      "It can't be quietly revoked, because it isn't a policy — it's how the inbox pattern works.",
+    icon: Unlock,
+    title: 'Data Freedom',
+    body: 'Leverage web10 data with user consent. No more company gatekeeping to build integrated and relevant apps.',
   },
 ]
 
-// staggered ≤80ms apart (design.md §7) — literal classes, not a template
-// literal, so Tailwind's static scanner can find them at build time.
-const STAGGER_DELAY = ['[animation-delay:0ms]', '[animation-delay:80ms]', '[animation-delay:160ms]']
-
-function HowItWorks() {
+function Hero() {
   return (
-    <section className="bg-background px-4 py-24 sm:px-6 sm:py-32">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="reveal text-center font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
-          How it works
+    <section className="classic-hero flex min-h-[30rem] items-center bg-background px-6 py-20 sm:min-h-[36rem] sm:py-28 lg:min-h-[min(40rem,76svh)]">
+      <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
+        <h1 className="font-display text-[clamp(2.25rem,5.5vw,5rem)] font-normal uppercase leading-[1.08] tracking-[-0.025em]">
+          The web10 <span className="block text-brand-300 md:inline">Revolution</span>
+        </h1>
+        <p className="mt-6 max-w-[36rem] text-balance text-lg leading-relaxed text-foreground sm:text-2xl">
+          Use a web10 app. Sign up for an account. Start owning your photos,
+          music, and data on the internet. The key to the vault is your
+          domain name.
+        </p>
+        {/* Single entry CTA (operator, 25.11.2026: "should JUST be Enter web10
+            social") — into the app; signup happens in the authenticator from
+            there, the same way the navbar's "Open web10 social" works. */}
+        <div className="mt-8 sm:mt-10">
+          <Button asChild size="lg" variant="brand" className="h-12 rounded-sm px-8 tracking-wide active:bg-foreground" data-testid="classic-enter-cta">
+            <a href={SOCIAL_ORIGIN} onClick={() => trackFunnel('enter_click')}>
+              Enter web10 social
+            </a>
+          </Button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Features() {
+  return (
+    <section aria-label="About web10" className="bg-background px-6 py-16 sm:py-20 lg:py-24">
+      <div className="mx-auto grid max-w-6xl gap-12 md:grid-cols-3 md:gap-8">
+        {FEATURES.map((feature) => (
+          <div key={feature.title} className="flex flex-col items-center gap-3 text-center">
+            <feature.icon className="size-8 text-brand-300" strokeWidth={1.5} />
+            <h2 className="font-display text-xl uppercase tracking-wide text-foreground sm:text-2xl">
+              {feature.title}
+            </h2>
+            <p className="max-w-[31ch] text-pretty text-lg leading-relaxed text-muted-foreground">
+              {feature.body}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Pledge() {
+  return (
+    <section className="bg-surface px-6 py-16 sm:py-24">
+      <figure className="mx-auto max-w-3xl text-center">
+        <blockquote className="text-balance font-display text-2xl italic leading-snug text-foreground sm:text-4xl">
+          “We pledge to make an internet space in which users lead their
+          internet destiny.”
+        </blockquote>
+        <figcaption className="mt-6 text-xs font-medium uppercase tracking-widest text-brand-300">
+          — web10 Team, 2022
+        </figcaption>
+      </figure>
+    </section>
+  )
+}
+
+// The 2022 team grid: square photos in three columns, the first member
+// anchored left (NOT centered — operator memory of the original), one card
+// per person, built to grow as the team did.
+const TEAM = [
+  {
+    name: 'Jacob Hoffman',
+    role: 'Founder, web10',
+    img: '/founder-2022.jpg',
+    alt: 'Jacob Hoffman, founder of web10',
+  },
+]
+
+function Team() {
+  return (
+    <section className="bg-background px-6 py-16 sm:py-24">
+      <div className="mx-auto max-w-6xl">
+        <h2 className="font-display text-3xl uppercase tracking-wide text-foreground sm:text-4xl">
+          Team
         </h2>
-        <div className="mt-12 grid gap-6 sm:grid-cols-3">
-          {HOW_IT_WORKS.map((step, i) => (
-            <Card key={step.title} className={`reveal bg-surface ${STAGGER_DELAY[i]}`}>
-              <CardHeader>
-                <step.icon className="mb-2 h-6 w-6 text-brand-400" strokeWidth={1.5} />
-                <CardTitle>{step.title}</CardTitle>
-                <CardDescription>{step.description}</CardDescription>
-              </CardHeader>
-            </Card>
+        <div className="mt-8 grid gap-8 sm:grid-cols-3">
+          {TEAM.map((member) => (
+            <div key={member.name} className="w-full max-w-72">
+              <img
+                src={member.img}
+                alt={member.alt}
+                width={640}
+                height={640}
+                loading="lazy"
+                className="aspect-square w-full rounded-sm object-cover"
+              />
+              <div className="mt-4">
+                <h3 className="font-display text-xl text-foreground">{member.name}</h3>
+                <p className="mt-1 text-base text-muted-foreground">{member.role}</p>
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -289,7 +259,7 @@ function HowItWorks() {
 
 function Footer() {
   return (
-    <footer className="border-t border-border bg-background px-4 py-12 sm:px-6">
+    <footer className="bg-classic-ink px-6 py-12">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
         <span>&copy; {new Date().getFullYear()} web10</span>
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-4">
@@ -311,12 +281,16 @@ function Home() {
     trackFunnel('landing')
   }, [])
   return (
-    <>
-      <Hero />
-      <ReachGap />
-      <HowItWorks />
+    <div data-classic="true" className="min-h-screen bg-background">
+      <main>
+        <Hero />
+        <Features />
+        <StatsBand />
+        <Pledge />
+        <Team />
+      </main>
       <Footer />
-    </>
+    </div>
   )
 }
 

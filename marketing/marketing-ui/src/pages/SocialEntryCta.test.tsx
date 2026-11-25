@@ -11,12 +11,21 @@ vi.mock('../lib/analytics', () => ({ trackFunnel: vi.fn() }))
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('social entry copy', () => {
-  it.each([['Home', Home], ['Freedom', Freedom]] as const)('%s invites exploration without changing its destination', async (_name, Page) => {
+  it('Freedom invites exploration without a signup ask', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
-    await act(async () => { render(<Page />) })
+    await act(async () => { render(<Freedom />) })
     expect(screen.getByRole('link', { name: 'Explore web10', exact: true })).toHaveAttribute('href', SOCIAL_ORIGIN)
     expect(screen.queryByRole('link', { name: /^Enter web10/ })).not.toBeInTheDocument()
+  })
+
+  // D125: the classic landing's single entry CTA goes into the social app
+  // (operator, 25.11.2026: "should JUST be Enter web10 social").
+  it('Home carries one entry CTA into the social app', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    await act(async () => { render(<Home />) })
+    expect(screen.getByRole('link', { name: 'Enter web10 social', exact: true })).toHaveAttribute('href', SOCIAL_ORIGIN)
   })
 
   it('names the social destination in desktop and mobile navigation', async () => {
@@ -26,5 +35,19 @@ describe('social entry copy', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open menu', exact: true }))
     expect(screen.getAllByRole('button', { name: 'Open web10 social', exact: true })).toHaveLength(2)
     expect(screen.queryByRole('button', { name: 'Sign In', exact: true })).not.toBeInTheDocument()
+  })
+
+  it.each(['/', '/audience'])('scopes the classic navbar to the landing at %s', async (path) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stargazers_count: 0 }) }))
+    await act(async () => { render(<MemoryRouter initialEntries={[path]}><Navbar /></MemoryRouter>) })
+    const nav = screen.getByRole('navigation', { name: 'main navigation' })
+    const themeAwareLogo = nav.querySelector('[data-brand-variant="dark"]')
+    if (path === '/') {
+      expect(nav).toHaveAttribute('data-classic', 'true')
+      expect(themeAwareLogo).not.toBeInTheDocument()
+    } else {
+      expect(nav).not.toHaveAttribute('data-classic')
+      expect(themeAwareLogo).toBeInTheDocument()
+    }
   })
 })
