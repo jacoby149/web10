@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import type { PostRecord } from '@/data/types';
 import { MUSIC_TRACKS } from './mock-music';
+import { ESSAY_TEXT } from './mock-data';
 
 const POST: PostRecord = {
   _id: 'pd-1',
@@ -32,7 +33,17 @@ const POST: PostRecord = {
   author_provider: 'web10',
 };
 
-export function PostDetailHarness({ group = false, audio = false }: { group?: boolean; audio?: boolean }) {
+// The D125 essay variant: a text-only post whose body is essay-length (the
+// operator's "a post that takes over the feed" case) — the lightbox capture
+// shows the detail's 12-line clamp + the "See more" toggle.
+const ESSAY_POST: PostRecord = {
+  ...POST,
+  _id: 'pd-essay',
+  title: 'The long way around',
+  text: ESSAY_TEXT,
+};
+
+export function PostDetailHarness({ group = false, audio = false, essay = false }: { group?: boolean; audio?: boolean; essay?: boolean }) {
   // The audio variant: a seeded music post (the `music` tag + one wav) — the
   // lightbox's music-track slide (the shared AudioPlayer + the album art),
   // the "profile mp3 posts don't play" capture.
@@ -53,11 +64,12 @@ export function PostDetailHarness({ group = false, audio = false }: { group?: bo
       </MemoryRouter>
     );
   }
+  const post = essay ? ESSAY_POST : group ? { ...POST, author_key: 'web10/groups/users/me/studio', author_username: 'Northstar Studio', posted_by: 'another-operator' } : POST;
   return (
     <MemoryRouter>
       <div className="flex min-h-screen items-center justify-center bg-background" data-testid="post-detail-harness">
         <PostLightbox
-          post={group ? { ...POST, author_key: 'web10/groups/users/me/studio', author_username: 'Northstar Studio', posted_by: 'another-operator' } : POST}
+          post={post}
           mediaMap={{}}
           onClose={() => {}}
           postAuthor="nova"

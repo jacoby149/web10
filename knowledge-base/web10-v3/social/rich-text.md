@@ -332,13 +332,23 @@ renderer *adds* the type scale on top of the link behavior it already has.
 **The render densities (the card vs. the detail vs. the tile):**
 
 - **Feed cards** (`PostCard`, `DiscoverCard`, `HomeCard`) render **light
-  markdown** — inline bold/italic/code/links only — and keep their existing
-  `line-clamp` / truncation so a card never blows up in height. A card is a
-  teaser; it is not the place for a code block.
+  markdown** — inline bold/italic/code/links only — and keep their
+  truncation so a card never blows up in height. A card is a teaser; it is
+  not the place for a code block. The social app's `PostCard` (the reference
+  renderer) is the documented exception on both counts: it runs at `full`
+  density (D99's unfurl cards render in-card) and clamps only when the body
+  is **essay-length** — the D125 long-body expand: a height-gated clamp
+  (6-line card budget, 12-line detail budget, 20-line ≈ 455px trigger) + the
+  per-post "See more" / "See less" toggle (`ExpandablePostBody`, wrapping the
+  ONE `<PostBody>` — the clamp never forks the renderer). A body that fits
+  the budget renders exactly as before. Full contract: `post-render.md`
+  ("The long-body expand rule").
 - **The detail surfaces** (the lightbox, the watch page, the post permalink)
   render **full markdown** — headings, lists, code blocks, blockquotes — at a
   reading measure (`max-w-prose`, ~65–75ch, design.md §5). This is the
-  "beautiful Notion" surface.
+  "beautiful Notion" surface. An essay-length body clamps at the 12-line
+  detail budget with the same "See more" toggle (D125 — the video-description
+  case); a body that fits the budget is never truncated.
 - **The tile captions** (the profile 9:16 wall's `WallTile`, the media-overlay
   caption + the text-only quote card) render **inline markdown** — the
   `<PostBodyInline>` variant: the same locked sanitizer + link handling as
