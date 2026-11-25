@@ -21,18 +21,40 @@ double-anonymous submission artifact.
   extracted from the binary parts. The draft therefore omits a quantitative
   CPU verdict. It does not use summed native duration as CPU time or as an
   upper bound on multithreaded CPU time.
-- **Storage budget.** The separately referenced
-  `task-block-paper-storage-bandwidth-budget.md` was not supplied and is not
-  present in the worktree. The draft uses the [banked findings](../experiments/costfn/HYBRID-K20-FINDINGS.md)
-  and [preflight envelope](../experiments/costfn/HYBRID-K20-PREFLIGHT.md) for the
-  worked example. The full-store projection is arithmetic on logical bytes;
-  it cannot establish a physical disk-budget pass. Reconcile any additional
-  requirements from the companion block when available.
+- **Storage budget.** The reconciliation directive specifies four SanDisk SSD
+  Plus 2 TB SATA drives in two mirrored pairs with no NVMe. The [manufacturer's
+  data sheet](https://documents.sandisk.com/content/dam/asset-library/en_us/assets/public/sandisk/product/internal-drives/ssd-plus-sata-iii-ssd/data-sheet-ssd-plus-sata-iii-ssd.pdf)
+  verifies the 545 MB/s sequential read rating. The [banked findings](../experiments/costfn/HYBRID-K20-FINDINGS.md)
+  and [preflight envelope](../experiments/costfn/HYBRID-K20-PREFLIGHT.md) supply
+  the comparison inputs; the full-store hybrid projection is logical-byte
+  arithmetic, not a physical disk-budget pass. The separate
+  `task-block-paper-storage-bandwidth-budget.md` was not attached and is not
+  present in the worktree; any requirements beyond the reconciliation directive
+  still need to be checked against it.
 - **Evidence scope.** The D117 draft uses the exact receipt examples and rejection
   rule rather than treating “30× to 220×” as a range spanning the separate
   fat-payload control. The hybrid's generation fence is an application-side
   investigation target, not a separately timed cause of the entire wall-time
   increase. Both scope decisions leave the original findings intact.
+
+## Reference-array measurement (pending; not a submission gate)
+
+Only after the R630 is assembled with the four transplanted drives, verify the
+drive identities, mirror configuration and owned restore target. Restore the
+full store from retained snapshot `255003176` onto that array. Run the indexed
+complete K20 path at the assumed peak of 15 reads/s for at least 30 minutes
+with representative publication writes and merges active. No rented or
+substitute host is authorized.
+
+Bank the start and end times, offered and completed read rates, and the write
+and merge workload. Record OS counter deltas for physical bytes read and
+written per drive, with the counter units and elapsed time used to obtain
+throughput. Report the achieved net read throughput alongside the matching
+engine logical-byte receipts and complete HTTP wall time, without combining
+them. If the receipt is banked before submission, use the measured net supply
+in the paper's storage comparison; do not change the CPU or latency verdicts.
+Otherwise retain the rating-based wording and caveat. The indexed measurement
+does not measure physical demand from a full-store hybrid run.
 
 ## Venue and submission gates
 
