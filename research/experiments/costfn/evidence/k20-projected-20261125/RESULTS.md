@@ -1,5 +1,7 @@
 # K20: payload pruning observed; no complete-read saving
 
+Interpretation of record for both runs: [K20 findings](../../HYBRID-K20-FINDINGS.md).
+
 The indexed and projected arms each passed the same independent complete
 response oracle in warmup and measurement. The measured requests also shared
 identical quiet delivery history. The fixed slice agreed with the unsliced
