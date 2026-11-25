@@ -51,12 +51,18 @@ production change.
 
 ## 3. Workload (frozen)
 
-1. **Satellite build (setup, not measurement):** build the skinny
-   attachment-history satellite on the full store from canonical history —
-   all historical placements, exact versions/tombstones/multiplicity
-   retained, the independent edge census and frozen parts preceding any
-   read, canonical documents remaining the sole content source. Reuse the
-   RD4 machinery (`hybrid_k20_attachment.py` builder and
+1. **Steady state, then satellite build (setup, not measurement):** bring
+   the store to its declared post-merge regime first — `OPTIMIZE` on the
+   hot tables with a parts census banked — because the node's tables are
+   `ReplacingMergeTree(updated_at)`: one-version-per-key is the engine's
+   steady state, and the demand figures are measured in that regime, stated
+   rather than assumed. The slice run's banked OPTIMIZE receipt (61.7 s
+   native, ~1.4 GB peak) is the cost reference; this receipt states its own.
+   Then build the skinny attachment-history satellite on the full store from
+   canonical history — all historical placements, exact versions/tombstones/
+   multiplicity retained, the independent edge census and frozen parts
+   preceding any read, canonical documents remaining the sole content
+   source. Reuse the RD4 machinery (`hybrid_k20_attachment.py` builder and
    `hybrid_k20_slice.py` patterns). Any source change is a separate reviewed
    PR with offline controls, merged green, before any host work — the run
    is bound to its executing source.
@@ -75,8 +81,10 @@ production change.
   immediately and publishes no comparison costs (24 November directive).
 - **G2 costs:** native query IDs/plans, actual rows, captured logical bytes,
   summed native duration and complete HTTP wall time by stage and in total,
-  plus peak individual statement memory; the satellite build's rows/bytes/
-  duration charged as separate setup cost, never folded into the read.
+  plus peak individual statement memory; the store's merge regime (parts
+  census pre-build, post-OPTIMIZE steady state stated, not assumed) and the
+  satellite build's rows/bytes/duration charged as separate setup cost,
+  never folded into the read.
 - **G3 custody:** state/native parts verify off-host before owned cleanup;
   cleanup verified by provider readback; snapshot `255003176` retained;
   private archives SHA-256 verified before cleanup; estimated compute
