@@ -386,6 +386,33 @@ decoded, and the Post button enabled. Outputs:
 on failure). Isolated harness data; not node upload, deployment or
 physical-clipboard proof.
 
+## Long-body clamp + "See more" (D125)
+
+The seeded ESSAY fixture (an original long-form prose post — "The long way
+around") captures the post-render.md long-body expand rule (an essay-length
+body clamps + the per-post "See more" / "See less" toggle; a fitting body is
+unchanged):
+
+```bash
+# The Following feed: the text-only essay post at the top (?essay-post=1).
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/expandable-body" node screenshots/capture.mjs --name essay-feed --route /posts-following --extra 'essay-post=1' --ready '[data-testid="post-card-see-more"]'
+# The expanded state (--toggle clicks the "See more" before the shot):
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/expandable-body" node screenshots/capture.mjs --name essay-feed-expanded --route /posts-following --extra 'essay-post=1' --ready '[data-testid="post-card-see-more"]' --toggle '[data-testid="post-card-see-more"]'
+# The watch page's video description (the deep-linked essay video post):
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/expandable-body" node screenshots/capture.mjs --name essay-watch --route /watch-essay --ready '[data-testid="watch-caption-see-more"]'
+# The lightbox (the post-detail system's 12-line budget):
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/expandable-body" node screenshots/capture.mjs --name essay-post-detail --route /post-detail-essay --ready '[data-testid="post-lightbox-detail-see-more"]'
+# The Discover board with the essay video post (?essay-video=1):
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/expandable-body" node screenshots/capture.mjs --name essay-discover --route /hot-gossip --extra 'essay-video=1' --ready '[data-testid="post-card-see-more"]'
+```
+
+The essay video post's media is the harness's synthetic SVG creative, so the
+watch page's player shows its designed "Video unavailable" state — the
+capture is about the description's clamp + toggle, not playback. The essay
+post is NOT part of the seeded board (it answers `/watch/dp-essay` + the
+`?essay-post=1` / `?essay-video=1` flags only), so the ordinary captures are
+unchanged.
+
 ## Capture diagnostics
 
 `capture.mjs` buffers the page's console + uncaught errors and dumps them on
