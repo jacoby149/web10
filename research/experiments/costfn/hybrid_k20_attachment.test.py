@@ -13,7 +13,7 @@ import hybrid_k20_attachment as links
 class AttachmentTests(unittest.TestCase):
     def test_only_marked_canonical_history_tables_change(self):
         sql = ("/* ENGAGEMENT_DOC_COUNTS TALLY */ /* projected_resolution_keys */ "
-            "SELECT doc_id FROM (SELECT doc_id,group_id,deleted," 
+            "SELECT doc_id FROM (SELECT doc_id,group_id,deleted,"
             "row_number() OVER (PARTITION BY doc_id,group_id ORDER BY updated_at DESC,deleted DESC) AS rn "
             "FROM doc_groups WHERE doc_id IN ('page')) WHERE rn=1 AND deleted=0 ORDER BY doc_id LIMIT 21")
         got = sqlglot.parse_one(links.rewrite(sql), read='clickhouse')
