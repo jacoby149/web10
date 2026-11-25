@@ -31,3 +31,7 @@ After this run, storage is no longer the open problem in the complete response. 
 ## Process note
 
 This was the first task run under the operator directive of November 24, 2026. Step 2's first attempt met a tally-verifier name collision before measurement; repair 93806d5c resumed the original admission, validated the five completed setup stages, and did not reissue confirmed slice or tally writes. Steps 2 and 3 and the fault lab completed under one admission on one host, with a task compute estimate of $3.795870 including idle time. Under the rules this directive replaced, the name collision would have ended the run.
+
+## Related records
+
+The design outcomes this run's findings feed: [DESIGN-OUTCOMES.md](DESIGN-OUTCOMES.md) (the hybrid read path, entry 5; the body-pruning rejection, entry 9; the cleanup regime, entry 15).
