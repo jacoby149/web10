@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import { formatCount } from '@web10/discover';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { PostBody } from '@/components/Feed/PostBody';
+import { ExpandablePostBody } from '@/components/Feed/ExpandablePostBody';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { useSave } from '@/context/SaveContext';
 import type { ReactionKind } from '@/components/Feed/PostActions';
@@ -668,10 +668,13 @@ export function PostDetail({
 
       {/* Body — full markdown at a reading measure (the "beautiful Notion"
           surface). The reading measure is the content-sized column: a text-only
-          post gets a centered reading column, not 320px-in-896px dead space. */}
+          post gets a centered reading column, not 320px-in-896px dead space.
+          D125: an essay-length body clamps to the detail's 12-line budget +
+          a "See more" toggle (a reading surface earns the bigger budget than
+          the card's 6); a body that fits renders exactly as before. */}
       {post.text && (
         <div className="mt-2 max-w-prose text-sm leading-relaxed text-foreground">
-          <PostBody text={post.text} density="full" />
+          <ExpandablePostBody text={post.text} density="full" collapsedLines={12} testId={`${testId}-see-more`} />
         </div>
       )}
 
