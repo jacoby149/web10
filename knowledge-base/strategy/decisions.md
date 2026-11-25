@@ -20,6 +20,65 @@ superseded by a later entry remain visible as history.
 
 ---
 
+### D125 — Essay-length post bodies clamp with a per-post "See more" toggle; the clamp is a budget, not a wall [DECIDED]
+
+**Operator, 25 November 2026** (screenshot of a wall-of-text post that took
+over the feed): "on web10, posts and videos can have text that goes on
+forever, like over 20 lines maybe there should be a See More.... button that
+expands it if interested? like a toggle to expand contract per post, and the
+video descriptions … that shouldn't happen" (an essay dominating the feed).
+
+**Decided** — (1) A post's body (a post's `text`, D82/D85) is clamped **only
+when it is essay-length**: its natural rendered height exceeds **20 body
+lines ≈ 455px** at `text-sm leading-relaxed` — the operator's "over 20
+lines" line, in height (the height is what dominates a feed; characters wrap
+differently at every width). Everything shorter renders exactly as before —
+no clamp style, no toggle, zero drift. (2) The clamp budgets: **6 lines on
+the feed card** (the teaser's height budget, the `line-clamp-6` idiom),
+**12 lines on the detail surfaces** (the lightbox / the watch page / the
+permalink — a reading column earns the bigger budget; the video's
+description is the motivating case). (3) The clamp carries the escape: a
+per-post **"See more" / "See less" toggle** (the link voice, `brand-300`)
+under a fading scrim that blends the clamp's foot into the surface's own
+background token — the clamp is a budget, not a wall. (4) The toggle state is
+**interaction state, not screen state** (the comment-thread open/close
+precedent: a local per-post `useState`, not a URL param) — the deep-link rule
+governs screens, and the feed holds a dozen posts each with its own
+expanded/collapsed state. The shorts lens's `?description=1` is the exception
+that proves the rule (a SHEET — a distinct surface with its own route — not
+an inline clamp). (5) **Embeds are not essays**: a link-only post whose body
+is a provider player card (the D99 unfurl) sits under the trigger's height
+and renders unclamped — the clamp never cuts a player or a card. (6) One
+component, every surface: `ExpandablePostBody` (the social app's
+`Feed/ExpandablePostBody.tsx`) wraps the ONE `<PostBody>` (the D85 read side,
+the density passed through), so the clamp never forks the renderer.
+
+**Why a measured height, not a character count:** the gate has to decide at
+the reader's width — a post that is 30 lines at 375px is ~18 at 1440px. A
+character threshold would clamp the same post on desktop and not on mobile
+(or vice versa); the height is the invariant. The measurement is a
+`useLayoutEffect` (before paint — the toggle appears in the first frame, no
+flash, no layout jump), re-measured on resize (debounced) and on text /
+budget change; a width change that makes the content fit the trigger again
+exits the clamp entirely.
+
+**All client-side, zero node surface (D60):** the clamp is a presentation
+rule on the existing `posts` docs — no node column / endpoint / contract.
+The social app's summary + full surfaces get it; the marketing discover card
+keeps its fixed `line-clamp-6` + click-through (a teaser wall, not a reading
+surface); the shorts lens keeps its description sheet; the profile quote
+tile keeps its title-only teaser.
+
+**Rejected:** a fixed `line-clamp` on every card body regardless of length
+(the pre-D125 spec ideal — it would clamp a 3-line caption's card and cut
+embed-heavy posts); a character-count gate (width-blind, the drift case
+above); URL-owning the expand state on the feed (a dozen posts × their clamp
+state in one query string); a second renderer for the clamped copy (the ONE
+`<PostBody>` stays the single locked sanitize choke point, D85).
+
+Full contract: `web10-v3/social/post-render.md` ("The long-body expand
+rule"); the render densities: `web10-v3/social/rich-text.md`.
+
 ### D124 — Agreeing billboard pins coalesce; distinct full creative targets conflict [DECIDED; amends D115]
 
 **Jacob Hoffman, 22 November 2026.** Deliberately change the isolated composition's
