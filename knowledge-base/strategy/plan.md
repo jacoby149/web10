@@ -2230,9 +2230,11 @@ memory/new host/distribution waiver; approved cleanup/$5 ceiling and separate
 
 **Current paper strategy — D121 (DECIDED):** [SIGMOD RESEARCH, January round of
 the SIGMOD 2028 cycle](paper-submission.md), with PVLDB monthly research rounds
-after rejection. Dates there are PROJECTED and require re-verification when
-the official call posts. The existing twelve-page-excluding-references plan is
-unchanged. This is strategy, not submission or experiment admission.
+after rejection and CIDR next if needed. The official call confirms the January
+dates. The twelve-page-excluding-references plan is unchanged. This is strategy,
+not submission or experiment admission.
+
+- [✓ 6.28.25 working draft only] **Paper draft v7** — a separate [named manuscript](../../research/seventh-draft/main.tex) with RD4 receipts, a parameterized peak-rate budget and official venue dates. Anonymous submission artifacts, author eligibility and physical capacity remain separate.
 
 <details>
 <summary>Superseded industrial-track deadline and rationale — historical planning record</summary>

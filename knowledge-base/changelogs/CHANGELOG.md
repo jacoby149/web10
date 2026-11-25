@@ -1,3 +1,9 @@
+6.28.26 || 25.11.2026
+research: reconcile draft v7's R630 storage budget with the four-drive SATA mirror layout and manufacturer rating. Distinguish indexed and projected hybrid logical demand from rated gross physical supply, and record the pending on-array mixed-load measurement without delaying submission. No device measurement, rented load test, or change to the memory, CPU, or latency verdicts.
+
+6.28.25 || 25.11.2026
+research: start the seventh paper draft, “Your Data, Your Rules, One Query,” alongside the preserved sixth draft. Separate measured read costs from capacity arithmetic, record the CPU-receipt and storage-companion limits, and confirm the official SIGMOD 2028 Round 1 dates and submission gates. No new measurement or submission.
+
 6.28.24 || 25.11.2026
 research: add the [K20 findings](../../research/experiments/costfn/HYBRID-K20-FINDINGS.md) as the interpretation of record for both runs. Step 2 pruned payload without saving complete-read cost; the dominant cost was granule selection in attachment history. Step 3 cut captured logical reads 70.6% at exact parity, but complete HTTP wall time rose in both measurement orders. Under the pre-committed rule, the run does not advance to the six-case cell.
 
