@@ -480,7 +480,11 @@ export function getV3Client(): unknown {
     // DISCOVER_MEDIA here — the watch page builds the player's media from these
     // inline refs (the one-read paint), so the mock must carry them.
     readById: async (docId: string) => {
-      const p = DISCOVER_POSTS.find((x) => (x._id as string) === docId);
+      // The D125 essay fixture (/watch/dp-essay — the screenshot's
+      // video-description case) answers by id only: it is not part of the
+      // seeded board (readDiscoverFeed adds it under ?essay-video=1 alone).
+      const p = DISCOVER_POSTS.find((x) => (x._id as string) === docId)
+        ?? (docId === ESSAY_VIDEO_POST._id ? ESSAY_VIDEO_POST : undefined);
       if (!p) throw new Error('not found');
       const resolved = (p.media_refs ?? [])
         .map((id) => {
@@ -500,18 +504,20 @@ export function getV3Client(): unknown {
           };
         })
         .filter(Boolean);
-      return {
+      const doc = {
         doc_id: p._id,
         created_at: p.created_at,
         updated_at: p.created_at,
         tags: p.tags,
         body: {
           text: p.text,
+          title: p.title,
           author_username: p.author_username,
           author_provider: p.author_provider,
           media_refs: resolved,
         },
       };
+      return doc;
     },
   };
 }
@@ -1096,7 +1102,25 @@ export async function readFeedPage(): Promise<unknown> {
   if (new URLSearchParams(window.location.search).get('feedError') === '1') {
     throw new Error('Screenshot fixture: Following feed unavailable');
   }
-  const posts = FEED_POSTS.map((p) => {
+  // D125 screenshot fixture: ?essay-post=1 prepends the essay-length,
+  // text-only post (the operator's "a post that takes over the feed" case).
+  const seedPosts = new URLSearchParams(window.location.search).get('essay-post') === '1'
+    ? [{
+        _id: 'fp-essay',
+        author_username: 'kai',
+        author_provider: 'web10',
+        title: ESSAY_VIDEO_POST.title,
+        text: ESSAY_TEXT,
+        created_at: minsAgo(35),
+        tags: ['story'],
+        likes: 214,
+        comments: 37,
+        reposts: 5,
+        impressions: 18200,
+        reach: 3100,
+      }, ...FEED_POSTS]
+    : FEED_POSTS;
+  const posts = seedPosts.map((p) => {
     if (!p.media_refs?.length) return p;
     // The real read serves media_refs as ResolvedMediaRef objects (doc_id +
     // read_url + dims + transcoding_settings) — the feed's
@@ -1192,6 +1216,9 @@ interface SeedDiscoverPost {
   author: string;
   author_username: string;
   author_provider: string;
+  /** The D82 headline (the seeded board posts are caption-only; the D125
+    *  essay fixture carries one — the watch page's title + description). */
+  title?: string;
   text: string;
   created_at: string;
   tags?: string[];
@@ -1309,6 +1336,44 @@ const GROUP_MEDIA: Record<string, Record<string, unknown>> = {
   'grp-med-4': { ...creative('SET', 1280, 1280, '#c4b5fd', '#312e81', 'image/png'), _id: 'grp-med-4' },
   'grp-med-5': { ...creative('BACKSTAGE', 1280, 1280, '#f59e0b', '#78350f', 'image/png'), _id: 'grp-med-5' },
   'grp-med-6': { ...creative('CLIP', 1280, 1280, '#0ea5e9', '#0c4a6e'), _id: 'grp-med-6' },
+};
+
+// D125 screenshot fixture — the ESSAY-length post (the operator's "text that
+// goes on forever" case: 20+ lines of a post body / a video description that
+// must not dominate the feed or the watch page). An ORIGINAL long-form prose
+// fixture (the screenshot the operator sent was a real person's story — it is
+// not reproduced here). Two shapes: the text-only feed post (?essay-post=1
+// prepends it to the Following board) and the video post (deep-linked at
+// /watch/dp-essay + the post-detail-essay lightbox capture — the description
+// case).
+export const ESSAY_TEXT = [
+  'The morning the ferry came back empty, I understood something about the long way around. It had been running that harbor line for thirty-one years, and when it finally stopped, nobody on the dock seemed surprised. The water just kept coming in, and the boats kept leaving, and the line simply was not there anymore.',
+  'I had made the crossing four times that winter, always with a package of something — coffee, a hardcover book, a coil of rope that had outlived two boats. The ticket was the price of a coffee. The crossing was twenty minutes of grey water and a pilot who nodded at me every time, which I took to mean I was becoming furniture, and then I understood it meant I was becoming part of the route.',
+  'When the line died, the supply run became a problem. The shop on the island kept its usual hours for a while, out of habit, and then the shelves started going quiet. Salt ran out first, because salt is the one thing nobody thinks about until it is gone. After that it was batteries, then the good coffee, then the rope.',
+  'So I started walking the long way. Not around the bay — that was a full day and a half, with the cliff path and the two bridges that were only open to light traffic. I meant the long way in the other sense: the way that took me through three towns I had passed but never entered, each one with its own version of the story about the island and the ferry and the year the water rose.',
+  'In the first town, the story was about the pilot. They told me he had been offered a dock position on the mainland and had refused, because the job was the boat, and the boat was not a job. In the second town, the story was about the island. They told me the island was where the old lamps were made, the ones with the wide glass, and that the whole harbor used to glow at night with them.',
+  'In the third town there was no story, just a woman at a counter who poured me coffee and said, the ferry comes back when the boats do. I asked which boats. She said the ones that still need to be where they are. It was the best thing anyone had told me all winter, and I have thought about it more than I would like to admit.',
+  'The long way taught me the arithmetic of supply. A loaf of bread is four dollars in the harbor town and nine dollars on the island, and the difference is not profit, the difference is the crossing. When the crossing disappears, the island prices do not fall. They hold, and then they fall, and then the shop closes, and then the price of bread is the price of the trip you make to get it, which is a number no register can print.',
+  'I carried the rope back the long way, and the coil did not change. That is the thing about rope: it does not know it has been moved. It only knows it is wet, and that it will be dry by morning, and that somewhere along the length of it there is a knot that was tied by a hand that was in a hurry, and a knot that was tied by a hand that was not.',
+  'The books came back to the island in batches now, by anyone who was already going. I started a list on the shop counter, and the list became the point. Not the books — the list. A list is a promise with a margin. You can cross things off. You can write new things in. The island could have the books whenever the next boat was going anyway, and in the meantime the list was holding the shape of what would come.',
+  'Winter did the rest of its work. The harbor froze in the shallow places, and the deep places went under, and the pilot, I heard, took the ferry for a last slow loop around the island, one circuit, engine on, horn off. He was not selling the boat. He was walking it out.',
+  'In the spring the new line announced itself the old way: a schedule on the shop counter, laminated, with the times in a font that had not changed in a decade. The first crossing back was the quiet one. Twenty minutes of grey water. The new pilot nodded at me, and I nodded back, and I understood it was not the same nod, and that it was the same nod anyway, and that the line did not care which.',
+  'I have been making the crossing the short way ever since. The package is usually coffee. Sometimes the rope, if someone on the island is in a hurry and has a knot they are not sure about. The ticket is the price of a coffee, and the water is grey, and the line is there, and that is the whole point of a line: not the crossing, but the fact that you can cross, on a schedule, for the price of coffee, with a nod.',
+].join('\n\n');
+
+const ESSAY_VIDEO_POST: SeedDiscoverPost = {
+  _id: 'dp-essay',
+  author: 'kai',
+  author_username: 'kai',
+  author_provider: 'web10',
+  title: 'The long way around',
+  text: ESSAY_TEXT,
+  created_at: minsAgo(35),
+  tags: ['story', 'video'],
+  likes: 214,
+  comments: 37,
+  reposts: 5,
+  media_refs: ['dm-landscape'],
 };
 
 const DISCOVER_POSTS: SeedDiscoverPost[] = [
@@ -1453,7 +1518,12 @@ export async function readDiscoverFeed(): Promise<unknown[]> {
         thumbnail_url: new URLSearchParams(window.location.search).get('discover-inline-art') === '1' ? MUSIC_TRACKS[0].media.thumbnail_url : undefined }] }];
   }
   const prepared = new URLSearchParams(window.location.search).get('discover-prepared-faces') === '1';
-  return DISCOVER_POSTS.map((seed) => {
+  // D125 screenshot fixture: ?essay-video=1 prepends the essay-description
+  // video post to the board (the video-description "See more" capture).
+  const boardSeeds = new URLSearchParams(window.location.search).get('essay-video') === '1'
+    ? [ESSAY_VIDEO_POST, ...DISCOVER_POSTS]
+    : DISCOVER_POSTS;
+  return boardSeeds.map((seed) => {
     // Synthetic already-resolved face fixture, not a production query or
     // latency measurement. discover-face-state=pending holds only identity.
     const p = !prepared || seed.author_key?.includes('/groups/') ? seed : {
@@ -1591,6 +1661,40 @@ export async function lookupUserProfile(username?: string): Promise<unknown> {
 // primary read (a discover post, e.g. dp-1) also lands here — the author is
 // derived from the doc's author_key (fromV3DocToPost), matching the node.
 export async function readPostById(docId: string): Promise<unknown> {
+  // The D125 essay fixture (/watch/dp-essay — the video-description capture):
+  // not part of the seeded board, answered by id only (media PRE-resolved,
+  // the API read path's shape, so the watch player paints on the one read).
+  if (docId === ESSAY_VIDEO_POST._id) {
+    const resolved = (ESSAY_VIDEO_POST.media_refs ?? [])
+      .map((id) => {
+        const m = DISCOVER_MEDIA[id];
+        if (!m) return null;
+        return {
+          doc_id: m._id,
+          object_key: m.object_key ?? null,
+          mime_type: m.mime_type,
+          size_bytes: m.size_bytes ?? null,
+          read_url: m.url,
+          width: m.width ?? null,
+          height: m.height ?? null,
+          duration_seconds: m.duration_seconds ?? null,
+          thumbnail_url: m.thumbnail_url ?? null,
+          transcoding_settings: m.transcoding_settings ?? null,
+        };
+      })
+      .filter(Boolean);
+    return {
+      _id: ESSAY_VIDEO_POST._id,
+      title: ESSAY_VIDEO_POST.title,
+      text: ESSAY_VIDEO_POST.text,
+      created_at: ESSAY_VIDEO_POST.created_at,
+      tags: ESSAY_VIDEO_POST.tags,
+      author_username: ESSAY_VIDEO_POST.author_username,
+      author_provider: ESSAY_VIDEO_POST.author_provider,
+      media_refs: resolved,
+      profile: { display_name: 'Kai' },
+    };
+  }
   const p = FEED_POSTS.find((x) => x._id === docId);
   if (!p) {
     const d = DISCOVER_POSTS.find((x) => (x._id as string) === docId);

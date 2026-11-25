@@ -14,7 +14,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { PostIdentityRow, PostStatsRow, PostActionBar } from '@/components/Feed/PostDetail';
-import { PostBody } from '@/components/Feed/PostBody';
+import { ExpandablePostBody } from '@/components/Feed/ExpandablePostBody';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -893,10 +893,14 @@ export default function WatchScreen() {
 
         {/* Body — full markdown at a reading measure (the "beautiful Notion"
             surface). Shown when there's a title; a caption-only post's caption
-            is the anchor above, so it isn't duplicated here. */}
+            is the anchor above, so it isn't duplicated here. D125: an
+            essay-length description clamps to the detail's 12-line budget +
+            a "See more" toggle (the fade blends into the page background,
+            not the card), so a video's description stops dominating the page;
+            a description that fits renders exactly as before. */}
         {post.title && post.text && (
           <div className="mt-2 max-w-prose text-sm leading-relaxed text-foreground" data-testid="watch-caption">
-            <PostBody text={post.text} density="full" />
+            <ExpandablePostBody text={post.text} density="full" collapsedLines={12} fadeColor="background" testId="watch-caption-see-more" />
           </div>
         )}
 
