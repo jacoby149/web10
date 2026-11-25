@@ -1,5 +1,7 @@
 # K20 hybrid attachment history: fewer reads, slower complete response
 
+Interpretation of record for both runs: [K20 findings](../../HYBRID-K20-FINDINGS.md).
+
 The hybrid preserves exact complete-response parity and reduces captured logical
 reads **70.6%** in both measurement orders. It increases complete HTTP wall time
 in both. This run does not advance to the six-case cell: the I/O saving did not
