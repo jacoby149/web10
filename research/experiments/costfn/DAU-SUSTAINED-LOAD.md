@@ -28,6 +28,19 @@ makes (the contract rate at one million accounts), not to the larger stepped
 funnel of [STUDY.md §6](STUDY.md) (H/S × 1k/3k/5k/10k/20k VUs), which remains a
 separate remainder and is not run, restoped, or superseded by this contract.
 
+**Why a sawtooth, not an accumulation.** The store's history is bounded by
+the cleanup interval: the node's tables are `ReplacingMergeTree`, versions
+and link churn collapse under background merges and the declared maintenance
+window, so the debt *resets* each interval and cannot compound — compounding
+was the entire threat the heavy-history regime posed, and the slice's
+retained pre-merge history is that transient regime, not a steady state. The
+test measures the sawtooth live: the writer stream and delivery writes create
+the rising edge, the active background merges create the falling edge, and
+the debt-slope gate (§6 G1) requires the net to be flat or shrinking under
+the worst conditions the contract offers. The receipt therefore answers
+"does it compound at the contract load?" — not merely "does it survive forty
+minutes?"
+
 Three-receipt map, no substitution between them:
 
 | Receipt | Machine | Line it upgrades |
