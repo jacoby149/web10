@@ -145,7 +145,14 @@ function MediaItem({ media, audioTitle, audioArtist }: { media: MediaRecord; aud
   // FILLS it (object-cover) so a multi-photo carousel crops to one consistent
   // frame instead of letterboxing. Measure on load only as a fallback for
   // legacy media that predates dimension storage.
-  const src = media.thumbnail_url || media.url;
+  // The photo renders the ORIGINAL (`url`), not the client's 480px tile
+  // rendition (`thumbnail_url`) — the thumbnailing contract: an image doc's
+  // representative is its read_url; the small rendition is for tile grids,
+  // video posters and audio covers. Preferring it here upscaled the photo to
+  // card width and read as grainy (25.11.2026 operator report, feed vs
+  // profile). `url` is absent only on degraded legacy media — the thumbnail
+  // then stays the honest fallback.
+  const src = media.url || media.thumbnail_url;
   const knownRatio = media.width && media.height ? media.width / media.height : null;
   const ratio = knownRatio ?? measuredRatio ?? 4 / 3;
   const onMediaLoaded = (el: HTMLImageElement) => {
