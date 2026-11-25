@@ -1944,9 +1944,11 @@ no failed fixture retry.203 no-engine controls/Ruff pass, not native acceptance.
 
 **Current programme target — D121 (DECIDED):** follow
 [paper-submission.md](paper-submission.md), not the former CIDR/industrial-track
-strategy. The old lane name is retained for continuity. The January dates are
-projected until the official SIGMOD 2028 call confirms them; no submission or
-experiment is authorized by this documentation change.
+strategy. The old lane name is retained for continuity. The official SIGMOD 2028
+call confirms the January dates; no submission or experiment is authorized by
+this documentation change.
+
+- [✓ 6.28.25 working draft only] **Paper draft v7** — preserve v6 and bank the [new manuscript and evidence checks](../../research/seventh-draft/README.md). Separate archival native duration from CPU and the worked logical-byte scenario from physical bandwidth. Submission is not ready pending independent-author and anonymity gates.
 
 - [✓ 6.14.1 attempt receipt only; STOP before serving] **RD4-FANOUT-P-SETUP-STOP** — preserve fresh restore/count T1 PASS and native241 in exact transpose reconciliation at22GiB;0 complete responses, no F native build/gates or counts-per-response profile. Raw/source/SQL/query-ID receipts in `evidence/arm-f-20261115/P-setup-stop/`; no restart/retry after cap. Owned resource cleanup verified18:45:01UTC, original21:23:23UTC deadline unchanged, estimated compute$0.3402. No F verdict, production/P1 action or paid continuation; approval consumed/closed.
 - [✓ 6.14.2 code/offline only] **RD4-FANOUT-P-CHECK-REPAIR** — stable doc_id partition across all three checker inputs plus batched expected/stored counts, exact original fields/joins/FINAL, duplicate-key refusal/schema premise and complete-once receipts. Five full-row metadata parity checks are batched too. Eight new no-engine controls pass; original failed SQL/receipts preserved. Native fit/parity remains OPEN. Operator permits a new online four-hour/$2 retry under unchanged caps, not old-lease reuse or P1/production action.

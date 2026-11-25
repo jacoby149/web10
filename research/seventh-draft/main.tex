@@ -1,0 +1,118 @@
+% V7 named working draft. Not the double-anonymous submission artifact.
+\documentclass[sigconf,nonacm]{acmart}
+\settopmatter{printacmref=false,printfolios=true}
+\setcopyright{none}
+\usepackage{booktabs}
+\setlength{\emergencystretch}{2em}
+\newcommand{\pr}[1]{\href{https://github.com/jacoby149/web10/pull/#1}{PR \##1}}
+\newcommand{\record}[2]{\href{https://github.com/jacoby149/web10/blob/2f397cb13/research/experiments/costfn/#1}{#2}}
+\title{Your Data, Your Rules, One Query}
+\author{Jacob Hoffman}
+\affiliation{\institution{Independent}\country{}}
+
+\begin{document}
+\begin{abstract}
+A personal data platform should let an application compute across users without taking ownership of their records or grants. We present a query design in which users' documents are canonical, users' grants define the relations available to a reader, and the node admits only declared access shapes backed by physical layouts. Measurements on a synthetic social workload distinguish two sources of read cost: recalculating values and searching for records. Write-time tallying and a question-specific pin index reduce both. Exact assembly comparisons reject converting entire document payloads to typed rows. On a fixed slice, omitting bodies from the key scans does not reduce complete-read cost; changing the attachment-history layout reduces captured logical bytes read by 70.6\% at exact response parity, but increases complete HTTP wall time in both measurement orders. We report measured per-read costs and conditional capacity arithmetic, not a concurrent-load demonstration. The 500\,ms end-to-end target remains unmet.
+\end{abstract}
+\maketitle
+
+\section{One query over user-controlled data}
+An application that can import a record does not necessarily have a way to join that record with another user's data under both users' rules. A game can store scores in its own service and display profile names from another service. The game should not have to copy all profiles to answer a leaderboard query, and the ability to issue the join should not grant it access to profiles that the reader cannot see.
+
+The web10 platform separates the content model, the read authority, and the physical work. An author owns a canonical document, identified by author and document ID. A document has a service name and a body. Group memberships, roles, and service grants determine which documents a reader can reach. At the application-to-node boundary, an application submits a query; the node supplies reader-authorized relations before the query joins or aggregates them. The application defines what a score or a profile means. It does not decide which rows the reader is allowed to read.
+
+The proposed admission rule adds a second obligation: the query declares each access it needs, and the node admits the query only when each declared question has a physical access path. An undeclared or unsupported access is refused with the missing declaration named, rather than executed as an unbounded scan. A declaration describes what the access needs; it does not grant permission. A layout supplies candidates or prepared values; it does not replace the canonical authority check. This is the design under evaluation, not a claim that the current node already enforces this physical rule for arbitrary queries.
+
+For example, a leaderboard sorted by score needs an ordered score access and a profile lookup by the selected author keys. The two declarations name different operations: one orders a range, while the other seeks exact keys. An index over scores cannot discharge the profile lookup. The node admits the query only if both access shapes are available; even then, the profile lookup returns only rows the reader may see. A new filter over an undeclared property of the profile body requires a new access declaration, not permission to scan every body.
+
+\section{Canonical documents and prepared reads}
+The canonical documents table is the sole source of truth for document content and version. Attachment records and group policy determine whether the reader may see that content. A stale pointer can nominate a document but cannot make it visible. Before returning content, the read path resolves the current version, applies tombstones and policy, and fetches the body that belongs to the selected version.
+
+The proposed layout separates what a query must \emph{locate} from what the response must \emph{return}. A typed satellite stores values that a declared question filters, sorts, or joins. The satellite is named for its type or access purpose, not for an application concept; a recipe in the data tells the node what a counter means. A body that the response returns but the query does not inspect remains document content. This preserves one content authority without requiring every read to examine the whole document.
+
+There are two ways to move work out of a read. First, the write path computes a value or delivery decision once: it maintains a tally, updates aggregate state, or records delivery pointers at publication. Second, the physical layout orders records by the key the read actually supplies. These mechanisms are distinct. An already computed answer is expensive if finding it still requires broad scans; an ordered scan is expensive if every request still reconstructs the same value.
+
+The proposed group-delivery contract makes the publication decision on every group publish. Below the default 2,000-member cutoff, the write path appends recipient pointers to the fanout table; at or above the cutoff, the read path seeks in group/time order. In either case the document stays canonical. Pointers omit payload and are not grants. The cutoff and the write lifecycle are design choices, not a production readiness claim. The \record{ARM-F-DESIGN-CLOSURE.md}{fanout receipt} records an ordinary K20 complete response at exact parity, with 3,734,802 rows read, 286,693,122 logical bytes read and 4,702.160\,ms complete HTTP wall time. That observation establishes a working ordered path, not a concurrent-load or cutoff-capacity result.
+
+\section{Workload and comparison method}
+\label{sec:workload}
+The workload is a synthetic stored population, not a traffic trace. The \record{REALISM-RERUN-PLAN.md}{realism contract} separates population, graph shape, authorship, and engagement. The full input has one million accounts and 1.6 billion platform events. The K20 complete-response comparison reads a page for a reader following 20 groups and runs the associated count and view requests. A complete-response observation includes application work that a statement-only measurement cannot see.
+
+We use van Mierlo's server-side census of four moderated health communities for authorship~\cite{vanmierlo}. It measured a population of 63,990 accounts and 578,349 posts, including accounts that never posted. The top 1\%, next 9\%, and remaining 90\% authored weighted shares of 74.7\%, 24.0\%, and 1.3\%. The generator adopts 85\% never-posting accounts as a modelling choice within the observed bound. The top-decile share of 98.7\% is derived, not a second tuning target. A handle-sharing sample that measures a top-decile share but not the zero-post class does not supply the same basis for a distribution over all stored accounts. The source communities limit the population to which those observations generalize. The contract uses Kwak et al. for follower skew and Ugander et al. for following-degree shape; these inform synthetic graph construction, not request arrival rates~\cite{kwak,ugander}.
+
+For sizing, the contract assumes 0.25 page reads per account per day. At one million accounts this gives 250,000 reads per day, or about 2.9 per second on average. Van Mierlo measured contributions, not intraday read peaks. We express allowances as functions of peak read rate $r$ and work an example at $r=15$ reads per second. That rate is an operator planning assumption of approximately five times the daily average, not a literature estimate or observed peak.
+
+The experiments bank individual query receipts and compare response values to an independent oracle. We keep rows read, logical bytes read, peak statement memory, summed native duration, and complete HTTP wall time separate. The first two count work reported by the engine. Peak statement memory is the largest memory value for any one statement, not simultaneous process memory. Summed native duration adds statement elapsed times; it is not CPU time or complete request wall time. Logical bytes are neither an upper nor a lower bound on physical disk bytes. We do not measure the latter. The frozen-slice trials use the same slice, request, and response oracle. The full-store trials and isolated assembly cells are named separately.
+
+\section{Two ways to remove read work}
+\subsection{Compute the answer at write time}
+Tallying maintains the count when its source records change. The \texttt{counting\_numbers} family stores named finished counts; the measured experiment uses \texttt{counting\_numbers\_tally}. In the ordinary page's standalone comment diagnostic (\pr{1591}), read-time aggregation read 247,081,302 rows and 17,060,447,628 logical bytes. The tally lookup read 1,600 rows and 107,200 logical bytes. The diagnostic is not an additive part of the complete-query comparison. The complete optional projection cell fell from 59,461,806,191 to 224,523,076 logical bytes read at exact response parity. That run changed both when counts were calculated and where finished counts were stored; it did not measure the storage location alone. The \record{evidence/engagement-tally-20261119/RESULTS.md}{tally receipt} also records a paired verification omission. The ordinary result is valid; it does not close the omitted paired domain.
+
+Insert-maintained event aggregates answer a different question: how many deliveries and distinct readers a document received. Daily states retain exact reader sets, and the all-time table merges states across days instead of summing distinct counts. A view read consumes prepared states rather than scanning raw deliveries for each response. The historical fill of those states exposed the second family of work: even an aggregate prepared once is expensive to build if each day has to rediscover its records.
+
+\subsection{Place the keyed records together}
+The node's billboard lookup first had to find placements that referred to the current page's posts. The replacement index orders the placement references by full post key and leaves creative authority with the canonical read. In the measured full-store uniform K20 sequence, the pin candidate lookup changed from 82,897,093 rows, 8,724,652,469 logical bytes, and 3,385\,ms native duration to 32 rows, 2,912 logical bytes, and 6\,ms. Those 32 rows are the fixture's entire pin population, not a production worst case. Complete captured logical bytes read fell from 8,847,767,874 to 123,119,689. This is the same-store indexed result: \pr{1612} measured in \pr{1618}, reported in the \record{evidence/skinny-pin-20261122/RESULTS.md}{pin receipt}.
+
+The event-seed layout addresses the same issue with a different key. Before day partitioning, 294 native daily insert statements finished but the seed did not complete. They summed to 6,931,712\,ms native duration. The \record{evidence/all-fixes-two-grain-20261120/RESULTS.md}{two-grain receipt} records those partial observations, not a completed all-days denominator. Partitioning by event day replaced repeated broad scans with day-local reads. All 319 daily insert statements finished and read 1,600,000,000 rows for 1,600,000,000 reconciled events: 1.0$\times$ native row amplification for those inserts, excluding the layout build and censuses (\pr{1602}, \pr{1603}). The one-shot all-time merge hit the memory cap; a subsequent bounded merge completed, preserving exact distinct semantics. These are construction observations, not complete HTTP timings.
+
+\section{A rejected layout: decomposing whole bodies}
+Typed columns are useful where a query depends on their values. The stronger hypothesis was that decomposing the entire body into typed rows would also improve assembly. The proving cell committed the rejection rule before measuring: a factor of ten or more on any measured cost axis rejects the maximal layout.
+
+All six assembly cells returned exact key, type, and value parity (\pr{1621}). For ordinary post-open, rows read rose from 8,192 to 1,817,510, and logical bytes read rose from 1,293,268 to 155,195,815. In paired P feed assembly, rows read increased from 8,192 to 244,185 and logical bytes read from 169,943 to 21,591,973. The separate fat-payload control increased from one row to 90,115 rows. Every cell crosses the pre-committed rejection threshold; the fat control is one post's payload, not an engagement thread. The \record{evidence/row-model-4096-20261123/RESULTS.md}{six-cell receipt} reports isolated assembly costs, not complete feed costs. The design retains a narrower hypothesis: store queryable values as rows, and keep payload as document content. Rejecting the maximal layout does not measure the performance of every narrower layout.
+
+\section{Test projection before adding a satellite}
+\subsection{Removing body reads did not remove the bottleneck}
+Before adding a second attachment layout, the first intervention deferred post and profile bodies until the authorized keys and versions had been selected. On the fixed slice, both arms passed the same complete-response oracle. Native receipts for the projected key statements omit the body column. Captured logical bytes read nevertheless changed from 620,851,039 indexed to 622,458,125 projected. The complete HTTP wall times were 6,014.100 and 6,020.980\,ms. Native plans for the projected resolution selected 323 and 54 attachment-history granules while each canonical document lookup selected two granules. Dropping the body from the key scan did not eliminate the broad access to attachment history. This is the Step~2 result of \pr{1635}, recorded in the \record{evidence/k20-projected-20261125/RESULTS.md}{projected receipt}.
+
+\subsection{An attachment layout cut read volume, not wall time}
+The next arm replaced those two broad attachment-history key scans with a skinny table ordered by document, group, version, and deletion flag. The native census verified the full attachment-history multiset. The canonical and satellite generation fences remained in the read path, and the rest of the request retained the same policy, counters, rank, and exact body seeks. The two resolution attachment reads selected 21 and one granule instead of 323 and 54. The oracle passed in both measurement orders (\pr{1635}, \record{evidence/k20-attachment-20261125/RESULTS.md}{hybrid receipt}).
+
+\begin{table}[t]
+\caption{Fixed-slice K20 measured complete sequences. Read rows and logical bytes are identical across the two measurement orders for each arm. The final column is complete HTTP wall time, not summed native duration.}
+\label{tab:hybrid}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Arm & Rows read & Logical bytes & HTTP ms \\
+\midrule
+Indexed, order 1 & 8,942,938 & 620,851,039 & 5,741.635 \\
+Hybrid, order 1 & 3,265,935 & 182,335,633 & 6,739.253 \\
+Indexed, order 2 & 8,942,938 & 620,851,039 & 5,490.085 \\
+Hybrid, order 2 & 3,265,935 & 182,335,633 & 6,336.874 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Captured logical bytes read fell 70.6\%; resolution with embedded counts fell from 240,762,306 to 4,938,909 logical bytes read. Preparation, including unchanged creative work, fell from 303,819,000 to 101,119,929 logical bytes read. Peak statement memory did not materially change: the indexed values were 87,968,547 and 89,277,539 bytes, and the hybrid values were 85,807,499 and 90,930,384 bytes. Summed native duration was 1,094 versus 1,093\,ms in the first order and 1,054 versus 1,059\,ms in the reverse order. Table~\ref{tab:hybrid} shows that complete HTTP wall time rose in both orders. The application-side generation fence is the next investigation target, not a separately isolated cause of the full wall-time increase. The capture grew from 75 to 80 statements, including the additional generation checks.
+
+The frozen fault lab passed seven named cases with 43 native statement receipts, including missing staged data, identical publication retry, an absent committed satellite, stale-generation refusal, rebuild, and missing or conflicting exact-version payloads. These were isolated fixtures; live concurrent publication with cleanup is unproven. Under the pre-committed decision rule the run did not advance to the six-case cell. The \record{HYBRID-K20-FINDINGS.md}{paired interpretation of record} connects the projected and hybrid results. Neither slice observation is a full-store hybrid measurement.
+
+\section{Capacity budget for one reference node}
+\label{sec:budget}
+The budget states how much work a read could use at the contract's offered load. It does not assert that the reference node sustained that load. For the reference R630 array, the planning input is 1.09 decimal GB/s of gross physical throughput~\cite{budget}. At $r$ reads per second the gross allowance per read is $1.09/r$ GB of \emph{physical} I/O, or about 73\,MB at $r=15$, before writes, merges, and headroom. This is an array input, not an observed disk throughput in the trials.
+
+For an arithmetic sensitivity check, apply the fixed-slice hybrid-to-indexed logical-byte ratio to the full-store indexed observation of 123,119,689 logical bytes read (\pr{1618}). The result is about 36.2\,MB of projected \emph{logical} bytes per read. At 15 reads per second that is about 0.54\,GB/s of projected logical read volume. Its numerical value lies below the gross physical allowance at that rate. The ratio transfer and the 15 reads per second are assumptions, and the two quantities are different: this does not establish a physical disk-budget pass. The full-store hybrid response was not run; sustained device measurements under concurrent reads and writes would be needed to close that line.
+
+The memory planning allowance is roughly 17\,GB per read in the worked scenario~\cite{budget}. The measured single-statement peaks for the complete-read comparisons discussed here are under 1\,GB; the fixed-slice hybrid does not materially change those peaks. This comparison places an individual read statement below the planning allowance, not all overlapping queries, writers, caches, and merges below aggregate host capacity. Setup and assembly have separate memory receipts.
+
+The product target is 500\,ms complete HTTP wall time. No measured complete-read arm cited here meets it. We state no numerical CPU allowance verdict: the archived complete-response export from \pr{1618} records 1,332\,ms of summed native duration, not processor time. A CPU calculation needs matched query-level CPU counters and time consumed by the application workers. Concurrent throughput and a latency distribution remain unmeasured.
+
+\section{Related work and limitations}
+Solid places storage in user-controlled pods; compositional queries across those pods require cross-pod reads or another access path~\cite{solid}. The AT Protocol separates user repositories from indexed application views~\cite{atproto}. This design keeps authorized relations and declared access layouts on the same node, so an application can supply the query without also operating an index for that query. It does not establish a comparative throughput result against either system. Materialized view maintenance already separates the cost of maintaining an answer from the cost of reading it~\cite{gupta}. The contribution here is the combination of a canonical, user-governed document relation, declared application accesses, and experiments that distinguish authority, precomputation, and physical selection rather than attributing an entire request to one optimization.
+
+The evidence is per-read measurement against a stated workload and capacity arithmetic. The experiments do not include a rented concurrent-load run, a latency distribution, physical disk accounting, or a full-store hybrid read. The tally contrast changes computation time and storage location together. The frozen fault lab does not establish live publication or concurrent cleanup. The admission and write-maintenance designs are not represented as an audited production rollout. AI tools assisted with experimental source, harness tests, and receipt analysis; the cited native receipts and independent response comparisons are the evidence for the measured claims.
+
+\section{Conclusion}
+The experiments separate a read's question from the content it returns. Ready-made counts remove calculation; matching a layout to the lookup removes broad search. Exact parity alone did not justify the maximal row model, and payload pruning alone did not change the cost of the attachment-history access. The skinny attachment layout removed most of that read volume without delivering a faster complete response. Those distinctions are the basis for the declared-query design: choose an access path for the question, keep authorization and content canonical, and measure the whole response before declaring the new path better.
+
+\begin{thebibliography}{9}
+\bibitem{vanmierlo} Trevor van Mierlo. 2014. The 1\% Rule in Four Digital Health Social Networks: An Observational Study. \emph{Journal of Medical Internet Research} 16, 2, e33. \href{https://doi.org/10.2196/jmir.2966}{doi:10.2196/jmir.2966}.
+\bibitem{kwak} Haewoon Kwak, Changhyun Lee, Hosung Park, and Sue Moon. 2010. What is Twitter, a Social Network or a News Media? In \emph{WWW}. \href{https://doi.org/10.1145/1772690.1772751}{doi:10.1145/1772690.1772751}.
+\bibitem{ugander} Johan Ugander, Brian Karrer, Lars Backstrom, and Cameron Marlow. 2011. The Anatomy of the Facebook Social Graph. \href{https://arxiv.org/abs/1111.4503}{arXiv:1111.4503}.
+\bibitem{solid} Solid Community Group. 2024. \href{https://solidproject.org/TR/protocol}{Solid Protocol}, Version 0.11.0.
+\bibitem{atproto} AT Protocol. \href{https://atproto.com/guides/overview}{Protocol Overview}.
+\bibitem{gupta} Ashish Gupta and Inderpal Singh Mumick. 1995. Maintenance of Materialized Views: Problems, Techniques, and Applications. \emph{IEEE Data Engineering Bulletin} 18, 2, 3--18.
+\bibitem{budget} RD4. 2026. \record{HYBRID-K20-PREFLIGHT.md}{K20 preflight and reference-array envelope} and \record{HYBRID-K20-FINDINGS.md}{paired findings and scale assumptions}.
+\end{thebibliography}
+\end{document}
