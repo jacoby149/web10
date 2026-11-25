@@ -1,3 +1,6 @@
+6.28.27 || 25.11.2026
+research: add the full-store hybrid K20 contract (`research/experiments/costfn/FULL-STORE-HYBRID.md`) and file it in plan/lane as the next experiment to run: fill the missing RD4 two-by-two cell — build the skinny attachment-history satellite on the full frozen store from canonical history, run two frozen uniform K20 samples through the hybrid path at exact ordered oracle parity (pre-committed before any cost is published), and cite the indexed baseline from banked PR #1618. Replaces the ratio-arithmetic row (36.2 MB/read → ~0.54 GB/s at the contract peak) with a measured disk-demand figure; the measured ratio is reported, not assumed from the attachment-heavy slice. Banked AMD 8-vCPU/32-GiB host, 24 h backstop, $5 ceiling, task-mode admission. Settles the disk-demand line only; the six-case gate stays closed, array supply and production remain separate. Planning contract only — no source change, host, admission or measurement.
+
 6.28.26 || 25.11.2026
 research: reconcile draft v7's R630 storage budget with the four-drive SATA mirror layout and manufacturer rating. Distinguish indexed and projected hybrid logical demand from rated gross physical supply, and record the pending on-array mixed-load measurement without delaying submission. No device measurement, rented load test, or change to the memory, CPU, or latency verdicts.
 
