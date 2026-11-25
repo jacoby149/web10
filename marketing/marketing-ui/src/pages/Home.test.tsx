@@ -103,4 +103,12 @@ describe('classic landing (D125)', () => {
     expect(screen.getByRole('heading', { name: 'Jacob Hoffman' })).toBeInTheDocument()
     expect(screen.getByText('Founder, web10')).toBeInTheDocument()
   })
+
+  it('retries the same bundled portrait when the image fails', async () => {
+    const name = 'Jacob Hoffman, founder of web10'
+    await renderHome()
+    fireEvent.error(screen.getByRole('img', { name }))
+    fireEvent.click(screen.getByRole('button', { name: `Retry image: ${name}` }))
+    expect(screen.getByRole('img', { name })).toHaveAttribute('src', '/founder-2022.jpg')
+  })
 })

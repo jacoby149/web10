@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { KeyRound, Network, Unlock, Users, Layers, HardDrive } from 'lucide-react'
 import { Button } from '../components/ui/button'
@@ -237,7 +238,7 @@ function Team() {
         <div className="mt-8 grid gap-8 sm:grid-cols-3">
           {TEAM.map((member) => (
             <div key={member.name} className="w-full max-w-72">
-              <img
+              <ReliableImage
                 src={member.img}
                 alt={member.alt}
                 width={640}

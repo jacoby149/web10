@@ -29,6 +29,10 @@ copy, destination and content, but carry the navy treatment into the homepage
 header and use distinct, borderless section bands. The fractal stays visible
 on phones without fixed attachment.
 
+The bundled founder portrait uses the shared `ReliableImage` renderer.
+It lazy-loads at its original square size, and a retry requests only the
+same local asset. It does not need a renderer-inventory exception.
+
 ## Why
 
 The marketing homepage was rebuilt on 19.07.2026 (D13, 1.0.63) from the
