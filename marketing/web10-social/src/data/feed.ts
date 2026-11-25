@@ -740,6 +740,8 @@ export async function readFeedPage(opts: {
   hashtags?: string[];
   /** The D86 surface label (the feed's is `feed`; the hashtag board is `hashtag`). */
   surface?: string;
+  /** Track rows use media/artist attribution and ranking, not feed ads or extra totals. */
+  trackList?: boolean;
 }): Promise<FeedPage> {
   const current = () => { if (opts.isCurrent && !opts.isCurrent()) throw new Error('Feed scope ended'); };
   current();
@@ -766,7 +768,7 @@ export async function readFeedPage(opts: {
     contentService: 'posts',
     prepare: {
       media: true,
-      ads: true,
+      ads: !opts.trackList,
       face: { bodyField: 'profile_body', mediaField: 'avatar_ref', authorColumn: 'author_key', urlField: 'avatar_url' },
     },
   });
@@ -779,7 +781,7 @@ export async function readFeedPage(opts: {
   // the engine's reach over the discover group — the same object the dashboard
   // shows, not a client-written counter.
   const postIds = posts.map((p) => p._id || '').filter(Boolean);
-  if (postIds.length) {
+  if (postIds.length && !opts.trackList) {
     const [counts, viewCounts] = await Promise.all([
       readFeedEngagementCounts(postIds, feedGroups),
       // The view metrics (D86): impressions + reach over the discover group —
