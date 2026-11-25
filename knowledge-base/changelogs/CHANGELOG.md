@@ -1,3 +1,6 @@
+6.28.27 || 25.11.2026
+research: add the sustained-DAU load test contract (`research/experiments/costfn/DAU-SUSTAINED-LOAD.md`): the right-sized receipt against the realism contract's load (15 reads/s peak, 2.9 reads/s average) on the frozen million-author store, on an admitted DO AMD 8-vCPU/32-GiB host, with a declared 1 post/s publication writer stream, exact ordered oracle gates, pre-declared stop criteria and a breaking-point clause that banks the curve without a capacity claim on a performance stop. Separate from the R630 on-array run, the full-store hybrid arm and Study L; the legacy bench.py harness stays BLOCKED and is not reused. Planning contract only — no runner, host, admission or measurement.
+
 6.28.26 || 25.11.2026
 research: reconcile draft v7's R630 storage budget with the four-drive SATA mirror layout and manufacturer rating. Distinguish indexed and projected hybrid logical demand from rated gross physical supply, and record the pending on-array mixed-load measurement without delaying submission. No device measurement, rented load test, or change to the memory, CPU, or latency verdicts.
 
