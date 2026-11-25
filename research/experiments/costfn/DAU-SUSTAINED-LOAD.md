@@ -43,10 +43,16 @@ Three-receipt map, no substitution between them:
   banked costfn run. Before reuse, check the existing slice manifest,
   canonical generation fingerprint and native receipts (24 November
   scheduling directive); repair or rebuild only invalid work.
-- **Host class:** DigitalOcean NYC3 `s-8vcpu-32gb-amd` (8 vCPU / 32 GiB /
-  400 GiB, $0.25/hour) — the SKU of the banked full-store runs. Actual
-  provisioned shape, region, price and dates are verified into the receipt,
-  not assumed from the catalogue label.
+- **Host class:** a DigitalOcean **NVMe-backed droplet** (storage-optimized
+  line or equivalent), 8 vCPU / 32 GiB class so memory and CPU comparability
+  with the banked runs hold. Storage is deliberately **not a candidate for
+  the binding line** on this host — see the design note, §10. The exact SKU,
+  price, region and provisioned shape are verified at admission and into the
+  receipt, never assumed from the catalogue label. Fallback only if the
+  NVMe class is unavailable on the account tier at admission: the banked
+  `s-8vcpu-32gb-amd` SKU — and then calibration must first prove disk
+  headroom per §10, or the receipt is scoped to that host's storage ceiling
+  and the test is re-run on the NVMe class.
 - **Engine:** ClickHouse 26.10.4.207, memory envelope 32/28/22 GiB, matching
   the banked runs so single-read costs remain comparable.
 - **Engine boundary:** at the API -> ClickHouse boundary, the API supplies
@@ -199,8 +205,10 @@ for the contract load is retired.
 - The stepped concurrent-user funnel (1k–20k VUs) — Study L, separate
   remainder, unchanged.
 - The reference-array disk supply line — stays rating-based until the R630
-  on-array run; the droplet's virtual disks answer the concurrency/envelope
-  question, not the array question.
+  on-array run. This host's storage (measured with headroom, §10) answers the
+  concurrency/envelope question only; the result does **not** transfer to
+  slower storage, and no disk-supply claim is made for any machine other than
+  the one measured.
 - Full-store hybrid savings — the 0.54 GB/s remains ratio-transfer arithmetic
   until the full-store hybrid arm runs.
 - Audience diversity, media, engagement and the app's four-call page — the
@@ -226,8 +234,12 @@ for the contract load is retired.
    writer actors and read receipts verified (the banked restore path). Setup,
    not measurement.
 4. **Calibration run:** 2.9 reads/s for 120 s plus a 15 reads/s burst of 60 s,
-   verifying the measurement pipeline, oracle comparison and counter deltas.
-   Banked as calibration, explicitly not a result.
+   verifying the measurement pipeline, oracle comparison and counter deltas,
+   and — per §10 — establishing which resource lines (disk, memory, CPU,
+   connections) have headroom at the contract peak. Banked as calibration,
+   explicitly not a result. The sustained window is admitted **only if
+   storage is provably non-binding** on this host; if storage binds first,
+   the receipt is scoped per §10 and the test re-runs on the NVMe class.
 5. **Sustained run:** phase W → A → B → D per §3, under the task-mode
    admission, agent supervision at ~300 s intervals and the provider
    backstop (24 November directive: the poweroff timer is a failsafe, not a
@@ -240,7 +252,8 @@ for the contract load is retired.
 
 | Parameter | Value |
 |---|---|
-| Host | DO NYC3 `s-8vcpu-32gb-amd` (8 vCPU / 32 GiB / 400 GiB), $0.25/hour, actual shape verified |
+| Host | DO NVMe-backed droplet, 8 vCPU / 32 GiB class (storage-optimized line or equivalent), nyc3; SKU/price verified at admission, provisioned shape verified into the receipt. Fallback: banked `s-8vcpu-32gb-amd` only if the NVMe class is unavailable, subject to the §10 calibration gate |
+| Storage headroom | calibration-measured before the sustained window; must exceed the contract-peak read demand (~1.85 GB/s logical aggregate, planning arithmetic from the banked single-read cost) per §10 |
 | Engine / envelope | ClickHouse 26.10.4.207, 32/28/22 GiB |
 | Store | snapshot `255003176`, generation fingerprint and receipts checked before reuse |
 | Provider backstop | 12 h poweroff failsafe |
@@ -253,7 +266,41 @@ Issuance requires: step 1 merged, step 2 green, and an explicit operator
 admission of this packet. This document, and any merge of it, grants none of
 those three.
 
-## 10. Relationship to the standing records
+## 10. Design note: why the load host's storage is fast
+
+The single-read cost was measured at 123,119,689 logical bytes with ~7,017 ms
+wall time, one read at a time. At the contract peak (15 reads/s × ~7 s
+in-flight) the aggregate read demand is ~1.85 GB/s logical — already above
+the reference array's rated 1.09 GB/s, which is precisely why the array line
+is its own pending receipt on the R630. If the load host's own storage were
+on that order or slower, phase A would break on *the load host's disk* — a
+third machine the paper claims nothing about — and the receipt would be
+ambiguous: we would have measured a storage ceiling no claim needs. The banked
+AMD SKU's disk has never been measured under sustained concurrent load; it is
+a known unknown, so it is removed as a candidate rather than guessed at.
+
+Making storage fast is what makes the test informative, by a deliberate
+asymmetry:
+
+- **A pass on fast storage is necessary but not sufficient for the array
+  claim.** It establishes that the software — CPU, memory, app-side
+  concurrency, delivery work — sustains the contract rate with storage
+  headroom to spare. The reference-array line still requires the R630
+  on-array receipt, and the arithmetic already says indexed demand exceeds
+  array rating.
+- **A failure on fast storage is universal.** If the node breaks while
+  storage has measured headroom, the break is software — CPU, memory, or the
+  application side — and it breaks on every machine, reference array
+  included. That is the information the paper needs, and the only kind of
+  failure the receipt can attribute cleanly.
+
+Calibration therefore gates the sustained window (§8 step 4): it measures
+disk headroom against the contract-peak read demand, and the sustained window
+runs only if storage is provably non-binding. If storage binds first, the
+receipt is scoped to that host's storage ceiling and the test re-runs on the
+NVMe class — it is not banked as a software result.
+
+## 11. Relationship to the standing records
 
 - **STUDY.md (preregistered, setup only):** Study L is the stepped funnel on
   the relational datasets; this contract is the contract-rate receipt on the

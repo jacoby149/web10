@@ -33,10 +33,12 @@ report estimated compute separately from storage and the invoice.
 The [sustained-DAU load test contract](DAU-SUSTAINED-LOAD.md) defines the
 right-sized receipt against the realism contract's load (15 reads/s peak,
 2.9 reads/s average) on the frozen million-author store, on an admitted DO
-AMD host, under mixed load, with exact ordered oracle gates, pre-declared
-stop criteria and a breaking-point clause. Planning contract only: no
-runner, no host, no admission and no measurement. It does not replace the
-R630 on-array run, the full-store hybrid arm, or Study L.
+NVMe-backed host (storage deliberately non-binding: calibration gates disk
+headroom before the sustained window), under mixed load, with exact ordered
+oracle gates, pre-declared stop criteria and a breaking-point clause.
+Planning contract only: no runner, no host, no admission and no measurement.
+It does not replace the R630 on-array run, the full-store hybrid arm, or
+Study L.
 
 ## D117 row-model proving cell — complete; maximal model rejected
 
