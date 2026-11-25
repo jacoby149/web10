@@ -276,9 +276,14 @@ software side.
    divergence stop; calibration-vs-measured separation. `bench.py` is not
    touched and not reused.
 2. **Green checks, merge.** Source only; the merge grants no admission.
-3. **Restore preflight** on the admitted droplet: store, oracle, furniture,
-   writer actors and read receipts verified (the banked restore path). Setup,
-   not measurement.
+3. **Restore preflight + steady state** on the admitted droplet: store,
+   oracle, furniture, writer actors and read receipts verified (the banked
+   restore path), then the merge regime declared: `OPTIMIZE` on the hot
+   tables with a parts census banked pre-window — the node's tables are
+   `ReplacingMergeTree(updated_at)`, and the store is measured at its
+   post-merge steady state, stated not assumed. Background merges remain
+   active during the windows as part of the mixed load. Setup, not
+   measurement.
 4. **Calibration run:** 2.9 reads/s for 120 s plus a 15 reads/s burst of 60 s,
    verifying the measurement pipeline, oracle comparison, counter deltas and
    the clog-trace instruments (§6 G1/G2), and establishing which resource
