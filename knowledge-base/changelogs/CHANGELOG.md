@@ -1,3 +1,6 @@
+6.28.23 || 25.11.2026
+research: bank both native hybrid attachment comparison orders and the scoped frozen-generation fault lab. Exact response parity; captured reads fall 620.85→182.34 MB, but complete HTTP is 0.85–1.00 s slower. No dynamic publication/concurrent-cleanup proof or six-case advancement. SHA-256 custody and owned cleanup verified; snapshot retained. [Results](../../research/experiments/costfn/evidence/k20-attachment-20261125/RESULTS.md).
+
 6.28.22 || 25.11.2026
 research: add the Step 3 skinny attachment-history arm against the retained K20 slice. Keep exact versions, tombstones, multiplicity and original response authority; independently verify the copied history and charge its generation fences. Source controls only; native comparison and fault outcomes pending.
 

@@ -49,3 +49,5 @@ Step 2's private state/receipt archive verified off-host: 15,156,627 bytes,
 SHA-256 `28e789faf21ae266fc7301e65c5b49e49939eee8bac408f6b081a066e9cffd45`.
 The store stays on the owned host for the Step 3 handoff; this is not final
 cleanup, a compute invoice, or a six-case admission.
+See the [Step 3 successor](../k20-attachment-20261125/RESULTS.md) for final task
+custody, cleanup and the hybrid verdict.
