@@ -336,7 +336,7 @@ function AppStore() {
   ] : []
 
   return (
-    <main className="catalog-theme min-h-screen bg-background text-foreground">
+    <main className="min-h-screen bg-background text-foreground">
       <header className="mx-auto max-w-5xl px-5 pt-8 pb-6 text-center sm:px-6 sm:pt-10 sm:pb-8">
           <p className="inline-block rounded-full bg-brand-muted px-3 py-1 text-xs font-medium uppercase tracking-widest text-brand-300">
             The web10 App Store

@@ -824,10 +824,9 @@ not a claim that the original used Jost. No third-party font requests.
 The hero asset (`public/hero-fractal.jpg`, 1332×850, ~258 KB, restored
 from `e01e4b6c3^`) is the lead artwork on the
 surface; a dark scrim shades the center for text and deepens
-at the bottom. The hero and stats art stay fixed behind scrolling content on
-wide (≥1024px), fine-pointer desktops unless Reduced Motion is on; the scrims
-and the pledge scroll normally. Touch and narrow viewports keep the art with
-the section. The founder photo (`public/founder-2022.jpg`,
+at the bottom. The hero and stats art stay fixed to the viewport and are clipped
+to their sections on desktop and phones, regardless of the device motion setting.
+The scrims and the pledge scroll normally. The founder photo (`public/founder-2022.jpg`,
 640×640, ~109 KB, restored + cropped from `e01e4b6c3^`) is a real portrait,
 not decoration.
 
@@ -877,10 +876,12 @@ content and a stronger accent only for actions and focus. Type and spacing
 should separate sections before color does. The homepage is cinematic; the
 App Store uses this hierarchy as a catalog, not as a second landing page.
 
-The App Store and app details use the homepage's ink canvas and deep navy cards
-in Dark; Light keeps the shared paper canvas. Keep the centered introduction
-compact, align featured rows, search, and browse grid to the same centered
-64rem content width, and give the app icons the strongest colors. Use the
-existing App Store components; don't put the homepage images behind the
-catalog. Browse stays icon-led: two columns on phones and five where space
+The App Store, app details, Freedom, Docs (including articles), and Appearance
+share one interior theme: ink canvas and deep navy cards in Dark; paper canvas,
+white cards, and blue accents in Light. System follows the device across these
+pages; the fixed homepage and shared ink navbar stay as they are. In the App
+Store, keep the centered introduction compact, align featured rows, search, and
+browse grid to the same centered 64rem content width, and give the app icons the
+strongest colors. Use the existing App Store components; don't put the homepage
+images behind the catalog. Browse stays icon-led: two columns on phones and five where space
 allows. On phones the featured description gets the full card width.

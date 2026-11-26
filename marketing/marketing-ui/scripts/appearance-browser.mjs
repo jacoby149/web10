@@ -14,14 +14,26 @@ const origin = `http://127.0.0.1:${port}`;
 const server = spawn('bunx', ['vite', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { cwd: root, stdio: 'inherit' });
 let browser;
 const key = 'web10-marketing:theme';
+const appUrl = 'https://social.web10.app';
+const activeUsers = { users_1d: 0, users_30d: 0, users_90d: 0, users_1y: 0 };
 const receipts = [];
 const waitTheme = (page, value) => page.waitForFunction(theme => document.documentElement.dataset.theme === theme, value);
+const waitAppearanceCanvas = (page, color) => page.waitForFunction(expected => {
+  const screen = document.querySelector('[data-testid="appearance-screen"]');
+  return screen && getComputedStyle(screen.parentElement).backgroundColor === expected;
+}, color);
 async function isolate(context) {
   await context.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.origin === origin) return route.continue();
     let body = {};
-    if (url.pathname === '/v3/stats') body = { users: 0, app_count: 0, storage: 0, active_users: {} };
+    if (url.pathname === '/v3/stats') body = { users: 0, app_count: 0, storage: 0, active_users: activeUsers };
+    else if (url.pathname === '/v3/apps/detail') body = {
+      url: appUrl, name: 'web10 social', description: 'The web10 social app.', screenshots: [],
+      review_state: 'approved', registered_at: '2026-11-25T00:00:00Z',
+      metrics: { visits: 0, ...activeUsers }, rating: { average: null, count: 0 }, ratings: [],
+      node: { users: 0, app_count: 0, storage: 0, active_users: activeUsers },
+    };
     else if (url.hostname === 'api.github.com') body = { stargazers_count: 0 };
     else if (url.pathname === '/telemetry') body = { posthog_enabled: false };
     else body = { documents: [], rows: [], data: [] };
@@ -32,13 +44,75 @@ async function capture(page, name) {
   await page.mouse.move(0, 0);
   await page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' });
 }
-async function verifyLogo(page, mode) {
+async function verifyPinnedArt(page, name, selector) {
+  const section = page.locator(selector);
+  await section.waitFor();
+  const top = await section.evaluate(el => el.getBoundingClientRect().top + scrollY);
+  await page.evaluate(top => window.scrollTo(0, Math.max(0, top - 96)), top);
+  const y = (await section.boundingBox()).y;
+  assert.equal(await section.evaluate(el => getComputedStyle(el, '::before').position), 'fixed', name);
+
+  // Hide content and the scrolling scrim without changing section geometry,
+  // so the pixel comparison sees only the artwork.
+  const style = await page.addStyleTag({ content: `${selector} { --classic-scrim: transparent; } ${selector} > * { visibility: hidden; }` });
+  await section.evaluate(el => {
+    if (getComputedStyle(el).getPropertyValue('--classic-scrim').trim() !== 'transparent') {
+      throw new Error('Pinned art probe requires a transparent scrim');
+    }
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  const before = await page.screenshot();
+  await page.evaluate(() => {
+    window.scrollBy(0, 20);
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  assert.equal((await section.boundingBox()).y, y - 20, `${name} section scrolls`);
+  const after = await page.screenshot();
+  await style.evaluate(el => el.remove());
+  const [first, second] = await page.evaluate(async ({ frames, y }) => {
+    const canvas = document.createElement('canvas');
+    // Exclude the right edge, where the browser may paint a scroll indicator.
+    canvas.width = innerWidth - 24;
+    canvas.height = 24;
+    const context = canvas.getContext('2d');
+    return Promise.all(frames.map(async frame => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${frame}`;
+      await image.decode();
+      context.drawImage(image, 0, y, canvas.width, 24, 0, 0, canvas.width, 24);
+      return [...context.getImageData(0, 0, canvas.width, 24).data];
+    }));
+  }, { frames: [before, after].map(image => image.toString('base64')), y: Math.round(y + 32) });
+  assert.ok(new Set(first.filter((_, index) => index % 4 === 0)).size > 4, `${name} sampled real artwork`);
+  const changedChannels = second.filter((value, index) => value !== first[index]).length;
+  if (changedChannels) {
+    await writeFile(path.join(output, 'pinned-probe-before.png'), before);
+    await writeFile(path.join(output, 'pinned-probe-after.png'), after);
+  }
+  assert.equal(changedChannels, 0, `${name} artwork stays at the same viewport pixels`);
+}
+async function verifyLogo(page) {
   const logo = page.getByTestId('brand-logo').first();
-  const active = logo.locator(`[data-brand-variant="${mode === 'light' ? 'dark' : 'white'}"]`);
+  const active = logo.locator('[data-brand-variant="white"]');
   assert.equal(await active.isVisible(), true);
   assert.equal(await active.evaluate(el => getComputedStyle(el).filter), 'none');
   assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
   assert.equal(await active.evaluate(el => el.complete && el.naturalWidth > 0), true);
+}
+async function readInteriorPalette(page) {
+  return page.getByRole('heading', { level: 1 }).first().evaluate(heading => {
+    const css = getComputedStyle(heading);
+    let canvas = heading;
+    while (getComputedStyle(canvas).backgroundColor === 'rgba(0, 0, 0, 0)') canvas = canvas.parentElement;
+    return {
+      canvas: getComputedStyle(canvas).backgroundColor,
+      native: css.colorScheme,
+      tokens: Object.fromEntries([
+        'background', 'card', 'surface', 'elevated', 'foreground', 'muted-foreground',
+        'brand-300', 'brand-muted', 'border', 'ring',
+      ].map(name => [name, css.getPropertyValue(`--color-${name}`).trim()])),
+    };
+  });
 }
 async function verifyLightContrast(page) {
   const results = await page.evaluate(() => {
@@ -86,23 +160,24 @@ try {
     const errors = [];
     page.on('pageerror', error => { errors.push(error.message); console.error('[appearance] page error:', error.message); });
     await page.goto(origin, { waitUntil: 'networkidle' });
-    await page.getByRole('heading', { name: 'Your audience.', exact: true }).waitFor();
+    await page.getByTestId('classic-enter-cta').waitFor();
     await waitTheme(page, 'light');
-    await verifyLogo(page, 'light');
+    await verifyLogo(page);
     await capture(page, `home-light-${label}`);
     if (width < 1024) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
     const socialEntry = page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true });
     assert.equal(await socialEntry.count(), 1);
     await capture(page, `navigation-light-${label}`);
-    if (width >= 1024) await page.getByRole('button', { name: 'Learn', exact: true }).hover();
     await page.getByRole('link', { name: 'Appearance', exact: true }).click();
     await page.getByTestId('appearance-screen').waitFor();
     assert.equal(new URL(page.url()).pathname, '/appearance');
     await page.emulateMedia({ colorScheme: 'dark' });
     await waitTheme(page, 'dark');
+    await waitAppearanceCanvas(page, 'rgb(9, 12, 34)');
     await page.getByRole('radio', { name: 'System', exact: true }).focus();
     await page.keyboard.press('ArrowRight');
     await waitTheme(page, 'light');
+    await waitAppearanceCanvas(page, 'rgb(250, 250, 250)');
     await page.emulateMedia({ colorScheme: 'light' });
     await page.emulateMedia({ colorScheme: 'dark' });
     await waitTheme(page, 'light');
@@ -119,35 +194,71 @@ try {
     await tab.close();
     for (const mode of ['light', 'dark']) {
       await page.getByRole('radio', { name: mode === 'light' ? 'Light' : 'Dark', exact: true }).check();
-      for (const [route, name] of [['/', 'home'], ['/freedom', 'freedom-cta'], ['/docs/terms', 'docs'], ['/appearance', 'appearance']]) {
+      let storePalette;
+      for (const [route, name] of [
+        ['/', 'home'], ['/app-store', 'app-store'], [`/app-store/app/${encodeURIComponent(appUrl)}`, 'app-detail'], ['/freedom', 'freedom'],
+        ['/docs', 'docs'], ['/docs/terms', 'docs-article'], ['/appearance', 'appearance'],
+      ]) {
         await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
         await page.getByRole('heading', { level: 1 }).first().waitFor();
         await waitTheme(page, mode);
-        await verifyLogo(page, mode);
+        await verifyLogo(page);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${name} at ${width}`);
         const chrome = await page.evaluate(() => ({ background: getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim(), native: getComputedStyle(document.documentElement).colorScheme, chrome: document.querySelector('meta[name="theme-color"]').content }));
-        assert.equal(chrome.background, mode === 'light' ? '#fafafa' : '#09090b');
+        assert.equal(chrome.background, mode === 'light' ? '#fafafa' : '#2b2f32');
         assert.equal(chrome.native, mode);
         assert.equal(chrome.chrome, chrome.background);
         if (name === 'appearance') assert.equal(
           await page.locator('input[name="appearance"]:checked + span').evaluate(el => getComputedStyle(el).borderColor),
-          mode === 'light' ? 'rgb(124, 58, 237)' : 'rgb(139, 92, 246)',
+          mode === 'light' ? 'rgb(23, 74, 118)' : 'rgb(135, 206, 235)',
           'selected radio keeps the brand border rather than the global default',
         );
         if (mode === 'light' && name === 'appearance') await verifyLightContrast(page);
-        if (name === 'home' || name === 'freedom-cta') {
-          const cta = page.getByRole('link', { name: 'Explore web10', exact: true });
+        if (name === 'app-store') {
+          storePalette = await readInteriorPalette(page);
+          assert.equal(storePalette.canvas, mode === 'light' ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)');
+          assert.equal(storePalette.tokens.card, mode === 'light' ? '#ffffff' : '#101648');
+          assert.equal(storePalette.native, mode);
+        } else if (name !== 'home') {
+          assert.deepEqual(await readInteriorPalette(page), storePalette, `${name} must match the App Store in ${mode}`);
+        }
+        if (name === 'home' || name === 'freedom') {
+          const cta = name === 'home' ? page.getByTestId('classic-enter-cta') : page.getByRole('link', { name: 'Explore web10', exact: true });
           await cta.waitFor();
           assert.equal(await cta.getAttribute('href'), process.env.VITE_SOCIAL_URL || 'https://social.web10.app');
-          if (name === 'freedom-cta') await cta.scrollIntoViewIfNeeded();
         }
-        if (width < 768 && name === 'docs') await page.getByRole('heading', { level: 1 }).first().scrollIntoViewIfNeeded();
+        if (width < 768 && name.startsWith('docs')) {
+          const title = name === 'docs' ? page.getByRole('heading', { name: 'Who are you?' }) : page.getByRole('heading', { level: 1 }).first();
+          await title.evaluate(el => window.scrollBy(0, el.getBoundingClientRect().top - 88));
+        }
         await capture(page, `${name}-${mode}-${label}`);
       }
     }
     assert.deepEqual(errors, []);
     receipts.push({ width, realNavigation: true, keyboardRadios: true, liveDevice: true, overrideReload: true, crossTab: true, paletteAndChrome: true, lightTextAA: true, transparentThemeLogo: true, errors });
     await context.close();
+
+    const scrollPage = await browser.newPage({
+      viewport: { width, height: 900 }, hasTouch: width === 375, reducedMotion: 'no-preference',
+    });
+    await isolate(scrollPage.context());
+    await scrollPage.goto(origin, { waitUntil: 'networkidle' });
+    await verifyPinnedArt(scrollPage, 'Mandelbrot', '.classic-hero');
+    await verifyPinnedArt(scrollPage, 'stats', '.classic-stats');
+    await capture(scrollPage, `home-pinned-stats-${label}`);
+    await scrollPage.evaluate(() => window.scrollTo(0, 0));
+    await capture(scrollPage, `home-pinned-hero-${label}`);
+    await scrollPage.close();
+    // Verify the same effect when the device prefers reduced motion.
+    const reducedPage = await browser.newPage({
+      viewport: { width, height: 900 }, hasTouch: width === 375, reducedMotion: 'reduce',
+    });
+    await isolate(reducedPage.context());
+    await reducedPage.goto(origin, { waitUntil: 'networkidle' });
+    await verifyPinnedArt(reducedPage, 'Mandelbrot with device Reduced Motion', '.classic-hero');
+    await verifyPinnedArt(reducedPage, 'stats with device Reduced Motion', '.classic-stats');
+    receipts.push({ width, fixedArtPixels: ['hero', 'stats'], independentOfDeviceMotionPreference: true });
+    await reducedPage.close();
   }
   for (const width of [768, 1280]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: 'light', reducedMotion: 'reduce' });
