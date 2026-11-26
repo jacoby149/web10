@@ -76,18 +76,31 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base, { waitUntil: 'networkidle' });
     const dock = page.getByTestId('mobile-nav');
-    const topNav = page.getByTestId('hub-top-nav');
-    const nav = width >= 768 ? topNav : dock;
+    const sidebar = page.getByTestId('hub-sidebar');
+    const sidebarNav = page.getByTestId('hub-sidebar-nav');
+    const nav = width >= 768 ? sidebarNav : dock;
     await nav.waitFor();
-    assert.equal(await (width >= 768 ? dock : topNav).isVisible(), false);
+    assert.equal(await (width >= 768 ? dock : sidebarNav).isVisible(), false);
     assert.equal(await page.getByRole('navigation', { name: 'Console navigation' }).count(), 1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-    assert.equal(await page.getByTestId('sidebar').count(), 0);
-    assert.equal(await page.getByText('What is web10', { exact: true }).count(), 0);
+    assert.equal(await sidebar.isVisible(), width >= 768);
+    if (width >= 768 && mode === 'dark') assert.equal(await sidebar.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(27, 32, 38)');
+    assert.equal(await nav.getByRole('link').count(), 0);
     const header = page.getByTestId('hub-header');
     assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(181, 212, 220)');
     assert.equal(await header.getByRole('searchbox').count(), 0);
-    assert.equal(await nav.getByRole('button').count(), 6);
+    assert.equal(await nav.getByRole('button').count(), 7);
+    const more = nav.getByRole('button', { name: 'More…' });
+    await more.focus();
+    await page.keyboard.press('Enter');
+    const links = nav.getByRole('link');
+    assert.deepEqual(await links.evaluateAll(items => items.map(el => el.getAttribute('href'))), ['https://web10.app', 'https://web10.app/app-store', 'https://web10.app/docs']);
+    await page.keyboard.press('Tab');
+    assert.equal(await links.first().evaluate(el => el === document.activeElement), true);
+    if (width === 1440 || width === 375) await capture(page, `auth-more-${width}`);
+    await page.keyboard.press('Escape');
+    assert.equal(await more.getAttribute('aria-expanded'), 'false');
+    assert.equal(await more.evaluate(el => el === document.activeElement), true);
     const search = page.getByTestId('console-content').getByRole('searchbox', { name: 'Search app permissions' });
     await search.fill('not a matching app');
     await page.getByTestId('contracts-no-match').waitFor();
@@ -99,14 +112,14 @@ try {
       await header.click({ position: { x: 4, y: 4 } });
       assert.equal(await account.getAttribute('aria-expanded'), 'false');
       assert.equal(await page.getByTestId('console-content').evaluate(el => getComputedStyle(el).paddingBottom), '0px');
-      const groups = topNav.getByRole('button', { name: 'Group permissions' });
+      const groups = sidebarNav.getByRole('button', { name: 'Group permissions' });
       await groups.focus();
       await page.keyboard.press('Tab');
       await page.keyboard.press('Shift+Tab');
       assert.ok(await groups.evaluate(el => el.matches(':focus-visible') && getComputedStyle(el).outlineStyle === 'solid'));
       await groups.click();
       assert.equal(await groups.getAttribute('aria-current'), 'page');
-      await topNav.getByRole('button', { name: 'App permissions' }).click();
+      await sidebarNav.getByRole('button', { name: 'App permissions' }).click();
       await page.mouse.move(0, 0);
       if (width === 1440) await capture(page, 'auth-desktop');
     } else {
@@ -114,7 +127,7 @@ try {
       const box = await dock.boundingBox();
       assert.ok(box.x >= 12 && box.x + box.width <= width - 12);
       assert.ok(box.y + box.height <= 800);
-      assert.equal(await dock.getByRole('button').count(), 6);
+      assert.equal(await dock.getByRole('button').count(), 7);
       for (const button of await dock.getByRole('button').all()) {
         const b = await button.boundingBox();
         assert.ok(b.width >= 44 && b.height >= 44, '44px touch targets');
@@ -207,7 +220,7 @@ try {
     // Existing mock interface state setters exercise non-admin/signed-out gates.
     await page.evaluate(() => window.I.setIsAdmin(false));
     await nav.getByRole('button', { name: 'Config' }).waitFor({ state: 'detached' });
-    assert.equal(await nav.getByRole('button').count(), 4);
+    assert.equal(await nav.getByRole('button').count(), 5);
     if (width === 375) await capture(page, 'auth-personal-mobile');
     await page.evaluate(() => window.I.logout());
     await nav.waitFor({ state: 'detached' });

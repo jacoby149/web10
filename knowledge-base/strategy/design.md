@@ -390,8 +390,7 @@ Creators will open this on a phone in the middle of a pitch.
 - App shells: desktop = fixed left sidebar (`w-64`, `border-r`,
   `bg-surface`); mobile = top header + bottom tab bar (the pattern
   already in `web10-social/src/components/Social/Layout.tsx` — it's
-  correct; adopt it in `ui/` too). Hub uses a desktop top bar and a phone dock,
-  not a desktop sidebar.
+  correct; Hub follows it with a desktop sidebar and phone dock).
 - Touch targets ≥ 44×44px on mobile. Hover-only affordances get a
   visible mobile equivalent.
 - Tables that matter on mobile become card lists; tables that don't
@@ -493,13 +492,15 @@ modal, never an inline input/editor or separate draft. Place it after feed
 controls where the first post would start; it scrolls away normally, never
 sticky/fixed. Hide it for signed-out readers and outside Posts. Keep the quiet
 floating New post shortcut as the complementary scrolled-down entry.
+Align Discover's topic chips to the post column on desktop, including beside
+the Top 10 rail; retain the phone gutter and the video wall's own layout.
 
 
 ### Social navigation glass — first pass (11.11.2026)
 
-Social puts the transparent two-person conversation PNG directly on the
-ice-blue top bar next to `web10 social` in both themes. Join retains the
-rounded blue-backed artwork, as do the separate catalog and install exports.
+Social uses the blue-backed two-person conversation PNG with rounded corners
+next to `web10 social` on desktop and phone, in both themes. Join uses the
+same artwork; the separate catalog and install exports are unchanged.
 
 Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
 mute choice across Posts/Video/Shorts and shared video renderers. Never persist
@@ -530,11 +531,15 @@ Below the profile card, More's action order is People, Messages, Appearance,
 Settings, Monetization, then admin-only Node Settings. Keep the card premier;
 People is the first ordinary navigation row.
 
-Social's top bar is the same solid ice blue as Hub and marketing in both
-themes, with no divider along its edge. The desktop wordmark strip meets the
-bar without a seam; use dark ink and
-pale control fills for search and account controls. Open menus and search results
-retain their selected Light or Dark surface. The desktop sidebar below the
+Social's top bar stays ice blue in Light mode and on phones. On desktop in
+Dark mode it uses the same charcoal as the sidebar, with light ink and raised control
+fills, so the bar doesn't glare against the sidebar. Desktop uses the same
+64px height as marketing; the phone bar is a slightly more compact 60px.
+The desktop wordmark strip meets the bar without a vertical seam and leaves 12px before the first
+sidebar row. In desktop Dark, a 1px line using the control-fill token runs
+under both pieces, separating the full header from the sidebar and page below.
+Leave 12px between the desktop notification bell and account picker.
+Open menus and search results retain their selected Light or Dark surface. The desktop sidebar below the
 wordmark uses marketing's `#1b2026` charcoal in Dark mode only. The light
 sidebar, floating mobile dock, and navigation menus keep their existing chrome. Content, forms
 and media keep their existing reading surfaces. This is a bounded visual trial,
@@ -602,9 +607,11 @@ inset; on a uniform backdrop, displacement must add no lines.
 
 ### Authenticator mobile navigation glass (11.11.2026)
 
-**Hub refresh (26.11.2026):** Put the role-appropriate destinations in the
-ice-blue top bar from 768px up; below that, keep the glass phone dock. The
-desktop sidebar and ecosystem promos stay removed. Search lives in the body
+**Hub refresh (26.11.2026):** Keep the ice-blue header and put role-appropriate
+destinations in the desktop sidebar from 768px up. Dark uses Social's
+`#1b2026` charcoal; Light uses the console's surface token. Keep the glass
+phone dock. Restore What is web10, App Store and Docs under More… in both
+layouts, not as permanent sidebar promos. Search lives in the body
 of the list it filters (App permissions or Pending requests), at every width.
 Hub and sign-in share an ice-blue header (`#b5d4dc`) with
 transparent dark keys, plus marketing-inspired paper and charcoal themes.
@@ -822,11 +829,12 @@ Media islands retain dark background and text steps even in Light mode.
 Derive ambient glows from the blue fill. Do not use the text steps behind
 white action labels; hover and pressed gradients stay within the fill steps.
 
-The fixed Social top-bar tokens match Hub: `--color-social-header: #b5d4dc`,
+Social's default top-bar tokens are `--color-social-header: #b5d4dc`,
 `--color-social-header-ink: #090c22`, `--color-social-header-tint: #d6e8ed`,
-and `--color-social-header-tint-hover: #e3edf8`. The `10` in the wordmark uses
-`--color-social-header-accent: #064eae` for contrast on ice blue. These are not
-feed or menu tokens.
+`--color-social-header-tint-hover: #e3edf8`, and `--color-social-header-accent: #064eae`
+for the `10` in the wordmark. Desktop Dark overrides those values with
+the sidebar charcoal (`#1b2026`), the theme foreground, `#36414d`, `#414e5c`, and the dark `brand-300`
+respectively. These are not feed or menu tokens.
 
 ### Classic landing surface (D125, 25.11.2026)
 
