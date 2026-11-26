@@ -823,8 +823,10 @@ not a claim that the original used Jost. No third-party font requests.
 The hero asset (`public/hero-fractal.jpg`, 1332×850, ~258 KB, restored
 from `e01e4b6c3^`) is the lead artwork on the
 surface; a dark scrim shades the center for text and deepens
-at the bottom. Use a scroll background on touch, narrow, and reduced-motion
-viewports, retaining the art. The founder photo (`public/founder-2022.jpg`,
+at the bottom. The hero and stats art stay fixed behind scrolling content on
+wide (≥1024px), fine-pointer desktops unless Reduced Motion is on; the scrims
+and the pledge scroll normally. Touch and narrow viewports keep the art with
+the section. The founder photo (`public/founder-2022.jpg`,
 640×640, ~109 KB, restored + cropped from `e01e4b6c3^`) is a real portrait,
 not decoration.
 
@@ -834,7 +836,7 @@ sections, navy footer) — no 1px divider lines anywhere. On the classic
 surface the sky-accented fractal sits under a dark scrim. Features and team
 use paper (`#fafafa`) with charcoal type, gray supporting text, and a readable
 blue accent. The flat, horizontal stats row restores the original `back3.jpg`
-image under a 65% black scrim, with no parallax or box. The pledge uses the
+image under a 65% black scrim, with no box. The pledge uses the
 archived `sky.jpg` from `f3d695394:home/layouts/images/sky.jpg` under the same
 scrim, correcting the old relative path. The sky layers over charcoal to
 retain the look of the archive's rendered fallback. After the Team section,

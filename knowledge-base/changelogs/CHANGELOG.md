@@ -1,7 +1,7 @@
 6.30.0 || 25.11.2026
 feat(marketing): build a family of paper, charcoal, and blue tones from the 2022 homepage. Pair paper features with the restored archive artwork behind the horizontal stats and a deep-ink pledge; use the shared Light and Dark palettes in the tighter App Store catalog and throughout marketing. Keep mixed-case Georgia on Home, use Jost inside, and give the social and hub catalog listings matching white keys on cobalt. Flatten the header to Home, App Store, Freedom, Docs and Appearance; keep old Trending and Join routes and redirect the retired Everything App pitch home. Restore the pre-D13 homepage copy — “it's on your domain on your terms” and “Get a domain name to start owning your photos, music, and data on the internet.” — over the vault-key rewordings; the operator prefers the original lines' voice. No social or authenticator styling changes.
 
-The pledge restores the archive's `sky.jpg`, dark overlay, smaller left-aligned type, and place after Team.
+The pledge restores the archive's `sky.jpg`, dark overlay, smaller left-aligned type, and place after Team. The hero and stats backgrounds stay fixed on desktop when Reduced Motion is off, as in the original.
 
 6.29.13 || 25.11.2026
 research: the sustained-DAU runner's store verification computes the canonical content fingerprint without the banked 28 GiB container assertion, so the sized host's declared envelope (100 GiB container / 80 GiB server cap) verifies the same canonical bytes. The snapshot-host fingerprint binding and the mid-hash generation-change refusal are unchanged; one new control. No host, no admission, no native execution.
