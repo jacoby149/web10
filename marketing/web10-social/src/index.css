@@ -29,7 +29,7 @@
   --color-brand-muted: #102c54;
   --color-brand-foreground: #fafafa;
 
-  /* Match the Hub/marketing header without changing the reading surfaces. */
+  /* Ice-blue toolbar in Light and on phones; desktop Dark is scoped below. */
   --color-social-header: #b5d4dc;
   --color-social-header-ink: #090c22;
   --color-social-header-accent: #064eae;
@@ -304,6 +304,20 @@
 
 @media not (forced-colors: active) {
   :root[data-theme="dark"] .social-sidebar { background-color: var(--color-social-sidebar-dark); }
+}
+
+@media (width >= 48rem) {
+  :root[data-theme="dark"] .social-shell {
+    --color-social-header: var(--color-social-sidebar-dark);
+    --color-social-header-ink: var(--color-foreground);
+    --color-social-header-accent: var(--color-brand-300);
+    --color-social-header-tint: #36414d;
+    --color-social-header-tint-hover: #414e5c;
+  }
+
+  :root[data-theme="dark"] .social-desktop-header {
+    border-bottom: 1px solid var(--color-social-header-tint);
+  }
 }
 
 /* Local dark islands: film controls/immersive captions must not turn into

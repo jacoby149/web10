@@ -1,3 +1,12 @@
+6.32.28 || 26.11.2026
+style: put Hub desktop navigation in a Social-style charcoal sidebar in Dark mode and restore What is web10, App Store, and Docs under More… there and in the phone dock. Align Social’s Discover topic chips with the desktop post column without changing filters or the phone gutter.
+
+6.32.27 || 26.11.2026
+style(social): restore the rounded, blue-filled conversation icon in both headers. Match marketing's 64px desktop height, leave 12px between the bell and account picker, and give phones a 60px bar. Notifications stay below both headers; catalog/install artwork is unchanged.
+
+6.32.26 || 26.11.2026
+style(social): match the top bar to the sidebar charcoal in desktop Dark mode, with a full-width bottom divider and light controls. Give the first desktop sidebar row 12px below the wordmark. Keep the ice-blue bar in Light mode and on phones; Hub, marketing, and the phone dock are unchanged.
+
 6.32.24 || 26.11.2026
 style(social): use marketing charcoal for the desktop sidebar in Dark mode, place the transparent conversation PNG directly on the ice-blue bar, and color the wordmark’s “10” blue. Keep Join and install artwork, Light mode's sidebar, and the mobile dock unchanged.
 

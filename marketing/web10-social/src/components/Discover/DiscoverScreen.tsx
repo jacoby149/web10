@@ -1105,6 +1105,13 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
   );
 
   const isInitialLoad = loading && posts.length === 0;
+  const topTenEntries = mode !== 'video' && !sourcesPaused && !isInitialLoad && visiblePosts.length > 0 && urlQuery.trim() === ''
+    ? scoredPosts
+      .filter(p => !isForeignPost(p))
+      .filter(p => activeTag === 'All' || p.tags?.includes(activeTag) || p.hashtags?.includes(activeTag))
+      .slice(0, 10)
+      .map((p, i) => ({ post: p, rank: i + 1, score: (p.likes || 0) + (p.comments || 0) + (p.reposts || 0) }))
+    : [];
 
   return (
     <div className="flex flex-col min-h-full bg-background">
@@ -1169,7 +1176,12 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
           {/* Topic filter chips */}
           {(topics.length > 0 || activeTag !== 'All' || searchParams.get('topics') === '1') && (
             <div className="px-4 py-3 md:px-4 lg:px-6">
-              <TopicFilter topics={topics} activeTag={activeTag} />
+              {/* Leave room for the rail (w-72) and its gap (gap-8) only when it renders. */}
+              <div className={cn(mode !== 'video' && 'mx-auto w-full max-w-5xl', topTenEntries.length > 0 && 'lg:pr-80')}>
+                <div className={cn(mode !== 'video' && 'mx-auto w-full max-w-2xl')} data-testid="discover-topic-column">
+                  <TopicFilter topics={topics} activeTag={activeTag} />
+                </div>
+              </div>
             </div>
           )}
 
@@ -1313,11 +1325,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
                     mislead) — the marketing rail has the same rule. */}
                 {urlQuery.trim() === '' && (
                   <HotGossipSidebar
-                    entries={scoredPosts
-                      .filter(p => !isForeignPost(p))
-                      .filter(p => activeTag === 'All' || p.tags?.includes(activeTag) || p.hashtags?.includes(activeTag))
-                      .slice(0, 10)
-                      .map((p, i) => ({ post: p, rank: i + 1, score: (p.likes || 0) + (p.comments || 0) + (p.reposts || 0) }))}
+                    entries={topTenEntries}
                     onSelect={jumpToPost}
                   />
                 )}

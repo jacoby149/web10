@@ -1366,7 +1366,7 @@ describe('Layout', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 
-  it('pairs the Social name with transparent conversation artwork on the blue bar', async () => {
+  it('pairs the Social name with the rounded blue conversation icon', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1378,10 +1378,10 @@ describe('Layout', () => {
     const marks = screen.getAllByTestId('social-header-mark');
     expect(marks).toHaveLength(2);
     for (const mark of marks) {
-      expect(mark).toHaveAttribute('src', '/social-conversation-pair.png');
+      expect(mark).toHaveAttribute('src', '/social-conversation-pair-blue.png');
       expect(mark).toHaveAttribute('alt', '');
       expect(mark).toHaveClass('size-8');
-      expect(mark).not.toHaveClass('rounded-sm');
+      expect(mark).toHaveClass('rounded-sm');
     }
     expect(screen.getAllByText('social')).toHaveLength(2);
   });
@@ -1539,10 +1539,10 @@ describe('Layout', () => {
       </MemoryRouter>,
     );
     // The anon top bar (Sign in affordance, no account row) is the SAME height
-    // as the signed-in one — a fixed h-14, not content-driven (the missing
+    // as the signed-in one — a fixed h-16, not content-driven (the missing
     // profile row used to shrink the bar and throw off the padding).
     const topbar = screen.getByTestId('topbar-desktop');
-    expect(topbar).toHaveClass('h-14');
+    expect(topbar).toHaveClass('h-16');
     expect(screen.getByTestId('sign-in-button-desktop')).toBeInTheDocument();
   });
 
