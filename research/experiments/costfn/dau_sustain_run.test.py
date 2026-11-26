@@ -1,5 +1,6 @@
 """No-engine admission, discipline and gate controls for the DAU runner."""
 import json
+import sys
 import unittest
 from pathlib import Path
 import tempfile
@@ -129,6 +130,37 @@ class OracleAudit(unittest.TestCase):
         with patch.object(run.ads, 'compare'):
             with self.assertRaises(costfn_task.ParityDivergence):
                 run.audit_response(bad, 'reader-1', self.billboards, self.expected_views)
+
+
+class CanonicalFingerprint(unittest.TestCase):
+    def test_generation_change_mid_fingerprint_refuses(self):
+        class CountsModule:
+            results = ('gen-one', 'gen-two')
+            i = 0
+
+            @classmethod
+            def generation(cls, session):
+                value = cls.results[cls.i]
+                cls.i += 1
+                return value, None
+
+        session = Mock()
+        session.rows.side_effect = lambda label, sql: (
+            [{'table': 'documents', 'path': '/p'}], label)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'restore.json').write_text(json.dumps(dict(
+                project='web10-costfn-frozen-x', api_port=6098,
+                overlay=str(root / 'overlay.json'))))
+            with patch.object(run.restore, 'command', side_effect=[
+                    b'clickhouse-container\n',
+                    json.dumps([dict(Mounts=[dict(Destination='/var/lib/clickhouse',
+                        Source=str(directory))])]).encode()]), \
+                    patch.object(run, 'certificates') as certs, \
+                    patch.dict(sys.modules, {'arm_satellite_counts': CountsModule}):
+                certs.content_files.return_value = []
+                with self.assertRaisesRegex(ValueError, 'changed during'):
+                    run.canonical_fingerprint(session)
 
 
 class Gates(unittest.TestCase):
