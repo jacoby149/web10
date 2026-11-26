@@ -389,8 +389,8 @@ Creators will open this on a phone in the middle of a pitch.
 - App shells: desktop = fixed left sidebar (`w-64`, `border-r`,
   `bg-surface`); mobile = top header + bottom tab bar (the pattern
   already in `web10-social/src/components/Social/Layout.tsx` — it's
-   correct; adopt it in `ui/` too). Hub uses a desktop top bar and a phone dock,
-   not a desktop sidebar.
+  correct; adopt it in `ui/` too). Hub uses a desktop top bar and a phone dock,
+  not a desktop sidebar.
 - Touch targets ≥ 44×44px on mobile. Hover-only affordances get a
   visible mobile equivalent.
 - Tables that matter on mobile become card lists; tables that don't
@@ -606,7 +606,7 @@ Hub and sign-in share an ice-blue header (`#b5d4dc`) with
 transparent dark keys, plus marketing-inspired paper and charcoal themes.
 Account and consent behavior are unchanged by this shell change.
 
-Operator-approved extension of the social dock to `ui/`'s authenticated mobile
+The original 11.11.2026 change extended the social dock to `ui/`'s authenticated mobile
 navigation only: floating capsule, frosted bed, narrow refractive rim and a
 violet selected pill. Preserve all six admin destinations and four non-admin
 destinations, their accessible names and existing navigation handlers. Compact
