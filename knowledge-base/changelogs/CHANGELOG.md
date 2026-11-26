@@ -1,10 +1,11 @@
+6.32.11 || 26.11.2026
+style(social): use the cropped pink-and-blue conversation pair in Social's header and Join chrome (transparent) and on the App Store tile (white). Keep installed icons and Hub's artwork unchanged.
+
 6.32.10 || 26.11.2026
 research: the sustained-DAU sized-host restore now waits for the engine to be actually ready (the banked server_ready probe, bounded and retried) after re-raising the stack under the declared envelope, before the live envelope verification - a bare up -d probes the server while it is still loading the imported store's metadata and races the verify. One control. No host, no admission, no native execution.
 
 6.32.9 || 26.11.2026
 research: the sustained-DAU runner's Parquet-transfer store verification now binds the sized host to the verified frozen input's own row counts (documents 88,200,300 / doc_groups 92,200,600 / events 1.6 B) rather than the snapshot store's post-run census, which additionally carries the banked F-arm population artifacts and the 18 November billboards (declared in the receipt; outside the frozen dataset and the K20 span). The completed-import re-entry check uses the same binding. Two new controls. No host, no admission, no native execution.
-6.32.11 || 26.11.2026
-style(social): use the cropped pink-and-blue conversation pair in Social's header and Join chrome (transparent) and on the App Store tile (white). Keep installed icons and Hub's artwork unchanged.
 
 6.32.10 || 26.11.2026
 style(marketing): move web10 Hub out of the App Store’s Core slot and into the searchable Browse grid. Keep one Hub card, its keys icon and registration metrics; Social remains the only featured app.
