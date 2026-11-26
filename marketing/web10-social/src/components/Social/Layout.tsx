@@ -93,7 +93,7 @@ function Wordmark({ className }: { className?: string }) {
     <span className={cn('flex items-center gap-2', className)}>
       <ThemeMark className="h-6 w-6" />
       <span className="wordmark-label font-display text-lg font-bold tracking-tight text-foreground">
-        web<span className="text-brand">10</span>
+        web<span className="text-brand">10</span> <span className="max-md:block">social</span>
       </span>
     </span>
   );
@@ -420,10 +420,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
-        <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-4 h-14 border-b sticky top-0 z-20 gap-2">
-          <Wordmark className="shrink-0 [&_.wordmark-label]:hidden" />
+        <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-3 h-14 border-b sticky top-0 z-20 gap-1">
+          <Wordmark className="shrink-0 gap-1 [&_.wordmark-label]:text-xs [&_.wordmark-label]:leading-none max-[359px]:[&_.wordmark-label]:sr-only" />
           {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} onCreateGroup={() => go('/groups')} />}
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
               onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-elevated hover:text-foreground">
               <Palette className="h-5 w-5" strokeWidth={1.75} />

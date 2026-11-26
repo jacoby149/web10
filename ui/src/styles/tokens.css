@@ -1,7 +1,7 @@
 /* SOURCE OF TRUTH: /design.md §13 — sync, don't fork
  *
  * web10 Design Tokens — Tailwind v4 @theme block, copied verbatim from
- * design.md §13. Dark-first: zinc neutrals + violet (#8b5cf6) brand.
+ * design.md §13, with the Hub's marketing-inspired palette (§10).
  * Themeable from day one — a creator's node wears THEIR brand by
  * overriding these CSS custom properties at runtime (D22 white-label
  * note). Do not hardcode a color/font/radius outside this file; if a
@@ -9,24 +9,29 @@
  */
 
 @theme {
-  /* neutrals — zinc, dark-first (§4) */
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-surface: #111113;
-  --color-elevated: #18181b;
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-ring: #8b5cf6;
-  --color-muted: #18181b;
-  --color-muted-foreground: #a1a1aa;
+  --color-hub-header: #b5d4dc;
+  --color-hub-ink: #090c22;
+  --color-hub-tint: #d6e8ed;
+  --color-hub-tint-hover: #e3edf8;
 
-  /* brand — violet (§4) */
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-muted: #2e1065;
-  --color-brand-foreground: #fafafa;
+  /* neutrals — marketing charcoal and slate */
+  --color-background: #2b2f32;
+  --color-foreground: #fafafa;
+  --color-surface: #33363b;
+  --color-elevated: #424950;
+  --color-border: #535d68;
+  --color-input: var(--color-border);
+  --color-ring: #87ceeb;
+  --color-muted: var(--color-elevated);
+  --color-muted-foreground: #cbcbcb;
+
+  /* brand — marketing sky */
+  --color-brand-300: #b5e6f8;
+  --color-brand-400: #a1d9ef;
+  --color-brand: #87ceeb;
+  --color-brand-600: #b5e6f8;
+  --color-brand-muted: #263f50;
+  --color-brand-foreground: #090c22;
 
   /* semantic (§4) */
   --color-success: #22c55e;
@@ -35,15 +40,15 @@
   --color-danger-muted: #450a0a;
 
   /* shadcn compatibility layer */
-  --color-card: #111113;
+  --color-card: var(--color-surface);
   --color-card-foreground: #fafafa;
-  --color-popover: #18181b;
+  --color-popover: var(--color-surface);
   --color-popover-foreground: #fafafa;
   --color-primary: #fafafa;
-  --color-primary-foreground: #09090b;
-  --color-secondary: #27272a;
+  --color-primary-foreground: var(--color-background);
+  --color-secondary: var(--color-elevated);
   --color-secondary-foreground: #fafafa;
-  --color-accent: #27272a;
+  --color-accent: var(--color-elevated);
   --color-accent-foreground: #fafafa;
   --color-destructive: #ef4444;
 
@@ -72,38 +77,39 @@
   --auth-dock-clearance: calc(var(--auth-dock-height) + var(--auth-dock-bottom) + 1rem);
 }
 
-/* design.md §13 / D108 — same light palette as social and marketing. */
+/* design.md §13 / D108 — marketing paper and deep blue. */
 :root[data-theme="light"] {
   color-scheme: light;
   --color-background: #fafafa;
-  --color-foreground: #18181b;
+  --color-foreground: #232323;
   --color-surface: #ffffff;
-  --color-elevated: #f4f4f5;
-  --color-border: #d4d4d8;
-  --color-input: #d4d4d8;
-  --color-ring: #7c3aed;
-  --color-muted: #f4f4f5;
-  --color-muted-foreground: #52525b;
-  --color-brand-300: #6d28d9;
-  --color-brand-400: #5b21b6;
-  --color-brand: #7c3aed;
-  --color-brand-600: #6d28d9;
-  --color-brand-muted: #ede9fe;
+  --color-elevated: #e3edf8;
+  --color-border: #c0cddb;
+  --color-input: var(--color-border);
+  --color-ring: #174a76;
+  --color-muted: var(--color-elevated);
+  --color-muted-foreground: #474747;
+  --color-brand-300: #174a76;
+  --color-brand-400: #0e365b;
+  --color-brand: #174a76;
+  --color-brand-600: #0e365b;
+  --color-brand-muted: #e3edf8;
+  --color-brand-foreground: #fafafa;
   --color-success: #166534;
   --color-warning: #854d0e;
   --color-danger: #b91c1c;
   --color-danger-muted: #fee2e2;
   --color-destructive: #b91c1c;
   --color-card: #ffffff;
-  --color-card-foreground: #18181b;
+  --color-card-foreground: var(--color-foreground);
   --color-popover: #ffffff;
-  --color-popover-foreground: #18181b;
-  --color-primary: #18181b;
+  --color-popover-foreground: var(--color-foreground);
+  --color-primary: var(--color-foreground);
   --color-primary-foreground: #fafafa;
-  --color-secondary: #f4f4f5;
-  --color-secondary-foreground: #18181b;
-  --color-accent: #f4f4f5;
-  --color-accent-foreground: #18181b;
+  --color-secondary: var(--color-elevated);
+  --color-secondary-foreground: var(--color-foreground);
+  --color-accent: var(--color-elevated);
+  --color-accent-foreground: var(--color-foreground);
   --auth-dock-edge: color-mix(in srgb, var(--color-foreground) 12%, transparent);
   --auth-dock-highlight: color-mix(in srgb, var(--color-surface) 85%, transparent);
   --auth-dock-shadow: color-mix(in srgb, var(--color-foreground) 12%, transparent);

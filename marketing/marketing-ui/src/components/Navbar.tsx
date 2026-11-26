@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Search, Link as LinkIcon } from 'lucide-react'
+import { Menu, X, Link as LinkIcon } from 'lucide-react'
 import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
@@ -57,13 +57,6 @@ function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <a
-            href={`${SOCIAL_ORIGIN.replace(/\/$/, '')}/search`}
-            className="group flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 ease-out hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Search"
-          >
-            <Search className="h-4 w-4" strokeWidth={1.75} />
-          </a>
           <Button variant={classic ? 'outline' : 'brand'} size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
             Open web10 social
           </Button>

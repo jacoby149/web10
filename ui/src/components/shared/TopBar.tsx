@@ -34,15 +34,15 @@ function AccountMenu({ I, username }: { I: Record<string, any>; username: string
         aria-haspopup="menu"
         aria-expanded={open}
         data-testid="topbar-account"
-        className="flex items-center gap-2 rounded-full border border-border bg-elevated py-1 pl-1 pr-2.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex items-center gap-2 rounded-full border border-hub-ink/20 bg-hub-tint py-1 pl-1 pr-2.5 transition-colors hover:bg-hub-tint-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hub-ink"
       >
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-muted">
           <UserRound className="h-3.5 w-3.5 text-brand-300" strokeWidth={2} />
         </span>
-        <span className="max-w-[10rem] truncate text-sm font-medium text-foreground" data-testid="topbar-username">
+        <span className="max-w-[10rem] truncate text-sm font-medium text-hub-ink" data-testid="topbar-username">
           {username}
         </span>
-        <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} strokeWidth={1.5} />
+        <ChevronDown className={cn('h-3.5 w-3.5 text-hub-ink transition-transform', open && 'rotate-180')} strokeWidth={1.5} />
       </button>
       {open && (
         <div
@@ -81,14 +81,6 @@ function AccountMenu({ I, username }: { I: Record<string, any>; username: string
   );
 }
 
-const TITLES: Record<string, string> = {
-  contracts: 'App permissions',
-  groups: 'Group permissions',
-  requests: 'Requests',
-  config: 'Node Config',
-  settings: 'Settings',
-};
-
 // search applies to the list views only
 const SEARCHABLE = new Set(['contracts', 'requests']);
 
@@ -114,7 +106,7 @@ function IconButton({
       data-testid={testid}
       className={cn(
         'inline-flex h-9 w-9 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        active ? 'bg-brand-muted text-brand' : 'text-muted-foreground hover:bg-elevated hover:text-foreground',
+        active ? 'bg-hub-tint-hover text-hub-ink' : 'text-hub-ink hover:bg-hub-tint',
       )}
     >
       {children}
@@ -128,29 +120,22 @@ function TopBar({ I }: TopBarProps) {
   const showSearch = authed && SEARCHABLE.has(I.mode);
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-surface px-4">
-      {/* LEFT — brand on mobile, page title on desktop */}
-      <div className="flex shrink-0 items-center">
-        <div className="md:hidden">
-          <Branding I={I} size="sm" tagline={false} />
-        </div>
-        {authed && (
-          <h1 className="hidden font-display text-base font-semibold text-foreground md:block">
-            {TITLES[I.mode] ?? 'web10'}
-          </h1>
-        )}
-      </div>
+    <header className="hub-header flex h-14 shrink-0 items-center gap-4 px-4" data-testid="hub-header">
+      <button type="button" onClick={() => I.setMode(authed ? 'contracts' : 'login')} aria-label="web10 Hub home"
+        className="shrink-0 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hub-ink">
+        <Branding I={I} size="sm" tagline={false} hubHeader />
+      </button>
 
       {/* CENTER — search, centered in the available space */}
       <div className="flex flex-1 justify-center">
         {showSearch && (
           <div className="relative hidden w-full max-w-md sm:block">
             <SearchIcon
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
               strokeWidth={1.5}
             />
             <Input
-              className="h-9 pl-9"
+              className="h-9 border-hub-ink/20 bg-hub-tint pl-9 text-hub-ink placeholder:text-hub-ink/75 focus-visible:ring-hub-ink"
               placeholder={`Search ${I.mode === 'contracts' ? 'app permissions' : 'requests'}…`}
               aria-label={`Search ${I.mode === 'contracts' ? 'app permissions' : 'requests'}`}
               value={I.search ?? ''}

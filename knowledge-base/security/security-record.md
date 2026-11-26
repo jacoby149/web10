@@ -15,6 +15,16 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Hub navigation and appearance (26.11.2026) — bounded change review, OPEN
+
+The Hub shell removes the sidebar and exposes the existing role-filtered dock
+on desktop. The dock still calls `I.setMode`; the existing Config and Analytics
+gates, login, consent, and account-token handling are unchanged. The revised
+authenticator browser control checks that Config is absent for a regular user
+and visible for the admin. This is navigation evidence only, not a change to
+API authorization or a full authenticator security scan. Connected CI evidence
+for this narrowed revision is pending.
+
 ## Full-key F research prepare selector (17.11.2026) — bounded review, OPEN
 
 GPT-6.1 Sol traces `arm_f_prepare.py` through the original canonical prepare

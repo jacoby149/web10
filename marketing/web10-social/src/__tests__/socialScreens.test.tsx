@@ -1356,7 +1356,7 @@ describe('Layout', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 
-  it('renders web10 branding', async () => {
+  it('adds the Social name without replacing the keys mark', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1365,8 +1365,8 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByTestId('theme-key-mark')).toHaveLength(2);
+    expect(screen.getAllByText('social')).toHaveLength(2);
   });
 
   it('notifications bell is in the desktop top bar (not the sidebar)', async () => {

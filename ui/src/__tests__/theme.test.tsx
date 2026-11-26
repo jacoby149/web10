@@ -38,7 +38,7 @@ it.each([null, 'system', 'light', 'dark', 'invalid'])('resolves %s identically a
     const expected = saved === 'light' || saved === 'dark' ? saved : prefersDark ? 'dark' : 'light';
     expect(document.documentElement.dataset.theme).toBe(expected);
     expect(document.documentElement.style.colorScheme).toBe(expected);
-    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', expected === 'dark' ? '#09090b' : '#fafafa');
+    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', expected === 'dark' ? '#2b2f32' : '#fafafa');
     expect(store().getSnapshot().resolved).toBe(expected);
     expect(document.documentElement.classList.contains('dark')).toBe(expected === 'dark');
   }
