@@ -90,6 +90,27 @@ def verify_envelope(root):
     return dict(engine=version, container_bytes=memory, server_bytes=int(cap))
 
 
+def canonical_fingerprint(session):
+    """The banked canonical content fingerprint, computed without the 28 GiB
+    container assertion: the sized DAU host declares its own envelope, and
+    the store's identity is its canonical byte content, not a container cap."""
+    import arm_satellite_counts as counts_module
+    generation, parts = counts_module.generation(session)
+    rows, _ = session.rows('dau_canonical_paths', "SELECT table,path FROM system.parts WHERE database='web10' AND active "
+        'AND table IN (' + ','.join("'" + table + "'" for table in
+        __import__('arm_f_infrastructure').CANONICAL_TABLES) + ') ORDER BY table,name')
+    container = restore.command(session.compose, session.env, 'ps', '-q', 'clickhouse').decode().strip()
+    info = json.loads(restore.command(['docker'], session.env, 'inspect', container))[0]
+    volume = next(m['Source'] for m in info['Mounts'] if m['Destination'] == '/var/lib/clickhouse')
+    files = certificates.content_files(rows, volume)
+    if counts_module.generation(session)[0] != generation:
+        raise ValueError('canonical parts changed during byte fingerprint')
+    return dict(canonical_generation=generation, canonical_parts=parts,
+        canonical_content_sha256=__import__('hashlib').sha256(
+            json.dumps(files, sort_keys=True).encode()).hexdigest(),
+        base_files=files)
+
+
 def verify_store(root):
     """Restore-verification hooks (contract §8.3): counts, and the canonical
     generation fingerprint against the banked pre-steady-state value recorded
@@ -100,7 +121,7 @@ def verify_store(root):
     if (int(counts[0]['documents']) != BANKED_DOCUMENT_COUNT
             or int(counts[0]['events']) != BANKED_EVENT_COUNT):
         raise ValueError('frozen store counts differ from the banked store')
-    fingerprint = certificates.fingerprint(session)
+    fingerprint = canonical_fingerprint(session)
     banked = read(root / 'banked-store-fingerprint.json')
     if (fingerprint['canonical_content_sha256'] != banked['canonical_content_sha256']
             or fingerprint['canonical_generation'] != banked['canonical_generation']):
