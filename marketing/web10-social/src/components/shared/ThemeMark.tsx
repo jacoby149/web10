@@ -5,3 +5,8 @@ export function ThemeMark({ className }: { className: string }) {
     <img src="/keys-mark-dark.png" alt="" className="h-full w-full object-contain dark:hidden" data-brand-variant="dark" />
   </span>;
 }
+
+/** The Social conversation mark uses the same transparent artwork in both themes. */
+export function SocialMark({ className }: { className: string }) {
+  return <img src="/social-conversation.png" alt="" className={`${className} shrink-0 object-contain`} data-testid="social-conversation-mark" />;
+}

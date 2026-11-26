@@ -1,4 +1,23 @@
+6.32.10 || 26.11.2026
+style(marketing): move web10 Hub out of the App Store’s Core slot and into the searchable Browse grid. Keep one Hub card, its keys icon and registration metrics; Social remains the only featured app.
+
+6.32.9 || 26.11.2026
+style(social): use the three-person conversation mark in Social and Join, with a transparent background in both themes and a white tile in the App Store. Keep the alternatives as PNGs in the design archive. Hub and installed icons are unchanged.
+
+6.32.8 || 26.11.2026
+research: the sustained-DAU runner's sized-host restore is now task-mode re-enterable: it writes the P-subordinate operation vehicle the sessions require, re-verifies a completed banked import instead of re-importing (receipt + overlay both present, counts re-checked), refuses partial restore states (overlay without receipt or receipt without overlay), and banks the host's own canonical fingerprint as the run baseline under the Parquet-transfer provenance (the verified-input manifest is the byte lineage there). The store-verification re-entry now re-checks counts only. Four new controls. No host, no admission, no native execution.
+
+6.32.7 || 26.11.2026
+research: the 26.10 admission vehicle now carries the sustained-DAU purpose: DAU_SUSTAINED_CONTRACT_RATE with the named DAU directive takes the full-store composition vehicle (engine, limits, composition/tally/K20/completion flags, ref admission) exactly as the banked all-fixes purpose does; every other purpose and flag combination still refuses. One new control beside the banked approval fixture. No engine, host or admission change.
+
+6.32.6 || 26.11.2026
+research: recapture the pinned core-feed wire and cursor-builder captures after the current dev marketing work moved `posts.ts`/`types.ts`, and re-pin the ARM-F-DESIGN-CLOSURE.md authorized-source manifest to the recaptured `core-feed-wire-v8.json` and the drifted `api/app/v3/services/clickhouse.py` (the captured four-request topology is unchanged against the historical v3 pin; no other authorized source moved). Unblocks the research CI that had gone stale on dev.
+
+6.32.5 || 26.11.2026
+research: the sustained-DAU runner now restores the sized host's store the way the contract admits: the retained snapshot's verified frozen Parquet input (byte-verified in transit by the banked verified_input gate), through the unchanged banked restore path, with the declared envelope overlay replacing the banked 28/22 GiB frame (100 GiB container, committed 80 GiB server-cap config, declared api/minio caps) — the input bind and store volume survive the rewrite verbatim. Admission requires the provenance and full envelope declaration; five new controls. No host, no admission, no native execution.
+
 6.32.4 || 26.11.2026
+research: bank the full-store hybrid K20 receipt (FULL-STORE-HYBRID.md contract). Two frozen uniform K20 samples through the hybrid path pass exact ordered oracle parity on the full frozen store at the declared post-merge steady state: captured logical demand 92,998,217 bytes/read (both trials, deterministic), 8.72-9.51 s complete HTTP vs the cited 7.02 s indexed baseline (123,119,689 bytes, PR #1618, cited not re-measured) - the measured steady-state ratio 0.7553 replaces the ratio-arithmetic row; the slice's -70.6% remains the transient pre-merge regime reference. Satellite: 32 chunked receipted copies of the exact 92.2M-row attachment history, 32x2 censuses at zero mismatch/tie, canonical source verified unchanged. Six-case, fault suite, supply and production stay unadmitted. [Results](../../research/experiments/costfn/evidence/full-store-hybrid-20261126/RESULTS.md).
 style(hub): remove the sidebar, extend the glass dock to desktop and give Hub and sign-in an ice-blue header with transparent dark keys. Preserve account controls, consent behavior and role-based destinations. Social's existing keys wordmark now reads “web10 social”; app artwork is unchanged.
 
 6.32.3 || 26.11.2026
