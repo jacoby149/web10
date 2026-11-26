@@ -11,11 +11,11 @@ const makeInterface = (overrides = {}) => ({
 });
 
 describe('console navigation', () => {
-  it.each(['dock', 'header'] as const)('keeps all six admin destinations and their accessible names in the %s', (placement) => {
+  it.each(['dock', 'sidebar'] as const)('keeps all six admin destinations and their accessible names in the %s', (placement) => {
     const I = makeInterface();
     render(<MobileNav I={I} placement={placement} />);
     const nav = screen.getByRole('navigation', { name: 'Console navigation' });
-    expect(within(nav).getAllByRole('button')).toHaveLength(6);
+    expect(within(nav).getAllByRole('button')).toHaveLength(7);
     for (const [name, mode] of [
       ['App permissions', 'contracts'], ['Group permissions', 'groups'], ['Requests', 'requests'],
       ['Config', 'config'], ['Analytics', 'analytics'], ['Settings', 'settings'],
@@ -23,8 +23,22 @@ describe('console navigation', () => {
       fireEvent.click(within(nav).getByRole('button', { name }));
       expect(I.setMode).toHaveBeenLastCalledWith(mode);
     }
-    expect(within(nav).getByText('Apps')).toBeVisible();
-    expect(within(nav).getByText('Groups')).toBeVisible();
+    expect(within(nav).getByText(placement === 'dock' ? 'Apps' : 'App permissions')).toBeVisible();
+    expect(within(nav).getByText(placement === 'dock' ? 'Groups' : 'Group permissions')).toBeVisible();
+  });
+
+  it.each(['dock', 'sidebar'] as const)('restores the ecosystem links under More in the %s', placement => {
+    render(<MobileNav I={makeInterface({ isAdmin: false })} placement={placement} />);
+    const more = screen.getByRole('button', { name: 'More…' });
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    fireEvent.click(more);
+    expect(more).toHaveAttribute('aria-expanded', 'true');
+    const links = screen.getAllByRole('link');
+    expect(links.map(link => link.getAttribute('href'))).toEqual(['https://web10.app', 'https://web10.app/app-store', 'https://web10.app/docs']);
+    expect(links.every(link => link.getAttribute('rel') === 'noopener noreferrer')).toBe(true);
+    fireEvent.keyDown(links[0], { key: 'Escape' });
+    expect(more).toHaveFocus();
+    expect(more).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('exposes exactly the current selection and updates it on rerender', () => {
@@ -37,7 +51,7 @@ describe('console navigation', () => {
 
   it('keeps admin destinations out of personal navigation', () => {
     render(<MobileNav I={makeInterface({ isAdmin: false })} />);
-    expect(screen.getAllByRole('button')).toHaveLength(4);
+    expect(screen.getAllByRole('button')).toHaveLength(5);
     expect(screen.queryByRole('button', { name: 'Config' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Analytics' })).not.toBeInTheDocument();
   });

@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Settings as GearIcon, LogOut, UserRound, ChevronDown } from 'lucide-react';
 import Branding from './Branding';
-import MobileNav from './MobileNav';
 import { cn } from '@/lib/utils';
 
 interface TopBarProps {
@@ -121,8 +120,6 @@ function TopBar({ I }: TopBarProps) {
         className="shrink-0 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hub-ink">
         <Branding I={I} size="sm" tagline={false} hubHeader />
       </button>
-
-      <MobileNav I={I} placement="header" />
 
       {/* RIGHT — account menu (desktop) / settings + logout (mobile) */}
       <div className="flex shrink-0 items-center gap-2">

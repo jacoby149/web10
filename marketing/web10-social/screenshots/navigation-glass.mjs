@@ -32,25 +32,47 @@ try {
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(`${base}?screen=posts-following`, { waitUntil: 'networkidle' });
       const mobile = width < 768;
+      const darkDesktop = mode === 'dark' && !mobile;
+      const headerFill = darkDesktop ? 'rgb(27, 32, 38)' : 'rgb(181, 212, 220)';
+      const headerInk = darkDesktop ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)';
+      const dividerWidth = darkDesktop ? '1px' : '0px';
       const dock = page.locator('nav[aria-label="Primary mobile"]');
       const expectedDock = ['nav-feed-mobile', 'nav-video-mobile', 'nav-shorts-mobile', 'nav-music-mobile', 'nav-more-mobile'];
       const dockItems = () => dock.locator('button').evaluateAll(buttons => buttons.map(button => button.dataset.testid));
       assert.deepEqual(await dockItems(), expectedDock);
       const header = page.getByTestId(mobile ? 'topbar-mobile' : 'topbar-desktop');
       assert.equal(await header.isVisible(), true);
+      assert.equal((await header.boundingBox()).height, mobile ? 60 : 64);
+      const mark = page.getByTestId('social-header-mark').filter({ visible: true });
+      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair-blue.png');
+      assert.equal(await mark.evaluate(el => getComputedStyle(el).borderTopLeftRadius), '8px');
       assert.deepEqual(await header.evaluate(el => {
         const css = getComputedStyle(el);
         return [css.backgroundColor, css.backdropFilter, css.borderTopWidth, css.borderBottomWidth];
-      }), ['rgb(181, 212, 220)', 'none', '0px', '0px'], 'Social shares Hub’s solid ice-blue top bar without a divider');
+      }), [headerFill, 'none', '0px', dividerWidth], 'only desktop Dark has a charcoal header and bottom divider');
+      const search = header.getByRole(mobile ? 'button' : 'textbox', { name: 'Search', exact: true });
+      assert.equal(await search.evaluate(el => getComputedStyle(el).color), headerInk, 'search uses ink for the header palette');
+      const bell = header.getByRole('button', { name: /^Notifications\b/ });
       if (!mobile) {
+        const bellBounds = await bell.boundingBox();
+        const accountBounds = await header.getByTestId('user-menu-trigger').boundingBox();
+        assert.equal(accountBounds.x - (bellBounds.x + bellBounds.width), 12, 'desktop bell and account have 12px between their controls');
         const strip = page.getByTestId('sidebar-brand-strip');
         assert.deepEqual(await strip.evaluate(el => {
           const css = getComputedStyle(el);
           return [css.backgroundColor, css.borderBottomWidth];
-        }), ['rgb(181, 212, 220)', '0px']);
+        }), [headerFill, dividerWidth]);
+        if (darkDesktop) {
+          for (const segment of [strip, header]) {
+            assert.equal(await segment.evaluate(el => getComputedStyle(el).borderBottomColor), 'rgb(54, 65, 77)');
+          }
+        }
         const brand = await strip.boundingBox(), bar = await header.boundingBox();
         assert.equal(brand.height, bar.height);
+        assert.equal(brand.y + brand.height, bar.y + bar.height, 'the bottom edges line up across the app');
         assert.equal(brand.x + brand.width, bar.x, 'brand strip and toolbar meet with no seam');
+        const firstRow = await page.getByRole('navigation', { name: 'Primary', exact: true }).getByRole('button').first().boundingBox();
+        assert.equal(firstRow.y - (brand.y + brand.height), 12, 'the desktop sidebar starts 12px below the header');
         assert.equal(await strip.locator('..').evaluate(el => getComputedStyle(el).backgroundColor),
           mode === 'dark' ? 'rgb(27, 32, 38)' : 'color(srgb 1 1 1 / 0.88)', 'sidebar charcoal is dark-only');
       }
@@ -113,6 +135,20 @@ try {
       await page.mouse.move(0, 0);
       await primary.blur();
       if (width === 1440 || mobile) await capture(page, `glass-${mode}-${width}`);
+      await bell.click();
+      const panel = page.getByTestId('notifications-panel');
+      await panel.waitFor();
+      const barBounds = await header.boundingBox();
+      assert.equal((await panel.boundingBox()).y, barBounds.y + barBounds.height, 'notifications start below the taller bar');
+      await page.keyboard.press('Escape');
+      await panel.waitFor({ state: 'hidden' });
+      if (width === 1440 || mobile) {
+        await page.goto(`${base}?screen=posts-discover`, { waitUntil: 'networkidle' });
+        const topics = await page.getByTestId('discover-topic-column').boundingBox();
+        const posts = await page.getByTestId('discover-grid').boundingBox();
+        assert.equal(topics.x - posts.x, mobile ? 16 : 0, 'topics align to the desktop post column and keep the phone gutter');
+        await capture(page, `discover-topics-${mode}-${width}`);
+      }
       // Navigate with the existing buttons, not a replacement mock navbar.
       // Use the static appearance screen so feed URL synchronization isn't
       // concurrent with this shell-only navigation check.

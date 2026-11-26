@@ -18,13 +18,20 @@ function AppShell({ I, children, maxWidth = 'max-w-4xl', testid, padded = true }
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <TopBar I={I} />
-      <main className={cn('min-h-0 flex-1 overflow-y-auto', I.isAuthenticated?.() && 'auth-dock-clearance')} data-testid="console-content">
-        {padded ? (
-          <div className={cn('mx-auto p-4 sm:p-6', maxWidth)} data-testid={testid}>
-            {children}
-          </div>
-        ) : children}
-      </main>
+      <div className="flex min-h-0 flex-1">
+        {I.isAuthenticated?.() && (
+          <aside className="hub-sidebar hidden w-64 shrink-0 overflow-y-auto border-r border-border bg-surface md:block" data-testid="hub-sidebar">
+            <MobileNav I={I} placement="sidebar" />
+          </aside>
+        )}
+        <main className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto', I.isAuthenticated?.() && 'auth-dock-clearance')} data-testid="console-content">
+          {padded ? (
+            <div className={cn('mx-auto p-4 sm:p-6', maxWidth)} data-testid={testid}>
+              {children}
+            </div>
+          ) : children}
+        </main>
+      </div>
       <MobileNav I={I} />
     </div>
   );
