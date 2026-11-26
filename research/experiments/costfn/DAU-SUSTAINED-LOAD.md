@@ -305,13 +305,14 @@ line for the contract load is retired on the software side.
    offline) and `dau_sustain_run.py` (host-side driver: restore-verification
    hooks, phase execution, stop criteria, receipt emission; reuses the
    pinned client, receipt adapter, oracle comparison and statement
-   inventory). Offline/no-engine controls pin, at minimum: schedule and
-   offered-vs-achieved accounting (no silent closed-loop reduction); all
-   three stop criteria and their bank behavior; writer-stream discipline
-   (rate, actor rotation, no media, no grants beyond the fixture); receipt
-   accounting (additive totals, content-free records); oracle-gate wiring and
-   divergence stop; calibration-vs-measured separation. `bench.py` is not
-   touched and not reused.
+   inventory), with the offline controls in
+   `dau_sustain_workload.test.py` and `dau_sustain_run.test.py` pinning, at
+   minimum: schedule and offered-vs-achieved accounting (no silent
+   closed-loop reduction); the stop criteria and their bank behavior;
+   writer-stream discipline (rate, actor rotation, no media, no grants
+   beyond the fixture); receipt accounting (additive totals, content-free
+   records); oracle-gate wiring and divergence stop; calibration-vs-measured
+   separation. `bench.py` is not touched and not reused.
 2. **Green checks, merge.** Source only; the merge grants no admission.
 3. **Restore preflight + steady state** on the admitted droplet: store,
    oracle, furniture, writer actors and read receipts verified (the banked
