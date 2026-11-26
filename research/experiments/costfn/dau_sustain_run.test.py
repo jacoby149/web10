@@ -136,6 +136,43 @@ class OracleAudit(unittest.TestCase):
                 run.audit_response(bad, 'reader-1', self.billboards, self.expected_views)
 
 
+class ExpectedPreload(unittest.TestCase):
+    def artifacts(self, root, *, names=('ordinary', 'fixture')):
+        for name in names:
+            directory = root / ('reference-' + name)
+            directory.mkdir(parents=True)
+            (directory / 'expected.json').write_text(json.dumps(
+                dict(rows=[dict(doc_id='d-' + name, group_id='g-' + name)], eligible_ads=[])))
+
+    def test_saved_read_setup_preloads_the_expected_references(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.artifacts(root)
+            actions = Mock()
+            actions.expected = {}
+            run.preload_expected(root, {'read-setup': dict(evidence={})}, actions)
+            self.assertEqual(set(actions.expected), {'ordinary', 'fixture'})
+            self.assertEqual(actions.expected['ordinary']['rows'][0]['group_id'], 'g-ordinary')
+
+    def test_live_read_setup_is_left_to_the_stage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.artifacts(root)
+            actions = Mock()
+            actions.expected = {}
+            run.preload_expected(root, dict(restore=dict(evidence={})), actions)
+            self.assertEqual(actions.expected, {})
+
+    def test_saved_read_setup_missing_an_artifact_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.artifacts(root, names=('ordinary',))
+            actions = Mock()
+            actions.expected = {}
+            with self.assertRaisesRegex(ValueError, 'without its fixture reference artifact'):
+                run.preload_expected(root, {'read-setup': dict(evidence={})}, actions)
+
+
 class StoreCounts(unittest.TestCase):
     def test_parquet_transfer_binds_to_the_verified_input_not_the_snapshot_census(self):
         with tempfile.TemporaryDirectory() as directory:

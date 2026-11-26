@@ -79,6 +79,9 @@ def fixtures(session, root, expected, *, node_ratio, seed):
     values = []
     links = set()
     all_groups = set().union(*groups.values())
+    if not all_groups:
+        raise ValueError('billboard fixture has no target groups; the expected K20 references '
+            'must supply group memberships before setup writes (an empty values insert is refused)')
     for doc in documents:
         row = [q(doc['doc_id']), q(doc['author_key']), q(doc['collection_name']), q(json.dumps(doc['body'], sort_keys=True)),
             q(doc['ref_value']), '[' + ','.join(q(v) for v in doc.get('tags', [])) + ']', clock, clock,

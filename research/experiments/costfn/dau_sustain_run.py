@@ -717,6 +717,22 @@ async def windows(root, actions):
         in_flight_zero_within_bound=drained)
 
 
+def preload_expected(root, stored_steps, actions):
+    """A reused read-setup step does not re-run read_setup(), so the in-memory
+    K20 expected references that later stages (billboard fixtures, verify,
+    the measured cells) consume must be rebuilt from that step's artifacts:
+    the reference-*/expected.json objects the oracle froze. Without them the
+    fixture stages see an empty expectation and emit degenerate setup writes
+    (the empty doc_groups links insert stopped attempt 12 exactly that way)."""
+    if 'read-setup' not in stored_steps:
+        return
+    for name in ('ordinary', 'fixture'):
+        path = root / ('reference-' + name) / 'expected.json'
+        if not path.is_file():
+            raise ValueError('saved read-setup without its ' + name + ' reference artifact')
+        actions.expected[name] = read(path)
+
+
 def run(root, *, note=None):
     root = Path(root).resolve()
     approval = read(root / 'admission.json')
@@ -726,6 +742,7 @@ def run(root, *, note=None):
     with task.attempt(note) as attempt:
         modern.install_sessions()
         actions = Actions(root, task)
+        preload_expected(root, task.state['steps'], actions)
         try:
             task.step('restore', lambda: restore_parquet(root, approval),
                 validate=lambda stored: verify_envelope(root) == {key: stored.get(key)
