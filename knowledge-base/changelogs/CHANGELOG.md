@@ -1,5 +1,10 @@
 6.32.9 || 26.11.2026
 research: the sustained-DAU runner's Parquet-transfer store verification now binds the sized host to the verified frozen input's own row counts (documents 88,200,300 / doc_groups 92,200,600 / events 1.6 B) rather than the snapshot store's post-run census, which additionally carries the banked F-arm population artifacts and the 18 November billboards (declared in the receipt; outside the frozen dataset and the K20 span). The completed-import re-entry check uses the same binding. Two new controls. No host, no admission, no native execution.
+6.32.10 || 26.11.2026
+style(marketing): move web10 Hub out of the App Store’s Core slot and into the searchable Browse grid. Keep one Hub card, its keys icon and registration metrics; Social remains the only featured app.
+
+6.32.9 || 26.11.2026
+style(social): use the three-person conversation mark in Social and Join, with a transparent background in both themes and a white tile in the App Store. Keep the alternatives as PNGs in the design archive. Hub and installed icons are unchanged.
 
 6.32.8 || 26.11.2026
 research: the sustained-DAU runner's sized-host restore is now task-mode re-enterable: it writes the P-subordinate operation vehicle the sessions require, re-verifies a completed banked import instead of re-importing (receipt + overlay both present, counts re-checked), refuses partial restore states (overlay without receipt or receipt without overlay), and banks the host's own canonical fingerprint as the run baseline under the Parquet-transfer provenance (the verified-input manifest is the byte lineage there). The store-verification re-entry now re-checks counts only. Four new controls. No host, no admission, no native execution.

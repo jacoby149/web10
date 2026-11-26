@@ -1356,7 +1356,7 @@ describe('Layout', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 
-  it('adds the Social name without replacing the keys mark', async () => {
+  it('pairs the Social name with the conversation mark', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1365,7 +1365,9 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    expect(screen.getAllByTestId('theme-key-mark')).toHaveLength(2);
+    const marks = screen.getAllByTestId('social-conversation-mark');
+    expect(marks).toHaveLength(2);
+    for (const mark of marks) expect(mark).toHaveAttribute('src', '/social-conversation.png');
     expect(screen.getAllByText('social')).toHaveLength(2);
   });
 
