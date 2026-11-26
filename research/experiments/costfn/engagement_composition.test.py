@@ -120,6 +120,20 @@ class CompositionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ads.plan(posts, {'a': [creative('other')]}, [], author_posts=[], node_ratio=0, seed='s')
 
+    def test_fixture_without_expected_groups_refuses_the_empty_links_insert(self):
+        session = Mock()
+        session.query.return_value = ('', 'qid')
+        session.operation = dict(costfn_task_id='', costfn_run_rules='')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            # An empty expectation (the state a reused, not re-run read-setup
+            # leaves behind) gives the fixture no target groups; the degenerate
+            # empty-values doc_groups insert must be refused before anything is
+            # sent to the engine (attempt 12's 620 s no-receipt stop).
+            with self.assertRaisesRegex(ValueError, 'no target groups'):
+                setup.fixtures(session, root, {}, node_ratio=0, seed='s')
+        session.query.assert_not_called()
+
     def test_exact_ad_oracle_denies_other_eligible_creative_reselection_and_unknown_root(self):
         rows = [post()]
         plan = ads.plan(rows, {}, [creative('node', 'n1'), creative('node', 'n2')], author_posts=[], node_ratio=1, seed='s')
