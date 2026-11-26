@@ -883,6 +883,8 @@ P2P stays v4 — do not build it here.
 ### Lane: social-v3 (Phase 3)
 **Owns:** `marketing/web10-social/`
 
+- [✓ 6.32.2 local; production data repair open] **SOCIAL-PROFILE-LOOKUP-WRITES** — sign-in sets up the existing followers group without reading or writing a profile; explicit saves surface lookup failures. Controls cover denied and unavailable reads, first-time creation, and renaming without touching the avatar. Public production checks confirm separate username-only records hide intact older faces on two accounts; the requests that created those records were not verified. No production writes or fallback to older records in this source change.
+
 - [✓ 6.32.0 local] **SOCIAL-PROFILE-AFFILIATIONS-POST-LOCATION** — same-origin GeoNames/ROR/SEC suggestion snapshots; manual entries and clear remain available. GPS only on tap, browser-only city lookup, no coordinate write. Reuse existing profile/post documents, including edit and queued video. Local data/UI controls and desktop/375px harness; physical-device, connected-node and deployment checks are separate. [Contract](../web10-v3/social/profile-affiliations-and-post-location.md).
 
 - [✓ 6.29.8 local] **SOCIAL-CLAMP-LAYOUT-LOOP** — fix the signed-in feed render loop in `ExpandablePostBody`; the collapsed box is not the source for the essay gate. Reproduce the crash and test the toggle and resize; production verification remains separate.
