@@ -332,7 +332,7 @@ describe('AppStore page', () => {
     // The node console is the second plug slot (the core management app), not a grid item
     expect(screen.getByTestId('plug-slot-1')).toHaveAttribute('href', 'https://auth.web10.app');
     expect(within(screen.getByTestId('plug-slot-0')).getByRole('img', { name: 'web10 social' }))
-      .toHaveAttribute('src', '/brand/social-guitar-192.png');
+      .toHaveAttribute('src', '/brand/icon-192.png');
     expect(within(screen.getByTestId('plug-slot-1')).getByRole('img', { name: 'web10 hub' }))
       .toHaveAttribute('src', '/brand/icon-192.png');
   });

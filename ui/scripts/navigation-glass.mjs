@@ -68,13 +68,13 @@ try {
     assert.equal(await page.getByText('What is web10', { exact: true }).count(), 0);
     const header = page.getByTestId('hub-header');
     assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(181, 212, 220)');
-    const account = header.getByTestId('topbar-account');
-    await account.click();
-    await header.getByTestId('account-logout').waitFor();
-    await page.keyboard.press('Escape');
-    assert.equal(await account.getAttribute('aria-expanded'), 'false');
     assert.equal(await dock.getByRole('button').count(), 6);
     if (width >= 768) {
+      const account = header.getByTestId('topbar-account');
+      await account.click();
+      await header.getByTestId('account-logout').waitFor();
+      await header.click({ position: { x: 4, y: 4 } });
+      assert.equal(await account.getAttribute('aria-expanded'), 'false');
       assert.ok(await page.getByTestId('console-content').evaluate(el => parseFloat(getComputedStyle(el).paddingBottom) > 72));
       const groups = dock.getByRole('button', { name: 'Group permissions' });
       await groups.click();

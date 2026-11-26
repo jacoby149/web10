@@ -1,8 +1,5 @@
-6.33.1 || 26.11.2026
-style(social): give the desktop sidebar, mobile header and public Join header a Social-specific wordmark with a compact crop of the original folk guitarist: dark ink in Light mode, white ink in Dark, and no background tile in either. Keep the full artwork in the App Store and leave installed icons, profile avatars and the bottom dock unchanged.
-
-6.33.0 || 26.11.2026
-feat(hub): replace the sidebar with the Social-style glass dock on desktop and phones, and give Hub and sign-in an ice-blue header with transparent dark keys. The account chip can reuse the signed-in account's public web10 Social photo from the same node, falling back to the account icon without changing permissions. In the App Store, Social gets its original folk guitarist and Hub keeps white keys on black; installed icons are unchanged.
+6.32.4 || 26.11.2026
+style(hub): remove the sidebar, extend the glass dock to desktop and give Hub and sign-in an ice-blue header with transparent dark keys. Preserve account controls, consent behavior and role-based destinations. Social's existing keys wordmark now reads “web10 social”; app artwork is unchanged.
 
 6.32.3 || 26.11.2026
 fix(marketing): remove the search icon from the marketing navbar. The desktop bar keeps only "Open web10 social", the links icon and the GitHub star button; social search stays reachable from web10 social itself. Verified at desktop and 375px.

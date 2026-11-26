@@ -357,8 +357,9 @@ try {
         if (name === 'app-store') {
           await page.getByTestId('browse-card-0').waitFor();
           await page.getByTestId('plug-slot-1').waitFor();
-          await verifyBlackCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-guitar-192.png"]'));
-          await verifyBlackCatalogIcon(page.getByTestId('plug-slot-1').locator('img[src="/brand/icon-192.png"]'));
+          for (const slot of ['plug-slot-0', 'plug-slot-1']) {
+            await verifyBlackCatalogIcon(page.getByTestId(slot).locator('img[src="/brand/icon-192.png"]'));
+          }
           const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
             const css = getComputedStyle(el);
             return [css.backgroundColor, css.backgroundImage, css.boxShadow];
@@ -370,7 +371,7 @@ try {
         } else if (name !== 'home') {
           assert.deepEqual(await readInteriorPalette(page), interiorPalette, `${name} must match the shared interior in ${mode}`);
         }
-        if (name === 'app-detail') await verifyBlackCatalogIcon(page.locator('img[src="/brand/social-guitar-192.png"]'));
+        if (name === 'app-detail') await verifyBlackCatalogIcon(page.locator('img[src="/brand/icon-192.png"]'));
         if (['app-store', 'freedom', 'docs', 'appearance'].includes(name)) {
           const art = await readInteriorIntro(page);
           assert.equal(art.kind, name === 'app-store' ? 'store' : name);
