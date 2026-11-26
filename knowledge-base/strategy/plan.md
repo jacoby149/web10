@@ -1,6 +1,6 @@
 # web10 v3 Plan
 
-- [✓ 6.32.1 local; production data repair open] **SOCIAL-PROFILE-LOOKUP-WRITES** — remove placeholder profile writes from sign-in while preserving followers-group setup and the account-username directory fallback. Only an explicit save with a successful empty lookup can create a profile. Do not substitute older data on reads or repair duplicates automatically.
+- [✓ 6.32.2 local; production data repair open] **SOCIAL-PROFILE-LOOKUP-WRITES** — remove placeholder profile writes from sign-in while preserving followers-group setup and the account-username directory fallback. Only an explicit save with a successful empty lookup can create a profile. Do not substitute older data on reads or repair duplicates automatically.
 
 - [✓ 6.28.9 model and plan only] **RD4-HYBRID-K20-PREFLIGHT** — bank the no-engine ordered K20 and fault fixture; separate modeled scans, native logical bytes and R630 physical disk allowance. [Findings and gates](../../research/experiments/costfn/HYBRID-K20-PREFLIGHT.md).
 - [✓ 6.28.10 source only] **RD4-HYBRID-K20-CURRENT-ADAPTER** — reuse the original indexed HTTP/oracle path and reconcile its SQL hashes, exact native receipts, per-stage memory and complete wall time. Offline controls only; not a slice or native parity verdict.
