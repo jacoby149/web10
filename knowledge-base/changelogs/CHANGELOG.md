@@ -1,3 +1,6 @@
+6.30.6 || 25.11.2026
+research: the one-shot K20 count setup now re-enters a completed build on task-mode resume: a finished result.json (operator-approved kind, SPOTS_PASS outcome, unchanged canonical generation) is the authority and skips the rebuild; a mid-build or unrecognized output is still refused, and a fresh root still builds exactly once. Three new controls in engagement_prepared.test.py. No engine, host or admission change.
+
 6.30.5 || 25.11.2026
 fix(marketing): use the App Store's paper Light and ink-and-navy Dark palettes on Freedom, Docs, and Appearance. Keep System and saved overrides. Pin the homepage's Mandelbrot and stats artwork behind the scrolling sections on desktop and phones, regardless of the device motion setting.
 
