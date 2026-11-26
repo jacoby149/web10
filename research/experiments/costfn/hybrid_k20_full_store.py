@@ -88,6 +88,18 @@ def steady_state(root):
 
 
 class Actions(hybrid_task.Actions):
+    def __init__(self, root, task):
+        super().__init__(root, task)
+        value = self.approval.get('aggregate_seed_day_buckets')
+        if type(value) is int:
+            # The banked seed planner owns a {day: buckets} dict (one slice per
+            # owned day by default) and the all-time backfill its own bounded
+            # batches; an int is a malformed value, not a workload. Normalize to
+            # the banked default and record the repair in the admission copy the
+            # task receipt carries — the admitted document itself is unchanged.
+            self.approval['aggregate_seed_day_buckets_repaired_from'] = value
+            self.approval['aggregate_seed_day_buckets'] = None
+
     def base_infrastructure(self):
         # The banked full-store adoption path: settle canonical, stop merges,
         # the initial K20 count setup, adopt the prepared snapshot receipts,
