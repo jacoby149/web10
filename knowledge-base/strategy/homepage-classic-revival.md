@@ -33,6 +33,10 @@ The bundled founder portrait uses the shared `ReliableImage` renderer.
 It lazy-loads at its original square size, and a retry requests only the
 same local asset. It does not need a renderer-inventory exception.
 
+The pledge uses the archived `home/layouts/images/sky.jpg`, served from
+`/pledge-sky-2022.jpg` so the original broken relative link is not repeated.
+The archive's 65% black overlay and the ink fallback keep the text readable.
+
 **Marketing follow-through (D126):** the App Store and the rest of marketing
 adopt the same typography and blue palette, including a cool Light mode.
 The homepage keeps the fractal. The header shows Home, App Store, Freedom,

@@ -185,15 +185,19 @@
   background: var(--color-background);
 }
 
-.classic-stats {
+.classic-stats, .classic-pledge {
+  --classic-archive-shade: color-mix(in srgb, var(--color-black) 65%, transparent);
   background-color: var(--color-classic-ink);
-  background-image: linear-gradient(color-mix(in srgb, var(--color-black) 65%, transparent), color-mix(in srgb, var(--color-black) 65%, transparent)), url('/stats-2022.webp');
   background-position: center;
   background-size: cover;
 }
 
+.classic-stats {
+  background-image: linear-gradient(var(--classic-archive-shade), var(--classic-archive-shade)), url('/stats-2022.webp');
+}
+
 .classic-pledge {
-  background-color: var(--color-classic-ink);
+  background-image: linear-gradient(var(--classic-archive-shade), var(--classic-archive-shade)), url('/pledge-sky-2022.jpg');
 }
 
 @media (min-width: 64rem) and (hover: hover) and (prefers-reduced-motion: no-preference) {

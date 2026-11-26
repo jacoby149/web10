@@ -132,7 +132,7 @@ Rules of use:
 | `ui/public/hub.png`, `ui/public/hub.jpg` | **Apple's App Store logo.** A trademark we have no right to ship, referenced as `apple-touch-icon` in `ui/index.html`. | Replace immediately with the keys mark. This is a legal fix, not an aesthetic one. |
 | `ui/public/home.png` | Clipart house. | Delete; use a Lucide icon. |
 | `*/public/favicon.ico` | Unverified boilerplate. | Regenerate all three from the square keys mark. |
-| `marketing/marketing-ui/public/layouts/images/*` (berk, cmu, mit, stan, gonzaga, thumbnail, back*.jpg, sky, mountains…) | The "web10 for education" era — old pitch, old fonts, old navy palette, university logos. | The marketing rebuild (§10) decides per file; default is delete. University logos are other people's trademarks — same rule as hub.png. **Classic landing exceptions:** the hero's `back2.jpg` returns as `public/hero-fractal.jpg`, and the stats' `back3.jpg` as `public/stats-2022.webp`. No other legacy images are restored in this pass. |
+| `marketing/marketing-ui/public/layouts/images/*` (berk, cmu, mit, stan, gonzaga, thumbnail, back*.jpg, sky, mountains…) | The "web10 for education" era — old pitch, old fonts, old navy palette, university logos. | The marketing rebuild (§10) decides per file; default is delete. University logos are other people's trademarks — same rule as hub.png. **Classic landing exceptions:** `back2.jpg` returns as `public/hero-fractal.jpg`, `back3.jpg` as `public/stats-2022.webp`, and `sky.jpg` as `public/pledge-sky-2022.jpg`. |
 | `ui/public/YourOrgsLogo/*` (key_white/black, generic_school_logo) | Feature fixtures — placeholder art for a provider's own branding slot. Not web10 brand assets. | Keep, but they are white-label placeholders; label them as such where shown. |
 
 ### Asset debt (queued work, lane D unless noted)
@@ -834,9 +834,10 @@ sections, navy footer) — no 1px divider lines anywhere. On the classic
 surface the sky-accented fractal sits under a dark scrim. Features and team
 use paper (`#fafafa`) with charcoal type, gray supporting text, and a readable
 blue accent. The flat, horizontal stats row restores the original `back3.jpg`
-image under a 65% black scrim, with no parallax or box. The pledge continues
-into deep ink (`#090c22`) with white copy, approximating the archive's dark
-overlay without recreating its broken `sky.jpg` reference. Keep `ink` for the header and the archive's
+image under a 65% black scrim, with no parallax or box. The pledge uses the
+archived `sky.jpg` from `f3d695394:home/layouts/images/sky.jpg` under the same
+scrim, correcting the old relative path. Ink (`#090c22`) is the image fallback.
+Keep `ink` for the header and the archive's
 charcoal and light gray for the footer. A 1px `border-border` line reads as a
 "stretchy divider" (operator, 25.11.2026, against a first capture:
 "these dividers look stretchy … take some notes on the serious style
