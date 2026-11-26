@@ -1,3 +1,6 @@
+6.32.4 || 26.11.2026
+research: bank the full-store hybrid K20 receipt (FULL-STORE-HYBRID.md contract). Two frozen uniform K20 samples through the hybrid path pass exact ordered oracle parity on the full frozen store at the declared post-merge steady state: captured logical demand 92,998,217 bytes/read (both trials, deterministic), 8.72-9.51 s complete HTTP vs the cited 7.02 s indexed baseline (123,119,689 bytes, PR #1618, cited not re-measured) - the measured steady-state ratio 0.7553 replaces the ratio-arithmetic row; the slice's -70.6% remains the transient pre-merge regime reference. Satellite: 32 chunked receipted copies of the exact 92.2M-row attachment history, 32x2 censuses at zero mismatch/tie, canonical source verified unchanged. Six-case, fault suite, supply and production stay unadmitted. [Results](../../research/experiments/costfn/evidence/full-store-hybrid-20261126/RESULTS.md).
+
 6.32.3 || 26.11.2026
 fix(marketing): remove the search icon from the marketing navbar. The desktop bar keeps only "Open web10 social", the links icon and the GitHub star button; social search stays reachable from web10 social itself. Verified at desktop and 375px.
 

@@ -56,16 +56,15 @@ The [hybrid K20 preflight](HYBRID-K20-PREFLIGHT.md) reproduces the no-engine
 fixture and plans a three-arm native comparison before a full retained-design
 cell. It separates modeled bytes, native logical bytes, and R630 physical I/O.
 
-The [full-store hybrid contract](FULL-STORE-HYBRID.md) defines the next RD4
-measurement: the hybrid (dual) layout on the full frozen store — the missing
-cell that is ratio arithmetic today (36.2 MB/read → ~0.54 GB/s at the
-contract peak), on the post-cleanup steady state (OPTIMIZE + parts census
-precondition; the slice's −70.6% remains the transient pre-merge regime
-reference). Satellite build from canonical history, two frozen uniform K20
-hybrid reads, exact ordered oracle parity, indexed baseline cited from
-banked PR #1618. Settles the disk-demand line only; six-case, supply and
-production remain separate. Planning contract only: no source change, host,
-admission or measurement.
+The [full-store hybrid contract](FULL-STORE-HYBRID.md) is **executed and
+banked**: the hybrid on the full frozen store at the declared post-merge
+steady state measured 92,998,217 captured logical bytes/read (two frozen
+uniform K20 samples, exact ordered parity both trials), replacing the
+ratio-arithmetic row; the measured steady-state ratio against the cited
+banked indexed baseline (123,119,689 bytes, PR #1618) is 0.7553, while the
+slice's −70.6% remains the transient pre-merge regime reference. The disk-
+demand line is settled; six-case, supply and production remain separate.
+[Results](evidence/full-store-hybrid-20261126/RESULTS.md).
 
 ## Skinny type-aware pin lookup —native same-store result
 
