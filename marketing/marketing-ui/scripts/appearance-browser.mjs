@@ -186,7 +186,7 @@ async function verifyLogo(page, variant = 'white') {
   assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
   assert.equal(await active.evaluate(el => el.complete && el.naturalWidth > 0), true);
 }
-async function verifyBlackCatalogIcon(locator) {
+async function verifyCatalogIcon(locator, expectedCorner) {
   const corner = await locator.evaluate(async el => {
     const image = new Image();
     image.src = el.getAttribute('src');
@@ -197,7 +197,7 @@ async function verifyBlackCatalogIcon(locator) {
     context.drawImage(image, 0, 0, 1, 1, 0, 0, 1, 1);
     return [...context.getImageData(0, 0, 1, 1).data];
   });
-  assert.deepEqual(corner, [9, 9, 11, 255], 'first-party catalog icon uses an opaque near-black tile');
+  assert.deepEqual(corner, expectedCorner);
 }
 async function readInteriorPalette(page) {
   return page.getByRole('heading', { level: 1 }).first().evaluate(heading => {
@@ -357,9 +357,8 @@ try {
         if (name === 'app-store') {
           await page.getByTestId('browse-card-0').waitFor();
           await page.getByTestId('plug-slot-1').waitFor();
-          for (const slot of ['plug-slot-0', 'plug-slot-1']) {
-            await verifyBlackCatalogIcon(page.getByTestId(slot).locator('img[src="/brand/icon-192.png"]'));
-          }
+          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-conversation.png"]'), [0, 0, 0, 0]);
+          await verifyCatalogIcon(page.getByTestId('plug-slot-1').locator('img[src="/brand/icon-192.png"]'), [9, 9, 11, 255]);
           const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
             const css = getComputedStyle(el);
             return [css.backgroundColor, css.backgroundImage, css.boxShadow];
@@ -371,7 +370,7 @@ try {
         } else if (name !== 'home') {
           assert.deepEqual(await readInteriorPalette(page), interiorPalette, `${name} must match the shared interior in ${mode}`);
         }
-        if (name === 'app-detail') await verifyBlackCatalogIcon(page.locator('img[src="/brand/icon-192.png"]'));
+        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-conversation.png"]'), [0, 0, 0, 0]);
         if (['app-store', 'freedom', 'docs', 'appearance'].includes(name)) {
           const art = await readInteriorIntro(page);
           assert.equal(art.kind, name === 'app-store' ? 'store' : name);

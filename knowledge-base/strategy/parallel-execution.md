@@ -272,6 +272,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.8 local] **Social conversation mark** — ship the approved full-body three-person artwork without a background in Social chrome, Join and the App Store. No theme-specific variant or installed-icon change.
+
 - [✓ 5.20.1 local] **Invite exploration from marketing** — operator-approved follow-up to 5.13.1: “Explore web10” on Home/Freedom and “Open web10 social” in desktop/mobile header navigation. Destinations/handlers/analytics unchanged; compact navigation below 1024px avoids tablet overflow. Owns those marketing labels, focused tests and browser captures. All 378 tests/build/typecheck and desktop/375px light/dark browser gate pass, with 768/1280 responsive checks and inspected tablet menu. Synthetic data; no deployment.
 
 - [✓ 5.17.1 local] **Remove persistent gray glass rings** — dock outline/shadow now paint above the optical layers, not into their backdrop input; approved lens/inset unchanged. Flat-backdrop repro fails with 476 changed pixels before the fix and zero in both themes after; striped refraction/undistorted-center controls, all 2,444 tests/build/typecheck, two-theme four-width shell/fallback gates and inspected desktop/375px captures pass. Owns social dock/CSS and focused browser fixtures; phone/Safari and rollout remain OPEN, no deployment.

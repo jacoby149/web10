@@ -17,7 +17,7 @@ import { NewPostFab } from '@/components/Feed/NewPostFab';
 import ActingIdentitySwitcher from './ActingIdentitySwitcher';
 import { useActingAuthor } from '@/data/actingIdentity';
 import { PersonalProfileContext } from '@/context/PersonalProfileContext';
-import { ThemeMark } from '@/components/shared/ThemeMark';
+import { SocialMark } from '@/components/shared/ThemeMark';
 import DockGlass from './DockGlass';
 import { SignInPrompt } from '@/components/shared/SignInPrompt';
 
@@ -91,7 +91,7 @@ function Wordmark({ className }: { className?: string }) {
   // Facebook-style variant was retired with the sidebar search).
   return (
     <span className={cn('flex items-center gap-2', className)}>
-      <ThemeMark className="h-6 w-6" />
+      <SocialMark className="size-8" />
       <span className="wordmark-label font-display text-lg font-bold tracking-tight text-foreground">
         web<span className="text-brand">10</span> <span className="max-md:block">social</span>
       </span>

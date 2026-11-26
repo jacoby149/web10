@@ -496,9 +496,11 @@ floating New post shortcut as the complementary scrolled-down entry.
 
 ### Social navigation glass — first pass (11.11.2026)
 
-Social keeps the theme-aware keys mark and spells out `web10 social` in
+Social uses the transparent three-person conversation mark (yellow, pink,
+and blue accents, one version for both themes) and spells out `web10 social` in
 desktop and mobile chrome. On very narrow phones, the label is available to
-screen readers while the mark stays visible. App Store artwork is unchanged.
+screen readers while the mark stays visible. The public Join header uses the
+same mark. Installed app icons remain unchanged.
 
 Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
 mute choice across Posts/Video/Shorts and shared video renderers. Never persist
@@ -893,8 +895,8 @@ canvas (`#2b2f32`), archive slate cards (`#33363b`), raised slate (`#424950`),
 light gray secondary text (`#cbcbcb`), and the hero's sky accent (`#87ceeb`).
 The startup browser tint matches the resolved canvas. Keep the fractal on `/`
 only; interior reading surfaces use flat colors. Shared marketing prose and
-controls use Jost; code keeps its mono face. The web10
-social and web10 hub listings and canonical app details reuse the original
+controls use Jost; code keeps its mono face. Social's listing and canonical
+detail use the transparent conversation mark. Hub keeps the original
 `/brand/icon-192.png`: white keys on near-black (`#09090b`), not cobalt.
 Other apps retain their artwork. Installed icons and the social, authenticator,
 and standalone demo interfaces do not inherit the marketing palette.
