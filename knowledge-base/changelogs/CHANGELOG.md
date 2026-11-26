@@ -13,6 +13,9 @@ style(social): carry the app icon's blue into the Light and Dark accent palettes
 6.32.18 || 26.11.2026
 style(social): put the conversation pair on the operator's blue for the App Store listing and detail, install prompt, home-screen icons and favicon. Refresh the service-worker shell cache. Keep the transparent Social and Join marks, Hub artwork and app theme unchanged.
 
+6.32.13 || 26.11.2026
+fix(hub): move desktop navigation into the ice-blue top bar and keep the phone dock. App permissions and Pending requests put search above their own lists at every width; requests filter by site. Account, consent and permission actions are unchanged.
+
 6.32.12 || 26.11.2026
 research: the 26.10 setup statements take their per-query memory cap from the admission-declared DAU envelope (the sized host's server cap) instead of the banked 22 GiB frame pin, so the full-store engagement migration INSERT fits on the sized host; banked admissions (no dau_envelope) keep the exact 22 GiB pin and the measured single-read comparison frame is unchanged. One control. No host, no admission, no native execution.
 

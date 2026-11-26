@@ -10,6 +10,8 @@
 
 - [✓ 6.32.18 local] **Blue Social app icon** — keep the conversation pair and use the operator's blue on the App Store listing/detail, install prompt, home screen and favicon. Preserve transparent chrome and Hub artwork in this step.
 
+- [✓ 6.32.13 local] **Hub top-bar navigation and in-page search** — move desktop navigation to the header, retain the phone dock, and keep search with its App permissions or Pending requests list. Preserve role gates and account actions.
+
 - [✓ 6.32.11 local] **Social conversation pair** — use the lower pink-and-blue crop in app and Join chrome (transparent) and App Store listing and detail (white). Preserve installed icons.
 
 - [✓ 6.32.10 local] **Hub in App Store Browse** — list Hub once in Browse without the Core badge; keep Social featured and preserve available Hub registration metrics.

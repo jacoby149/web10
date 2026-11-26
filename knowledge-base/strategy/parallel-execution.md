@@ -85,6 +85,8 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
+- [✓ 6.32.13 local] **Hub top-bar navigation and in-page search** — desktop header navigation from 768px, phone dock retained, App permissions and Pending requests search in their lists. Verified in both themes at 375/768/1280/1440px with Chromium fixtures; no live auth or deployment claim.
+
 - [✓ 6.32.4 local] **Hub navigation and blue header** — dock at every width, ice-blue Hub and sign-in chrome and no sidebar promos. Keep role-based navigation and account controls. Social keeps the keys and adds “social” to its wordmark; App Store artwork is unchanged. Avatar interop follows separately.
 **Owns:** `ui/src/components/shared/{MobileNav,AppShell,DockGlass}.tsx`, `ui/src/lib/glassLens.ts`, navigation material tokens/CSS and focused UI/browser fixtures; serialized design/plan/changelog updates. No auth interface, credentials, consent, API, SDK or social runtime changes.
 
