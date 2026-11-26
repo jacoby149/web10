@@ -254,7 +254,7 @@ function AppDetail() {
 
   if (loading) {
     return (
-      <div className="catalog-theme min-h-screen bg-background px-4 py-16 sm:px-6 sm:py-24">
+      <div className="min-h-screen bg-background px-4 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto max-w-2xl">
           <Link
             to="/app-store"
@@ -285,7 +285,7 @@ function AppDetail() {
 
   if (notFound || !app) {
     return (
-      <div className="catalog-theme min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
+      <div className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
         <div className="mx-auto max-w-2xl text-center">
           <Link
             to="/app-store"
@@ -333,7 +333,7 @@ function AppDetail() {
   const shownStars = hoverStars || stars
 
   return (
-    <div className="catalog-theme min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
+    <div className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
       <div className="mx-auto max-w-2xl">
         <Link
           to="/app-store"

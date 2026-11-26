@@ -13,6 +13,7 @@ import restore_realism as restore
 def await_query(session, command, query_id, budget, *, sql, statement_kind):
     if statement_kind not in ('read', 'write'):
         raise ValueError('explicit read/write statement kind required')
+    statement_sql = sql
     output = Path(session.root) / 'native-operations' / query_id
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
     deadline = time.monotonic() + budget + 20
@@ -48,6 +49,20 @@ def await_query(session, command, query_id, budget, *, sql, statement_kind):
                         raise ValueError('ambiguous original native completion')
                     evidence['native'] = rows[0]
                     if rows[0]['type'] != 'QueryFinish' or int(rows[0]['exception_code']):
+                        code = int(rows[0]['exception_code'])
+                        text = str(rows[0].get('exception', ''))
+                        # An already-settled table has nothing for OPTIMIZE FINAL to
+                        # merge: the engine aborts the trivial entry with code 236,
+                        # 'Cancelled merging parts'. That is a completed no-op, not
+                        # stopped work — banked as such, for exactly this signature.
+                        if (code == 236 and 'Cancelled merging parts' in text
+                                and statement_kind == 'write'
+                                and statement_sql.lstrip().upper().startswith('OPTIMIZE ')):
+                            evidence['outcome'] = 'NATIVE_FINISH'
+                            evidence['settled_no_op'] = True
+                            if process.poll() is None:
+                                process.wait(timeout=10)
+                            return (output / 'stdout').read_bytes()
                         raise ValueError('original setup query stopped natively; never repeat it')
                     evidence['outcome'] = 'NATIVE_FINISH'
                     if process.poll() is None:

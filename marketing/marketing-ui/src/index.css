@@ -124,8 +124,8 @@
   --color-accent-foreground: var(--color-foreground);
 }
 
-/* Fixed dark regions and the catalog's Dark appearance share Home's palette. */
-.classic-surface, .dark .catalog-theme, :where([data-testid="hls-video-player"], [data-testid="player-controls"]) {
+/* Fixed dark regions and the interior's Dark appearance share Home's palette. */
+.classic-surface, .dark .interior-theme, :where([data-testid="hls-video-player"], [data-testid="player-controls"]) {
   color-scheme: dark;
   /* Inherited color must follow the scope too — the page root's type has no
      text-foreground class, so without this a light-theme visit inherits the
@@ -163,7 +163,7 @@
   --color-danger-muted: #450a0a;
 }
 
-.dark .catalog-theme {
+.dark .interior-theme {
   --color-background: var(--color-classic-ink);
   --color-surface: var(--color-classic-background);
   --color-card: var(--color-surface);
@@ -173,11 +173,35 @@
 
 .classic-hero {
   /* One image with the archive's dark scrim, eased at the edges to show the art. */
-  background-image:
-    linear-gradient(180deg, color-mix(in srgb, var(--color-black) 48%, transparent), color-mix(in srgb, var(--color-black) 65%, transparent) 68%, color-mix(in srgb, var(--color-black) 76%, transparent)),
-    url('/hero-fractal.jpg');
-  background-position: center;
-  background-size: cover;
+  --classic-backdrop: url('/hero-fractal.jpg');
+  --classic-scrim: linear-gradient(180deg, color-mix(in srgb, var(--color-black) 48%, transparent), color-mix(in srgb, var(--color-black) 65%, transparent) 68%, color-mix(in srgb, var(--color-black) 76%, transparent));
+}
+
+.classic-hero, .classic-stats {
+  position: relative;
+  isolation: isolate;
+  /* Clip the art to the section without changing its viewport coordinates. */
+  clip-path: inset(0);
+}
+
+.classic-hero::before, .classic-stats::before,
+.classic-hero::after, .classic-stats::after {
+  content: '';
+  inset: 0;
+  pointer-events: none;
+}
+
+.classic-hero::before, .classic-stats::before {
+  /* Use a fixed layer rather than background-attachment on touch browsers. */
+  position: fixed;
+  z-index: -2;
+  background: var(--classic-backdrop) center / cover no-repeat;
+}
+
+.classic-hero::after, .classic-stats::after {
+  position: absolute;
+  z-index: -1;
+  background: var(--classic-scrim);
 }
 
 /* 2022 content and footer tones. They're editorial, not theme overrides. */
@@ -201,7 +225,8 @@
 }
 
 .classic-stats {
-  background-image: linear-gradient(var(--classic-archive-shade), var(--classic-archive-shade)), url('/stats-2022.webp');
+  --classic-backdrop: url('/stats-2022.webp');
+  --classic-scrim: var(--classic-archive-shade);
 }
 
 .classic-pledge {
@@ -209,13 +234,6 @@
   background-image: linear-gradient(var(--classic-archive-shade), var(--classic-archive-shade)), url('/pledge-sky-2022.jpg');
   /* Keep the archived charcoal showing through the near-black image. */
   background-blend-mode: normal, screen;
-}
-
-@media (min-width: 64rem) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .classic-hero, .classic-stats {
-    /* Keep the scrim with its section and the image pinned to the viewport. */
-    background-attachment: scroll, fixed;
-  }
 }
 
 @layer base {

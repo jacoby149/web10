@@ -98,6 +98,40 @@ class TransportTests(unittest.TestCase):
                         self.assertEqual(call(), b'')
                 self.assertEqual(submitted.call_count, 1)
 
+    def test_settled_optimize_no_op_abort_is_banked_not_repeated(self):
+        settled = dict(type='ExceptionBeforeStart', exception_code=236,
+            exception="Code: 236. DB::Exception: Cancelled merging parts. (ABORTED)")
+        for sql, kind, allowed in (
+                ('OPTIMIZE TABLE documents FINAL', 'write', True),
+                (' OPTIMIZE TABLE documents', 'write', True),
+                ('UPDATE _row_exists = 0 WHERE doc_id IN (\'x\')', 'write', False),
+                ('OPTIMIZE TABLE documents FINAL', 'read', False)):
+            with self.subTest(sql=sql, kind=kind), tempfile.TemporaryDirectory() as directory:
+                session = self.session(directory)
+                process = Mock(returncode=0)
+                process.poll.return_value = 0
+                def spawn(command, **kwargs):
+                    kwargs['stdin'].read()
+                    return process
+                def observe(*args, data, **kwargs):
+                    if data == b'SYSTEM FLUSH LOGS':
+                        return b''
+                    return json.dumps({'data': [settled]}).encode()
+                with patch.object(native.subprocess, 'Popen', side_effect=spawn), \
+                        patch.object(native.restore, 'command', side_effect=observe):
+                    if allowed:
+                        raw = native.await_query(session, ['client'], 'fanout-f-settled', 600,
+                            sql=sql, statement_kind=kind)
+                        receipt = json.loads((Path(directory) / 'native-operations' / 'fanout-f-settled'
+                            / 'receipt.json').read_bytes())
+                        self.assertEqual(receipt['outcome'], 'NATIVE_FINISH')
+                        self.assertIs(receipt['settled_no_op'], True)
+                        self.assertEqual(raw, b'')
+                    else:
+                        with self.assertRaisesRegex(ValueError, 'never repeat it'):
+                            native.await_query(session, ['client'], 'fanout-f-settled', 600,
+                                sql=sql, statement_kind=kind)
+
     def test_caller_carries_the_exact_existing_prefix_classification(self):
         for sql in (' SELECT 1', ' INSERT INTO copy SELECT 1', 'ALTER TABLE copy ADD COLUMN n UInt8',
                 'OPTIMIZE TABLE copy', 'CREATE TABLE copy (n UInt8)', 'INSERT\nINTO copy SELECT 1'):
