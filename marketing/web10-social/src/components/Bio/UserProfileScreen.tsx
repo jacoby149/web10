@@ -37,6 +37,7 @@ import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
 import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, LayoutGrid, Clapperboard, Music, User, Bookmark, Store, Pin } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
+import { ProfileAffiliationFields, ProfileAffiliationRows } from './ProfileAffiliations';
 import { PostBodyInline } from '@/components/Feed/PostBody';
 import { ProfileViewToggle, type ProfileViewMode } from './ProfileViewToggle';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
@@ -1113,6 +1114,7 @@ export default function UserProfileScreen({ username, provider: requestedProvide
                     placeholder="Location"
                     className="max-w-md"
                   />
+                  <ProfileAffiliationFields profile={draft} disabled={saving} onChange={(field, value) => setDraft(current => ({ ...current, [field]: value }))} />
                   <div className="flex gap-2">
                     <Button size="sm" variant="brand" onClick={handleSave} disabled={saving} data-testid="save-profile-button" className="gap-1.5">
                       <Check className="w-3.5 h-3.5" />
@@ -1137,6 +1139,7 @@ export default function UserProfileScreen({ username, provider: requestedProvide
                   {profile?.bio && (
                     <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap max-w-2xl">{profile.bio}</p>
                   )}
+                  <ProfileAffiliationRows profile={profile} />
                   {profile?.location && (
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                       <MapPin className="w-3.5 h-3.5" />

@@ -37,6 +37,7 @@ function createIntent(row: SavedUpload): DeferredIntent {
   if (draft.markAsMusic) tags.push('music');
   return { service: 'posts', groups: [...draft.groups], author_as: draft.authorAs,
     body: { title: draft.title || undefined, text: draft.text, mention_usernames: mentionedUsernames(draft.text), visibility: draft.visibility,
+      ...(draft.locationName ? { location: { name: draft.locationName } } : {}),
       media_refs: row.media_doc_id ? [row.media_doc_id] : [], tags: tags.length ? tags : undefined },
     ad_preference: draft.pinnedAdId ? { mode: 'pinned', target: draft.pinnedAdId } : { mode: 'none' } };
 }

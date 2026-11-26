@@ -3,6 +3,7 @@ import { identityKey, type UploadIdentity } from './uploadApi';
 
 export interface SavedVideoDraft {
   title: string; text: string; visibility: MediaPostDraft['visibility']; authorAs?: string;
+  locationName?: string;
   authorLabel: string; groups: string[]; pinnedAdId?: string; markAsMusic: boolean;
   width: number; height: number; duration: number; altText: string;
 }
@@ -23,6 +24,7 @@ function validate(row: SavedUpload, owner: UploadIdentity) {
     || !row.file || !Number.isSafeInteger(row.file.size) || row.file.size <= 0 || typeof row.file.name !== 'string'
     || typeof row.file.type !== 'string' || !row.file.type.startsWith('video/') || !Number.isFinite(row.file.lastModified)
     || !row.draft || typeof row.draft.title !== 'string' || typeof row.draft.text !== 'string' || !Array.isArray(row.draft.groups)
+    || row.draft.locationName !== undefined && (typeof row.draft.locationName !== 'string' || row.draft.locationName.length > 160)
     || !row.draft.groups.length || row.draft.groups.some(group => typeof group !== 'string' || !group)
     || typeof row.draft.authorLabel !== 'string' || typeof row.draft.markAsMusic !== 'boolean'
     || [row.draft.width, row.draft.height, row.draft.duration].some(value => !Number.isFinite(value) || value < 0)
@@ -42,6 +44,7 @@ function snapshot(row: SavedUpload, revision: number): SavedUpload {
     phase: row.phase, created_at: row.created_at, uploaded_bytes: row.uploaded_bytes,
     file: { name: row.file.name, type: row.file.type, size: row.file.size, lastModified: row.file.lastModified },
     draft: { title: draft.title, text: draft.text, visibility: draft.visibility, authorAs: draft.authorAs,
+      ...(draft.locationName ? { locationName: draft.locationName } : {}),
       authorLabel: draft.authorLabel, groups: [...draft.groups], pinnedAdId: draft.pinnedAdId, markAsMusic: draft.markAsMusic,
       width: draft.width, height: draft.height, duration: draft.duration, altText: draft.altText },
     checksum_sha256: row.checksum_sha256, media_doc_id: row.media_doc_id, deferred_admitted: row.deferred_admitted,
@@ -104,6 +107,7 @@ export async function saveUpload(row: SavedUpload, expectedRevision: number | nu
 export function videoDraft(draft: MediaPostDraft, groups: string[]): SavedVideoDraft {
   const media = draft.media[0];
   return { title: draft.title, text: draft.text, visibility: draft.visibility, authorAs: draft.authorAs, authorLabel: draft.authorLabel,
+    ...(draft.locationName ? { locationName: draft.locationName } : {}),
     groups: [...groups], pinnedAdId: draft.pinnedAdId, markAsMusic: draft.markAsMusic,
     width: media.width, height: media.height, duration: media.duration, altText: media.altText };
 }

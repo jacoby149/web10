@@ -1,7 +1,7 @@
 import { getV3Client } from './v3';
 import { followersGroupId, ensureFollowers } from './groups';
 import { resolveMediaRefs } from './posts';
-import { fromV3DocToProfile, type ProfileRecord } from './types';
+import { fromV3DocToProfile, normalizeProfileAffiliation, type ProfileRecord } from './types';
 
 // ── Profile data layer (v3) ──────────────────────────────────────────────────
 // Profile is a document in the `profile` collection. One record per user.
@@ -61,56 +61,19 @@ export async function readProfile(): Promise<ProfileRecord | null> {
   };
 }
 
-/**
- * Ensure the current user has a public profile face (the D0 directory's
- * precondition). A user's face is a `profile` doc in their followers group,
- * and the public people directory (D0) only lists users who have a readable
- * face — so an account that never opened its profile screen is ABSENT from
- * the directory, even though its followers group is public-by-default
- * (3.149.0). This closes that gap: on sign-in the app seeds a minimal public
- * face (display_name = the username) when none exists, so every account is
- * discoverable from birth.
- *
- * Idempotent + non-clobbering: it reads first and only WRITES when there is
- * no profile doc at all. It never overwrites a face the user has already
- * edited (display_name / bio / avatar / banner) — a present doc is left
- * untouched. Runs client-side (D60: the app owns the face; the node stays
- * generic). A failure is a benign degrade (the face is re-seeded on the next
- * sign-in) — it never blocks the session.
- */
-export async function ensureProfile(): Promise<void> {
+/** Sign-in sets up the followers group, not a profile document. The directory
+ * can display the account username when its readable group has no custom face. */
+export async function ensureProfileDirectoryGroup(): Promise<void> {
   const w = getV3Client();
   const token = w.readToken();
   if (!token) return;
 
   try {
-    // Ensure the home group exists + is public (the `anyone` read grant) before
-    // writing — the same guarantee saveProfile relies on.
-    const groupId = await ensureFollowers(token.username, token.provider);
-
-    // A face already exists → leave it alone (never clobber user edits).
-    try {
-      const docs = await w.read('profile', { groups: [groupId] });
-      if (docs.length > 0) {
-        LOG('ensureProfile — face already exists, no-op');
-        return;
-      }
-    } catch (e) {
-      // No readable face (or no group yet) — fall through to create.
-      LOG('ensureProfile — no readable face yet:', String(e));
-    }
-
-    // Seed a minimal public face. display_name = the username so the card has a
-    // name even before the user edits anything.
-    LOG('ensureProfile — seeding default face for', token.username);
-    const doc = await w.create('profile', { display_name: token.username }, { groups: [groupId] });
-    LOG('ensureProfile — created face:', doc.doc_id);
+    LOG('ensureProfileDirectoryGroup — checking followers group');
+    await ensureFollowers(token.username, token.provider);
+    LOG('ensureProfileDirectoryGroup — followers group ready');
   } catch (e) {
-    // A failure is a benign degrade (the face is re-seeded on the next sign-in)
-    // — it never blocks the session. The most common cause is a sign-out
-    // mid-flight ("No token available", a 401) — a normal lifecycle event. Warn,
-    // not error (console.error would trip the e2e console-error gauntlet).
-    LOG_WARN('ensureProfile — skipped (will retry next sign-in):', e);
+    LOG_WARN('ensureProfileDirectoryGroup — setup skipped; sign-in continues:', e);
   }
 }
 
@@ -129,6 +92,8 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
     bio: profile.bio,
     website: profile.website,
     location: profile.location,
+    ...(profile.workplace !== undefined ? { workplace: normalizeProfileAffiliation(profile.workplace) } : {}),
+    ...(profile.school !== undefined ? { school: normalizeProfileAffiliation(profile.school) } : {}),
     // The pin list (profile-pins.md) rides the face doc. Written only when the
     // caller supplied it: a partial save that doesn't know the current pins
     // must not null them out. Callers that edit other face fields carry the
@@ -142,14 +107,15 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
   const groupId = await ensureFollowers(token.username, token.provider);
   LOG('saveProfile — followers group ready:', groupId);
 
-  // The profile is ONE doc per user. Find the existing doc (the sign-in seed
-  // from ensureProfile, or a prior save) and update it in place — a create
-  // would leave a stale duplicate the read side has to dedupe. The caller's
+  // The profile is ONE doc per user. Update an existing doc in place instead
+  // of creating a duplicate the read side has to dedupe. The caller's
   // `_id` wins when present; otherwise read the group for the current doc.
   let existingId = profile._id;
   if (!existingId) {
+    LOG('saveProfile — checking for existing profile');
     try {
       const docs = await w.read('profile', { groups: [groupId] });
+      LOG('saveProfile — existing-profile lookup completed:', docs.length);
       if (docs.length > 0) {
         const latest = docs.reduce((a, b) =>
           (a.updated_at ?? '') >= (b.updated_at ?? '') ? a : b,
@@ -157,7 +123,8 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
         existingId = latest.doc_id;
       }
     } catch (e) {
-      LOG('saveProfile — existing-doc read failed (will create):', String(e));
+      LOG_WARN('saveProfile — existing-profile lookup failed; no profile written');
+      throw e;
     }
   }
 

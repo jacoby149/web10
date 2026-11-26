@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.2 local; production data repair open] **SOCIAL-PROFILE-LOOKUP-WRITES** — remove placeholder profile writes from sign-in while preserving followers-group setup and the account-username directory fallback. Only an explicit save with a successful empty lookup can create a profile. Do not substitute older data on reads or repair duplicates automatically.
+
 - [✓ 6.28.9 model and plan only] **RD4-HYBRID-K20-PREFLIGHT** — bank the no-engine ordered K20 and fault fixture; separate modeled scans, native logical bytes and R630 physical disk allowance. [Findings and gates](../../research/experiments/costfn/HYBRID-K20-PREFLIGHT.md).
 - [✓ 6.28.10 source only] **RD4-HYBRID-K20-CURRENT-ADAPTER** — reuse the original indexed HTTP/oracle path and reconcile its SQL hashes, exact native receipts, per-stage memory and complete wall time. Offline controls only; not a slice or native parity verdict.
 - [✓ 6.28.11 source only] **RD4-HYBRID-K20-SLICE-SOURCE** — build the fixed slice and baseline-only runner; require unsliced oracle parity before measurement. Native reproduction remains open; no lease consumed.
@@ -901,6 +903,8 @@ retired in 3.0.61 and never rewritten. "Done" = the app signs in
 through the real D42 popup, every screen works against the v3 API,
 video plays through the HLS pipeline, and a browser e2e gauntlet
 proves it.
+
+- [✓ 6.32.0 local] **SOCIAL-PROFILE-AFFILIATIONS-POST-LOCATION** — optional Works at and Studied at autocomplete, plus post city search and tap-to-fill nearby city. Manual labels remain valid; GPS stays local and only the selected name follows the existing post audience. [Contract](../web10-v3/social/profile-affiliations-and-post-location.md).
 
 - [✓ 6.29.8 local] **SOCIAL-CLAMP-LAYOUT-LOOP** — measure natural post height with clamp styles cleared to prevent React #185; keep the toggle and cover signed-in card rendering and resize across the threshold.
 

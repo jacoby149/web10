@@ -575,6 +575,21 @@ export interface MediaUploadRequest {
 
 // ── Profile ─────────────────────────────────────────────────────────────────
 
+export interface ProfileAffiliation {
+  name: string;
+  directoryId?: string;
+}
+
+export function normalizeProfileAffiliation(value: unknown): ProfileAffiliation | null {
+  if (!value || typeof value !== 'object') return null;
+  const { name, directoryId } = value as Partial<ProfileAffiliation>;
+  if (typeof name !== 'string' || !name.trim()) return null;
+  return {
+    name: name.trim().slice(0, 160),
+    ...(typeof directoryId === 'string' && /^(?:ror:[a-z0-9]{9}|sec:\d{1,10})$/.test(directoryId) ? { directoryId } : {}),
+  };
+}
+
 export interface ProfileRecord {
   _id?: string;
   display_name?: string;
@@ -583,6 +598,8 @@ export interface ProfileRecord {
   bio?: string;
   website?: string;
   location?: string;
+  workplace?: ProfileAffiliation | null;
+  school?: ProfileAffiliation | null;
   /** The post doc_ids pinned to the top of the owner's profile Posts tab
    *  (social/profile-pins.md). Order = display order (index 0 = top); at most
    *  3 (MAX_PROFILE_PINS, profilePins.ts). A doc-id-only list — never an
@@ -601,6 +618,8 @@ export function fromV3DocToProfile(doc: V3Document): ProfileRecord {
     bio: (body.bio as string) || undefined,
     website: (body.website as string) || undefined,
     location: (body.location as string) || undefined,
+    workplace: normalizeProfileAffiliation(body.workplace) ?? undefined,
+    school: normalizeProfileAffiliation(body.school) ?? undefined,
     // The wire is not trusted to be tidy: string ids only, deduped, capped at
     // the pin limit (the same normalization the data layer applies — keep the
     // two in step, profile-pins.md).

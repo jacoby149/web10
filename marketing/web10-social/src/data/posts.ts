@@ -518,7 +518,7 @@ export async function readPostById(docId: string, surface?: string): Promise<Pos
  */
 export async function updatePost(
   docId: string,
-  updates: Partial<PostRecord>,
+  updates: Partial<Omit<PostRecord, 'location'>> & { location?: PostRecord['location'] | null },
   adPreference?: { mode: 'none' | 'pinned'; target?: string },
   authorAs?: string,
 ): Promise<PostRecord> {

@@ -318,7 +318,7 @@ export async function readCollection(groupId?: string): Promise<unknown> {
   };
 }
 // readUserPublicProfile lives below (the real impl, keyed by username).
-export async function saveProfile(): Promise<void> {}
+export async function saveProfile<T>(profile: T): Promise<T> { return profile; }
 export async function readMyPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 export async function readFollowsByUser(): Promise<unknown[]> { return []; }
 export async function followUser(): Promise<unknown> { return {}; }
