@@ -27,7 +27,7 @@ async function theme(page, expected) {
     background: getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim(),
   }));
   assert.equal(state.scheme, expected);
-  assert.equal(state.meta, expected === 'dark' ? '#09090b' : '#fafafa');
+  assert.equal(state.meta, expected === 'dark' ? '#2b2f32' : '#fafafa');
   assert.equal(state.background, state.meta);
 }
 try {
@@ -48,7 +48,8 @@ try {
     await theme(page, mode);
     assert.equal(await page.getByRole('radio', { name: 'System', exact: true }).isChecked(), true);
     const logo = page.getByTestId('brand-logo').filter({ visible: true });
-    assert.equal(await logo.getAttribute('src'), mode === 'dark' ? '/keys-mark.png' : '/keys-mark-dark.png');
+    assert.equal(await logo.getAttribute('src'), '/keys-mark-dark.png');
+    assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
     assert.ok(await logo.evaluate(el => el.complete && el.naturalWidth > 0), 'configured artwork decoded');
     const artwork = await page.evaluate(async () => {
       const read = async src => {
@@ -123,11 +124,12 @@ try {
     await isolated(context);
     await context.addInitScript(({ key, saved }) => { if (saved !== null) localStorage.setItem(key, saved); }, { key, saved });
     const page = await context.newPage();
-    await page.route('**/src/main.tsx', route => route.abort());
+    await page.route(url => url.pathname === '/src/main.tsx', route => route.abort());
     await page.goto(origin, { waitUntil: 'domcontentloaded' });
     const expected = saved === 'light' ? 'light' : 'dark';
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), expected);
     assert.equal(await page.evaluate(() => document.documentElement.style.colorScheme), expected);
+    assert.equal(await page.locator('meta[name="theme-color"]').getAttribute('content'), expected === 'dark' ? '#2b2f32' : '#fafafa');
     assert.equal(await page.locator('#root').innerHTML(), '');
     await context.close();
   }

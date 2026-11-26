@@ -152,12 +152,12 @@ export default function ActingIdentitySwitcher({ personalName, personalAvatar, o
       if (!open) { setPending(selected); setQuery(''); }
       console.log('[social-identity] picker toggled', { open: !open }); setOpen(!open);
     }}
-      className="flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-2 py-0 text-left hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-auto md:min-h-11 md:px-3 md:py-2" data-testid="acting-identity-trigger">
-      <Avatar className="h-8 w-8">{selected ? selectedFace?.id === selected && selectedFace.avatarUrl && <AvatarImage src={selectedFace.avatarUrl} alt="" /> : personalAvatar && <AvatarImage src={personalAvatar} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{name?.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
+      className="flex h-11 max-w-full items-center gap-2 rounded-lg border border-border bg-surface px-2 py-0 text-left hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-auto md:min-h-11 md:px-3 md:py-2" data-testid="acting-identity-trigger">
+      <Avatar className="h-8 w-8 shrink-0">{selected ? selectedFace?.id === selected && selectedFace.avatarUrl && <AvatarImage src={selectedFace.avatarUrl} alt="" /> : personalAvatar && <AvatarImage src={personalAvatar} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{name?.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
       <span className="min-w-0"><span className="block whitespace-nowrap text-xs text-muted-foreground">Acting as</span><span className="block max-w-24 truncate text-sm font-medium md:max-w-32">{name}</span></span>
-      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>;
-  return <div ref={root} className="relative min-w-0 shrink-0" data-testid="acting-identity">
+  return <div ref={root} className="relative min-w-0 md:shrink-0" data-testid="acting-identity">
     {onViewProfile ? <DropdownMenu.Root open={profileOpen} modal={false} onOpenChange={next => { setProfileOpen(next); if (next) setOpen(false); console.log('[social-profile] profile menu toggled', { open: next }); }}>
       <DropdownMenu.Trigger asChild>{navigationTrigger}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>

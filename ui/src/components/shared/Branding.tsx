@@ -3,18 +3,20 @@ import { useTheme } from '@/lib/theme';
 
 interface BrandingProps {
   I: Record<string, any>;
-  // sm = in-shell lockup (sidebar/topbar); lg = the auth-page hero mark.
+  // sm = compact lockup; lg = the auth-page hero mark.
   size?: 'sm' | 'lg';
   tagline?: boolean;
+  hubHeader?: boolean;
 }
 
-function Branding({ I, size = 'lg', tagline = true }: BrandingProps) {
+function Branding({ I, size = 'lg', tagline = true, hubHeader = false }: BrandingProps) {
   // Defaults are the canonical theme pair; a node may configure its own.
   // Custom artwork can be missing on a deploy — never show a broken
   // <img>. If it fails to load, drop it and let the wordmark carry the brand
   // (design.md §1: "no broken image icons").
   const { resolved } = useTheme();
-  const logo = (resolved === 'light' ? I.config?.REACT_APP_LOGO_LIGHT : I.config?.REACT_APP_LOGO_DARK) || I.logo;
+  const logo = hubHeader ? I.config?.REACT_APP_LOGO_LIGHT || '/keys-mark-dark.png'
+    : (resolved === 'light' ? I.config?.REACT_APP_LOGO_LIGHT : I.config?.REACT_APP_LOGO_DARK) || I.logo;
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const showLogo = logo && failedLogo !== logo;
 
@@ -29,13 +31,13 @@ function Branding({ I, size = 'lg', tagline = true }: BrandingProps) {
           <img
             className={`${markSize} object-contain`}
             src={logo}
-            alt="web10"
+            alt=""
             onError={() => setFailedLogo(logo)}
             data-testid="brand-logo"
           />
         )}
-        <span className={`font-display font-semibold tracking-tight text-foreground ${wordSize}`}>
-          web10
+        <span className={`whitespace-nowrap font-display font-semibold tracking-tight ${hubHeader ? 'text-hub-ink' : 'text-foreground'} ${wordSize}`}>
+          web10{hubHeader && ' hub'}
         </span>
       </div>
       {tagline && large && (

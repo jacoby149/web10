@@ -84,6 +84,8 @@ checks are separate gates.
 - [ ] **Music and feed Android system-control acceptance** — verify on a physical Android Chrome/PWA device: start music from both Discover and Following, switch apps/lock/unlock, notification/headset play/pause and resume position; repeat with an ordinary feed audio clip and video. Check ownership switches, muted previews, leaving the feed and no stale Music resume. Owns social Music/feed transport and focused browser/device receipts, not API/SDK/auth. Gates: 6.2.0 implementation, device access and approved account/media; no production writes or deployment implied. Acceptance: dated device/browser evidence for supported actions, explicit browser/background suspension limits and both glass widgets readable without clipping.
 
 ### Lane: authenticator-navigation-glass
+
+- [✓ 6.32.4 local] **Hub navigation and blue header** — dock at every width, ice-blue Hub and sign-in chrome and no sidebar promos. Keep role-based navigation and account controls. Social keeps the keys and adds “social” to its wordmark; App Store artwork is unchanged. Avatar interop follows separately.
 **Owns:** `ui/src/components/shared/{MobileNav,AppShell,DockGlass}.tsx`, `ui/src/lib/glassLens.ts`, navigation material tokens/CSS and focused UI/browser fixtures; serialized design/plan/changelog updates. No auth interface, credentials, consent, API, SDK or social runtime changes.
 
 **Appearance extension (operator, 11.11.2026):** also owns authenticator theme hook/startup, palette and brand selection, Settings Appearance/public page/login link, App query routing, Docker shared-store copy and focused tests/browser fixtures. Shared appearance implementation is reused read-only. Credential/consent behavior and auth interfaces remain untouched.

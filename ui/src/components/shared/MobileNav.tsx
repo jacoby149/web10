@@ -5,9 +5,7 @@ interface MobileNavProps {
   I: Record<string, any>;
 }
 
-// Mobile bottom-nav shell (design.md §9) — desktop gets the fixed
-// SideBar, mobile gets this. Same destinations as SideBar's authenticated
-// menu; keep them in sync if that list changes.
+// The social-style dock is the Hub's primary navigation at every width.
 const ITEMS = [
   { mode: 'contracts', label: 'App permissions', compactLabel: 'Apps', icon: FileText },
   { mode: 'groups', label: 'Group permissions', compactLabel: 'Groups', icon: Users },
@@ -27,7 +25,7 @@ function MobileNav({ I }: MobileNavProps) {
 
   return (
     <nav
-      className="auth-mobile-dock fixed inset-x-3 z-40 mx-auto flex items-center p-2 md:hidden"
+      className="auth-mobile-dock fixed inset-x-3 z-40 mx-auto flex items-center p-2"
       aria-label="Console navigation"
       data-testid="mobile-nav"
     >
@@ -37,7 +35,7 @@ function MobileNav({ I }: MobileNavProps) {
         const active = I.mode === mode;
         return (
           <button
-            key={mode}
+              key={mode}
             type="button"
             aria-label={label}
             title={label}
