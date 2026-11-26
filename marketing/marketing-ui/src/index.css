@@ -124,8 +124,8 @@
   --color-accent-foreground: var(--color-foreground);
 }
 
-/* Home hero, shared navigation and video controls keep the dark palette in Light. */
-.classic-surface, :where([data-testid="hls-video-player"], [data-testid="player-controls"]) {
+/* Fixed dark regions and the catalog's Dark appearance share Home's palette. */
+.classic-surface, .dark .catalog-theme, :where([data-testid="hls-video-player"], [data-testid="player-controls"]) {
   color-scheme: dark;
   /* Inherited color must follow the scope too — the page root's type has no
      text-foreground class, so without this a light-theme visit inherits the
@@ -161,6 +161,14 @@
   --color-danger: #ef4444;
   --color-destructive: #ef4444;
   --color-danger-muted: #450a0a;
+}
+
+.dark .catalog-theme {
+  --color-background: var(--color-classic-ink);
+  --color-surface: var(--color-classic-background);
+  --color-card: var(--color-surface);
+  --color-popover: var(--color-surface);
+  --color-elevated: var(--color-classic-surface);
 }
 
 .classic-hero {

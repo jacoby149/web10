@@ -117,12 +117,12 @@ function CardContent({
   if (size === 'plug') {
     return (
       <div className={cn(catalogCard, 'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 p-4 sm:items-start sm:gap-x-4 sm:gap-y-1 sm:p-5')}>
-        <div className="sm:row-span-2">{iconBlock}</div>
+        <div className="sm:row-span-2 sm:self-center">{iconBlock}</div>
         <div className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
           <span className="max-w-full truncate text-lg leading-tight font-semibold text-foreground">{name}</span>
           {badgeEl}
         </div>
-        <div className="sm:row-span-2">{openBtn}</div>
+        <div className="sm:row-span-2 sm:self-center">{openBtn}</div>
         <div className="col-span-3 flex flex-col gap-1 sm:col-span-1 sm:col-start-2">
           <p className="text-sm leading-snug text-muted-foreground sm:text-base">{description}</p>
           {visitsEl}
