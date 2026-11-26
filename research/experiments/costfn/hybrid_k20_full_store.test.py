@@ -148,6 +148,29 @@ class ChunkedSatelliteBuild(unittest.TestCase):
         self.assertEqual(proof['copy_chunks'], 1)
 
 
+class SeedDayBucketsRepair(unittest.TestCase):
+    def test_int_admission_value_normalizes_to_the_banked_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps(dict(aggregate_seed_day_buckets=4096)))
+            with patch.object(runner.modern, 'admitted'), \
+                    patch.object(runner.modern.arm_t, 'digitalocean_id', return_value=1):
+                actions = runner.Actions(root, Mock())
+            self.assertIsNone(actions.approval['aggregate_seed_day_buckets'])
+            self.assertEqual(actions.approval['aggregate_seed_day_buckets_repaired_from'], 4096)
+
+    def test_dict_admission_value_passes_through_untouched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps(
+                dict(aggregate_seed_day_buckets={'2026-01-01': 4})))
+            with patch.object(runner.modern, 'admitted'), \
+                    patch.object(runner.modern.arm_t, 'digitalocean_id', return_value=1):
+                actions = runner.Actions(root, Mock())
+            self.assertEqual(actions.approval['aggregate_seed_day_buckets'], {'2026-01-01': 4})
+            self.assertNotIn('aggregate_seed_day_buckets_repaired_from', actions.approval)
+
+
 class Driver(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())

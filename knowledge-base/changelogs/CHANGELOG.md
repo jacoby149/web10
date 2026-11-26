@@ -1,3 +1,6 @@
+6.30.7 || 25.11.2026
+research: the full-store hybrid runner now normalizes a malformed `aggregate_seed_day_buckets` admission value (an int where the banked seed planner owns a {day: buckets} dict) to the banked default — one slice per owned day, with the all-time backfill's bounded batches internal — and records the repair in the task receipt's admission copy. Two new controls. No engine, host or admission-document change.
+
 6.30.6 || 25.11.2026
 research: the one-shot K20 count setup now re-enters a completed build on task-mode resume: a finished result.json (operator-approved kind, SPOTS_PASS outcome, unchanged canonical generation) is the authority and skips the rebuild; a mid-build or unrecognized output is still refused, and a fresh root still builds exactly once. Three new controls in engagement_prepared.test.py. No engine, host or admission change.
 
