@@ -1,3 +1,6 @@
+6.29.8 || 25.11.2026
+fix(social): stop the signed-in feed crash (React #185) when clamping a post makes its reported scroll height shrink. Measure the natural height before deciding whether to clamp, preserve See more/See less, and cover the failing layout and resize path.
+
 6.29.7 || 25.11.2026
 fix(marketing): render the bundled founder portrait through the shared image component so the media inventory passes without an exception. Keep its square crop and lazy loading, and retry the same local asset after a load error.
 

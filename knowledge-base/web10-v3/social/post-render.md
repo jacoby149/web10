@@ -231,7 +231,10 @@ surface it is shared with.** The rule:
   "over 20 lines" line — is essay-length; everything else renders exactly as
   it did before (no clamp style, no toggle, zero drift). The gate is measured
   from the real layout (`scrollHeight`, a `useLayoutEffect` before paint,
-  re-measured on resize) — never guessed from the string.
+   re-measured on resize) — never guessed from the string. Always measure
+   with the clamp styles removed, then restore them before paint. A clamped
+   box can report clipped scroll height; feeding that back into the essay
+   gate can cause React to alternate layouts until it crashes.
 - **The clamp budgets** (the resting state, collapsed): **6 lines on the card**
   (the teaser's height budget, the `line-clamp-6` idiom), **12 lines on the
   detail surfaces** (a reading column earns the bigger budget). The clamp is
