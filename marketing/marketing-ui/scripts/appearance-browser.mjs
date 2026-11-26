@@ -15,6 +15,7 @@ const server = spawn('bunx', ['vite', '--host', '127.0.0.1', '--port', String(po
 let browser;
 const key = 'web10-marketing:theme';
 const appUrl = 'https://social.web10.app';
+const socialIconBlue = [4, 103, 242, 255];
 const activeUsers = { users_1d: 0, users_30d: 0, users_90d: 0, users_1y: 0 };
 const receipts = [];
 const waitTheme = (page, value) => page.waitForFunction(theme => document.documentElement.dataset.theme === theme, value);
@@ -357,7 +358,7 @@ try {
         if (name === 'app-store') {
           await page.getByTestId('browse-card-0').waitFor();
           assert.equal(await page.getByTestId('plug-slot-1').count(), 0);
-          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-conversation-pair.png"]'), [255, 255, 255, 255]);
+          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-conversation-pair.png"]'), socialIconBlue);
           await verifyCatalogIcon(page.getByTestId('browse-section').getByRole('img', { name: 'web10 hub' }), [9, 9, 11, 255]);
           const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
             const css = getComputedStyle(el);
@@ -370,7 +371,7 @@ try {
         } else if (name !== 'home') {
           assert.deepEqual(await readInteriorPalette(page), interiorPalette, `${name} must match the shared interior in ${mode}`);
         }
-        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-conversation-pair.png"]'), [255, 255, 255, 255]);
+        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-conversation-pair.png"]'), socialIconBlue);
         if (['app-store', 'freedom', 'docs', 'appearance'].includes(name)) {
           const art = await readInteriorIntro(page);
           assert.equal(art.kind, name === 'app-store' ? 'store' : name);

@@ -278,6 +278,20 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.24 local] **Social dark sidebar and transparent toolbar mark** — preview the marketing charcoal on desktop Dark and the unboxed PNG on Social's ice-blue toolbar; preserve Join, install, and mobile dock art.
+
+- [✓ 6.32.23 local] **Social ice-blue top bar** — match the shared ice blue in Light and Dark; verify the desktop strip and phone header while retaining the dock and themed panels.
+
+- [✓ 6.32.22 local] **Compact Social identity entry** — place desktop Change identity below Signed in as, remove the sidebar duplicate, and use the active avatar with one label on both layouts. Preserve the confirmed chooser and focus return.
+
+- [✓ 6.32.21 local] **Mobile Social header and identity entry** — remove Acting as from the phone bar; More leads with personal profile, then a separate Change identity action and current posting identity. Preserve desktop, dock, and the chooser's preview/confirmation behavior.
+
+- [✓ 6.32.20 local] **Social rounded-square mark** — use the blue-backed two-person artwork with rounded corners in Social and Join chrome in both themes; leave catalog and install artwork unchanged.
+
+- [✓ 6.32.19 local] **Social blue theme accent (D127)** — Social-only blue brand steps, focus, and glow; verify text/action contrast and the desktop and 375px feed in both appearances. No deployment.
+
+- [✓ 6.32.18 local] **Blue Social app icon** — use the same blue-backed conversation pair in the catalog and on install surfaces. Verify desktop/375px rendering and shipped icon sizes/cache; no physical-device or rollout claim.
+
 - [✓ 6.32.9 local] **Social conversation mark** — use full-body three-person artwork without a background in Social chrome and Join, on white in the App Store. No theme-specific variant or installed-icon change.
 
 - [✓ 5.20.1 local] **Invite exploration from marketing** — operator-approved follow-up to 5.13.1: “Explore web10” on Home/Freedom and “Open web10 social” in desktop/mobile header navigation. Destinations/handlers/analytics unchanged; compact navigation below 1024px avoids tablet overflow. Owns those marketing labels, focused tests and browser captures. All 378 tests/build/typecheck and desktop/375px light/dark browser gate pass, with 768/1280 responsive checks and inspected tablet menu. Synthetic data; no deployment.

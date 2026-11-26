@@ -18,9 +18,9 @@ let browser;
 const receipts = [];
 const key = 'web10-social:theme';
 const theme = (page, expected) => page.waitForFunction(value => document.documentElement.dataset.theme === value, expected);
-async function capture(page, name) {
+async function capture(page, name, fullPage = true) {
   await page.mouse.move(0, 0);
-  await page.screenshot({ path: path.join(output, `${name}.png`), fullPage: true, animations: 'disabled' });
+  await page.screenshot({ path: path.join(output, `${name}.png`), fullPage, animations: 'disabled' });
 }
 try {
   const deadline = Date.now() + 30000;
@@ -98,11 +98,15 @@ try {
       assert.equal(colors.native, mode);
       assert.equal(colors.chrome, colors.background);
       assert.equal(colors.overflow, false);
-      const mark = page.getByTestId('social-conversation-mark').filter({ visible: true });
+      const mark = page.getByTestId('social-header-mark').filter({ visible: true });
       assert.equal((await mark.locator('..').textContent()).trim(), 'web10 social');
+      assert.equal(await mark.locator('..').getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color), 'rgb(6, 78, 174)');
       assert.equal(await mark.getAttribute('src'), '/social-conversation-pair.png');
-      assert.equal(await mark.evaluate(el => el.complete && el.naturalWidth === 256 && getComputedStyle(el).filter === 'none'), true);
-      if (mode === 'light') {
+      assert.deepEqual(await mark.evaluate(el => {
+        const css = getComputedStyle(el);
+        return [el.naturalWidth, css.width, css.height, css.borderTopLeftRadius];
+      }), [256, '32px', '32px', '0px']);
+      {
         const ratios = await page.evaluate(() => {
           const css = getComputedStyle(document.documentElement);
           const value = name => css.getPropertyValue(`--color-${name}`).trim();
@@ -113,17 +117,78 @@ try {
               .map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
             return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
           };
-          const pairs = ['foreground', 'muted-foreground', 'brand-300', 'brand-400', 'success', 'warning', 'danger']
-            .flatMap(fg => ['background', 'surface', 'elevated'].map(bg => [fg, bg]));
-          pairs.push(['brand-300', 'brand-muted'], ['danger', 'danger-muted']);
-          return pairs.map(([fg, bg]) => {
+          const light = document.documentElement.dataset.theme === 'light';
+          const text = ['foreground', 'muted-foreground', 'brand-300', 'brand-400'];
+          if (light) text.push('success', 'warning', 'danger');
+          const pairs = text.flatMap(fg => ['background', 'surface', 'elevated'].map(bg => [fg, bg]));
+          pairs.push(['brand-300', 'brand-muted'], ['brand-foreground', 'brand'], ['brand-foreground', 'brand-600']);
+          if (light) pairs.push(['danger', 'danger-muted']);
+          const brand = value('brand');
+          const ring = value('ring');
+          return { brand, ring, results: pairs.map(([fg, bg]) => {
             const [a, b] = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
             return { fg, bg, ratio: (a + 0.05) / (b + 0.05) };
-          });
+          }) };
         });
-        for (const result of ratios) assert.ok(result.ratio >= 4.5, `${result.fg} on ${result.bg}: ${result.ratio}`);
+        assert.equal(ratios.brand, '#0467f2');
+        assert.equal(ratios.ring, mode === 'light' ? '#0467f2' : '#4c97ff');
+        for (const { fg, bg, ratio } of ratios.results) {
+          assert.ok(ratio >= 4.5, `${mode}: ${fg} on ${bg}: ${ratio}`);
+        }
       }
       await capture(page, `appearance-${mode}-${label}`);
+      const feed = await context.newPage();
+      await feed.goto(`${base}?screen=feed&signin-prompts=1`, { waitUntil: 'networkidle' });
+      await theme(feed, mode);
+      const create = feed.getByRole('button', { name: 'Create a post', exact: true });
+      await create.waitFor();
+      await capture(feed, `feed-${mode}-${label}`, false);
+      if (width < 768) {
+        const header = feed.getByTestId('topbar-mobile');
+        assert.equal(await header.getByTestId('acting-identity-trigger').count(), 0);
+        assert.equal(await header.locator('.wordmark-label').evaluate(el => {
+          const rect = el.getBoundingClientRect();
+          return getComputedStyle(el).fontSize === '16px' && rect.right <= el.closest('header').lastElementChild.getBoundingClientRect().left;
+        }), true, 'full-size wordmark fits beside header controls');
+        await feed.getByTestId('nav-more-mobile').click();
+        const profile = feed.getByTestId('more-profile-card');
+        await profile.getByRole('button', { name: 'View your profile' }).waitFor();
+        const change = profile.getByRole('button', { name: /Change identity/ });
+        assert.equal(await change.getByText('Change identity', { exact: true }).count(), 1);
+        assert.doesNotMatch(await change.innerText(), /Acting as|Nova/);
+        await change.locator('img').waitFor();
+        await capture(feed, `more-${mode}-${label}`, false);
+        await change.click();
+        const chooser = feed.getByRole('dialog', { name: 'Choose acting identity' });
+        await chooser.getByRole('button', { name: 'Close identities' }).click();
+        await change.evaluate(el => { if (document.activeElement !== el) throw new Error('Focus did not return to Change identity'); });
+        await feed.getByRole('dialog', { name: 'More', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
+      } else {
+        assert.equal(await feed.getByRole('navigation', { name: 'Primary', exact: true }).getByTestId('acting-identity-trigger').count(), 0);
+        await feed.getByTestId('user-menu-trigger').click();
+        const account = feed.getByRole('dialog', { name: 'Account', exact: true });
+        await account.getByText('Signed in as').waitFor();
+        const change = account.getByRole('button', { name: 'Change identity', exact: true });
+        await change.locator('img').waitFor();
+        await capture(feed, `account-${mode}-${label}`, false);
+        await change.click();
+        const chooser = feed.getByRole('dialog', { name: 'Choose acting identity' });
+        await chooser.waitFor();
+        const bounds = await chooser.boundingBox();
+        assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width, 'chooser stays inside the desktop viewport');
+        await feed.keyboard.press('Escape');
+        await chooser.waitFor({ state: 'hidden' });
+        assert.equal(await account.isVisible(), true);
+        await feed.keyboard.press('Escape');
+        await account.waitFor({ state: 'hidden' });
+      }
+      await create.click();
+      await feed.getByTestId('composer-textarea').fill('A little blue looks good around here.');
+      const submit = feed.getByTestId('post-submit');
+      await submit.waitFor();
+      assert.equal(await submit.isEnabled(), true);
+      await capture(feed, `compose-${mode}-${label}`, false);
+      await feed.close();
     }
 
     await page.getByRole('radio', { name: 'Light', exact: true }).check();
@@ -136,7 +201,10 @@ try {
       await theme(page, 'light');
       if (screen === 'watch-hls') {
         await page.getByTestId('hls-video-player').waitFor();
-        assert.equal(await page.getByTestId('hls-video-player').evaluate(el => getComputedStyle(el).getPropertyValue('--color-foreground').trim()), '#fafafa');
+        assert.deepEqual(await page.getByTestId('hls-video-player').evaluate(el => {
+          const css = getComputedStyle(el);
+          return ['foreground', 'brand-300', 'ring'].map(name => css.getPropertyValue(`--color-${name}`).trim());
+        }), ['#fafafa', '#a8ceff', '#4c97ff']);
       }
       await capture(page, `${screen}-light-${label}`);
       if (screen === 'shorts') {
@@ -154,7 +222,7 @@ try {
       }
     }
     assert.deepEqual(errors, []);
-    receipts.push({ width, keyboardRadios: true, liveDevice: true, overrideReload: true, crossTab: true, signedOut: true, paletteAndChrome: true, lightTextAA: true, errors });
+    receipts.push({ width, keyboardRadios: true, liveDevice: true, overrideReload: true, crossTab: true, signedOut: true, paletteAndChrome: true, blueAccentContrast: true, errors });
     await context.close();
   }
 

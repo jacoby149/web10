@@ -1,3 +1,24 @@
+6.32.24 || 26.11.2026
+style(social): use marketing charcoal for the desktop sidebar in Dark mode, place the transparent conversation PNG directly on the ice-blue bar, and color the wordmark’s “10” blue. Keep Join and install artwork, Light mode's sidebar, and the mobile dock unchanged.
+
+6.32.23 || 26.11.2026
+style(social): match Hub and marketing with a divider-free, solid ice-blue top bar and dark controls in both themes. Keep the feed, menus, and mobile dock on their existing surfaces.
+
+6.32.22 || 26.11.2026
+style(social): move desktop Change identity below Signed in as in the account menu, leaving one profile row in the sidebar. Both desktop and mobile show the active identity avatar beside the single action label and keep the existing confirmation step.
+
+6.32.21 || 26.11.2026
+style(social): on phones, give the rounded logo and full wordmark room in the top bar. Put Change identity under View profile in More, showing the active posting identity. Leave desktop placement and the confirmed chooser unchanged.
+
+6.32.20 || 26.11.2026
+style(social): show the two conversation characters on a blue background with rounded corners in Social and Join chrome. Keep the wordmark, blue accent palette and separate App Store and install icons.
+
+6.32.19 || 26.11.2026
+style(social): carry the app icon's blue into the Light and Dark accent palettes: navigation, links, buttons, focus rings and glow. Keep neutral surfaces, appearance behavior, media colors, and other apps unchanged.
+
+6.32.18 || 26.11.2026
+style(social): put the conversation pair on the operator's blue for the App Store listing and detail, install prompt, home-screen icons and favicon. Refresh the service-worker shell cache. Keep the transparent Social and Join marks, Hub artwork and app theme unchanged.
+
 6.32.13 || 26.11.2026
 fix(hub): move desktop navigation into the ice-blue top bar and keep the phone dock. App permissions and Pending requests put search above their own lists at every width; requests filter by site. Account, consent and permission actions are unchanged.
 
