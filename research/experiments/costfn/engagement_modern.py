@@ -92,7 +92,7 @@ class Session(arm_f_runtime.Session):
         query_id = 'fanout-f-' + uuid.uuid4().hex
         self.record(dict(phase='start', label=label, query_id=query_id, measured=measured,
             sql_sha256=__import__('hashlib').sha256(sql.encode()).hexdigest(), deadline_seconds=budget))
-        args = ['--max_memory_usage=' + str(22 * 1024**3), '--max_threads=4']
+        args = ['--max_memory_usage=' + str(setup_memory_cap(self.operation)), '--max_threads=4']
         if measured and not current_policy:
             args += ['--max_rows_to_read=10000000', '--read_overflow_mode=throw']
         if not measured:
@@ -104,7 +104,7 @@ class Session(arm_f_runtime.Session):
                 settings.pop('max_rows_to_read', None)
                 settings.pop('max_bytes_to_read', None)
                 settings.pop('max_result_rows', None)
-            ceilings = dict(max_memory_usage=22 * 1024**3, max_rows_to_read=10_000_000,
+            ceilings = dict(max_memory_usage=setup_memory_cap(self.operation), max_rows_to_read=10_000_000,
                 max_bytes_to_read=2 * 1024**3, max_result_rows=1_000_000,
                 max_bytes_before_external_sort=2 * 1024**3, max_bytes_before_external_group_by=2 * 1024**3)
             if any(key not in ceilings or type(value) is not int or not 0 < value <= ceilings[key] for key, value in settings.items()):
@@ -151,6 +151,17 @@ class Session(arm_f_runtime.Session):
             self.record(dict(phase='finish', label=label, query_id=query_id, success=False,
                 elapsed_seconds=time.perf_counter() - started, **details(error)))
             raise
+
+
+def setup_memory_cap(operation):
+    """The banked 32/28/22 GiB frame pins 22 GiB per query. The sized DAU host
+    declares its own envelope and its setup statements take that server cap
+    instead; the measured single-read comparison frame is unchanged (its
+    admissions never carry dau_envelope)."""
+    envelope = operation.get('dau_envelope')
+    if type(envelope) is dict and type(envelope.get('server_bytes')) is int and envelope['server_bytes'] > 0:
+        return envelope['server_bytes']
+    return 22 * 1024**3
 
 
 def install_sessions():

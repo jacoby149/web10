@@ -1,5 +1,21 @@
 # web10 v3 Plan
 
+- [✓ 6.32.24 local] **Social dark sidebar and transparent toolbar mark** — match the desktop sidebar to marketing charcoal in Dark mode; let the ice-blue toolbar supply the backdrop for the conversation PNG.
+
+- [✓ 6.32.23 local] **Social ice-blue top bar** — align Social’s desktop and phone headers with Hub and marketing; preserve app branding, account behavior, and surrounding surfaces.
+
+- [✓ 6.32.22 local] **Compact Social identity entry** — desktop uses the account menu instead of a second sidebar profile; desktop and mobile use the active avatar and a single Change identity label.
+
+- [✓ 6.32.21 local] **Mobile Social header and identity entry** — use a single-line wordmark, and move Change identity into the personal card in More. Preserve desktop and confirmation behavior.
+
+- [✓ 6.32.20 local] **Social rounded-square mark** — show both conversation characters on a blue background with rounded corners in Social and Join; keep the catalog and install icons.
+
+- [✓ 6.32.19 local] **Social blue theme accent (D127)** — use the icon's blue for Social's Light/Dark accent without changing neutral backgrounds, media, or other apps.
+
+- [✓ 6.32.18 local] **Blue Social app icon** — keep the conversation pair and use the operator's blue on the App Store listing/detail, install prompt, home screen and favicon. Preserve transparent chrome and Hub artwork in this step.
+
+- [✓ 6.32.13 local] **Hub top-bar navigation and in-page search** — move desktop navigation to the header, retain the phone dock, and keep search with its App permissions or Pending requests list. Preserve role gates and account actions.
+
 - [✓ 6.32.11 local] **Social conversation pair** — use the lower pink-and-blue crop in app and Join chrome (transparent) and App Store listing and detail (white). Preserve installed icons.
 
 - [✓ 6.32.10 local] **Hub in App Store Browse** — list Hub once in Browse without the Core badge; keep Social featured and preserve available Hub registration metrics.

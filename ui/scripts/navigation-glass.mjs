@@ -49,6 +49,21 @@ try {
   browser = await chromium.launch();
   // No requests to real nodes/vendors, even from the real interface's startup.
   const context = await browser.newContext({ colorScheme: mode });
+  await context.addInitScript(() => {
+    let current;
+    Object.defineProperty(window, 'I', {
+      configurable: true,
+      get: () => current,
+      set: value => {
+        current = value;
+        value.v3Contracts = [
+          { allowed_origin: 'https://auth.web10.app', permissions: { profile: ['readOwn'], settings: ['readOwn'] } },
+          { allowed_origin: 'https://social.web10.app', permissions: { profile: ['readOwn'], posts: ['readOwn', 'create'], media: ['readOwn', 'create'] } },
+          { allowed_origin: 'https://web10.app', permissions: { profile: ['readOwn'] } },
+        ];
+      },
+    });
+  });
   await context.route('**/*', route => {
     const url = route.request().url();
     return url.startsWith(origin) || url.startsWith('data:') ? route.continue() :
@@ -61,27 +76,41 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base, { waitUntil: 'networkidle' });
     const dock = page.getByTestId('mobile-nav');
-    await dock.waitFor();
-    await page.getByTestId('auth-dock-refraction').waitFor();
+    const topNav = page.getByTestId('hub-top-nav');
+    const nav = width >= 768 ? topNav : dock;
+    await nav.waitFor();
+    assert.equal(await (width >= 768 ? dock : topNav).isVisible(), false);
+    assert.equal(await page.getByRole('navigation', { name: 'Console navigation' }).count(), 1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.equal(await page.getByTestId('sidebar').count(), 0);
     assert.equal(await page.getByText('What is web10', { exact: true }).count(), 0);
     const header = page.getByTestId('hub-header');
     assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(181, 212, 220)');
-    assert.equal(await dock.getByRole('button').count(), 6);
+    assert.equal(await header.getByRole('searchbox').count(), 0);
+    assert.equal(await nav.getByRole('button').count(), 6);
+    const search = page.getByTestId('console-content').getByRole('searchbox', { name: 'Search app permissions' });
+    await search.fill('not a matching app');
+    await page.getByTestId('contracts-no-match').waitFor();
+    await search.fill('');
     if (width >= 768) {
       const account = header.getByTestId('topbar-account');
       await account.click();
       await header.getByTestId('account-logout').waitFor();
       await header.click({ position: { x: 4, y: 4 } });
       assert.equal(await account.getAttribute('aria-expanded'), 'false');
-      assert.ok(await page.getByTestId('console-content').evaluate(el => parseFloat(getComputedStyle(el).paddingBottom) > 72));
-      const groups = dock.getByRole('button', { name: 'Group permissions' });
+      assert.equal(await page.getByTestId('console-content').evaluate(el => getComputedStyle(el).paddingBottom), '0px');
+      const groups = topNav.getByRole('button', { name: 'Group permissions' });
+      await groups.focus();
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Shift+Tab');
+      assert.ok(await groups.evaluate(el => el.matches(':focus-visible') && getComputedStyle(el).outlineStyle === 'solid'));
       await groups.click();
       assert.equal(await groups.getAttribute('aria-current'), 'page');
-      await dock.getByRole('button', { name: 'App permissions' }).click();
+      await topNav.getByRole('button', { name: 'App permissions' }).click();
+      await page.mouse.move(0, 0);
       if (width === 1440) await capture(page, 'auth-desktop');
     } else {
+      await page.getByTestId('auth-dock-refraction').waitFor();
       const box = await dock.boundingBox();
       assert.ok(box.x >= 12 && box.x + box.width <= width - 12);
       assert.ok(box.y + box.height <= 800);
@@ -174,13 +203,14 @@ try {
       await page.emulateMedia({ forcedColors: 'none', reducedMotion: 'reduce' });
       assert.equal(await page.getByTestId('auth-dock-refraction').isVisible(), true);
       receipts.push({ width, contrast, flatDifference, difference, resize: true, safeArea: true, fallbacks: true });
-      // Existing mock interface state setters exercise non-admin/signed-out gates.
-      await page.evaluate(() => window.I.setIsAdmin(false));
-      await page.waitForFunction(() => document.querySelectorAll('[data-testid="mobile-nav"] button').length === 4);
-      await capture(page, 'auth-personal-mobile');
-      await page.evaluate(() => window.I.logout());
-      await dock.waitFor({ state: 'detached' });
     }
+    // Existing mock interface state setters exercise non-admin/signed-out gates.
+    await page.evaluate(() => window.I.setIsAdmin(false));
+    await nav.getByRole('button', { name: 'Config' }).waitFor({ state: 'detached' });
+    assert.equal(await nav.getByRole('button').count(), 4);
+    if (width === 375) await capture(page, 'auth-personal-mobile');
+    await page.evaluate(() => window.I.logout());
+    await nav.waitFor({ state: 'detached' });
     assert.deepEqual(errors, []);
     await page.close();
   }

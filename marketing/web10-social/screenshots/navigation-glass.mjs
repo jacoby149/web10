@@ -38,7 +38,22 @@ try {
       assert.deepEqual(await dockItems(), expectedDock);
       const header = page.getByTestId(mobile ? 'topbar-mobile' : 'topbar-desktop');
       assert.equal(await header.isVisible(), true);
-      assert.equal(await header.evaluate(el => getComputedStyle(el).backdropFilter.includes('blur')), true);
+      assert.deepEqual(await header.evaluate(el => {
+        const css = getComputedStyle(el);
+        return [css.backgroundColor, css.backdropFilter, css.borderTopWidth, css.borderBottomWidth];
+      }), ['rgb(181, 212, 220)', 'none', '0px', '0px'], 'Social shares Hub’s solid ice-blue top bar without a divider');
+      if (!mobile) {
+        const strip = page.getByTestId('sidebar-brand-strip');
+        assert.deepEqual(await strip.evaluate(el => {
+          const css = getComputedStyle(el);
+          return [css.backgroundColor, css.borderBottomWidth];
+        }), ['rgb(181, 212, 220)', '0px']);
+        const brand = await strip.boundingBox(), bar = await header.boundingBox();
+        assert.equal(brand.height, bar.height);
+        assert.equal(brand.x + brand.width, bar.x, 'brand strip and toolbar meet with no seam');
+        assert.equal(await strip.locator('..').evaluate(el => getComputedStyle(el).backgroundColor),
+          mode === 'dark' ? 'rgb(27, 32, 38)' : 'color(srgb 1 1 1 / 0.88)', 'sidebar charcoal is dark-only');
+      }
       assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'no painted frost gradient');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       const primary = page.getByTestId(mobile ? 'nav-feed-mobile' : 'nav-feed');

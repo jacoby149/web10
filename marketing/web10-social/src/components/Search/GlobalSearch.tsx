@@ -809,17 +809,17 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
             ?q= to the tab's URL). */}
         <div
           data-testid="global-search-field-wrap"
-          className="flex items-center gap-2 flex-1 h-10 w-full rounded-full bg-elevated border border-border/60 pl-3.5 pr-1.5 transition-colors duration-150 focus-within:border-brand/50 focus-within:bg-background"
+          className="flex items-center gap-2 flex-1 h-10 w-full rounded-full bg-social-header-tint border border-social-header-ink/20 pl-3.5 pr-1.5 transition-colors duration-150 focus-within:border-social-header-ink focus-within:bg-social-header-tint-hover"
         >
-          <Search className="w-4 h-4 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
-          {field('text-sm')}
+          <Search className="w-4 h-4 shrink-0 text-social-header-ink" strokeWidth={1.75} aria-hidden="true" />
+          {field('text-sm text-social-header-ink placeholder:text-social-header-ink/80')}
           {query.trim() !== '' && (
             <button
               type="button"
               data-testid="global-search-close"
               aria-label="Clear search"
               onClick={clearQuery}
-              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+              className="h-7 w-7 shrink-0 flex items-center justify-center rounded-full text-social-header-ink hover:bg-social-header focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-social-header-ink"
             >
               <X className="w-3.5 h-3.5" strokeWidth={2} />
             </button>
@@ -842,9 +842,8 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
   }
 
   // Mobile: the trigger sits inline in the 56px header; open → a full-screen
-  // results view (not a dropdown) with an X to collapse. Portaled to <body>
-  // because the header's backdrop-blur would become the fixed overlay's
-  // containing block (backdrop-filter establishes one).
+  // results view (not a dropdown) with an X to collapse. The portal keeps it
+  // above the app chrome and on the selected theme's reading surface.
   return (
     <>
       <button
@@ -854,7 +853,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
         aria-label="Search"
         aria-expanded={open}
         onClick={expand}
-        className="h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+        className="h-11 w-11 flex items-center justify-center rounded-lg text-social-header-ink hover:bg-social-header-tint transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-social-header-ink"
       >
         <Search className="w-5 h-5" strokeWidth={1.75} />
       </button>

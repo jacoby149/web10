@@ -199,6 +199,9 @@ class RestoreReentry(unittest.TestCase):
             self.assertEqual(value['restore_source'],
                 'ARCHIVED_PARQUET_TRANSFERRED_FROM_SNAPSHOT_HOST')
             self.assertTrue((root / 'dau-restore.json').exists())
+            modern = json.loads((root / 'modern-restore.json').read_text())
+            self.assertIsNone(modern['fixture'])
+            self.assertEqual(modern['restore_source'], 'PARQUET_VERIFIED_INPUT')
 
     def test_partial_restore_states_refuse(self):
         with tempfile.TemporaryDirectory() as directory:

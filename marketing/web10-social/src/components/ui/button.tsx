@@ -14,7 +14,7 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
-        brand: 'bg-gradient-to-r from-brand to-brand-600 text-brand-foreground shadow-lg shadow-brand/20 hover:shadow-xl hover:shadow-brand/30 hover:from-brand-400 hover:to-brand active:from-brand-600 active:to-brand active:shadow-md active:shadow-brand/15',
+        brand: 'bg-gradient-to-r from-brand to-brand-600 text-brand-foreground shadow-lg shadow-brand/20 hover:shadow-xl hover:shadow-brand/30 hover:from-brand-600 hover:to-brand active:from-brand-600 active:to-brand-600 active:shadow-md active:shadow-brand/15',
         brand_subtle: 'bg-brand-muted text-brand-300 border border-brand/20 hover:bg-brand/20 hover:border-brand/40 hover:shadow-md hover:shadow-brand/10',
       },
       size: {
