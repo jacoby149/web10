@@ -1,3 +1,6 @@
+6.32.6 || 26.11.2026
+research: recapture the pinned core-feed wire and cursor-builder captures after the current dev marketing work moved `posts.ts`/`types.ts`, and re-pin the ARM-F-DESIGN-CLOSURE.md authorized-source manifest to the recaptured `core-feed-wire-v8.json` and the drifted `api/app/v3/services/clickhouse.py` (the captured four-request topology is unchanged against the historical v3 pin; no other authorized source moved). Unblocks the research CI that had gone stale on dev.
+
 6.32.5 || 26.11.2026
 research: the sustained-DAU runner now restores the sized host's store the way the contract admits: the retained snapshot's verified frozen Parquet input (byte-verified in transit by the banked verified_input gate), through the unchanged banked restore path, with the declared envelope overlay replacing the banked 28/22 GiB frame (100 GiB container, committed 80 GiB server-cap config, declared api/minio caps) — the input bind and store volume survive the rewrite verbatim. Admission requires the provenance and full envelope declaration; five new controls. No host, no admission, no native execution.
 
