@@ -105,28 +105,26 @@ function StatsBand() {
     { value: storage.value, unit: storage.unit, label: 'data liberated', icon: HardDrive },
   ]
 
-  // No hairline dividers on this surface — the 2022 page separated sections
-  // with color blocks (surface step), never 1px lines (design.md §13 classic
-  // note, "the serious style"). The band is the block.
+  // The archive's second artwork is a full-width backdrop, not a boxed card.
   return (
-    <section aria-label="Network statistics" className="bg-classic-ink px-6 py-14 sm:py-16">
-      <div className="mx-auto grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-4">
+    <section aria-label="Network statistics" className="classic-stats px-6 py-8 sm:py-12">
+      <div className="mx-auto grid max-w-6xl grid-cols-3 gap-3 md:gap-8">
         {items.map((item) => {
           const Icon = item.icon
           return (
-            <div key={item.label} className="flex flex-col items-center gap-2 text-center">
-              <Icon className="size-6 text-brand-300" strokeWidth={1.5} />
-              <span className="mt-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                {item.label}
-              </span>
-              <span className="font-display text-3xl leading-none text-foreground tabular-nums sm:text-4xl">
-                <CountUp value={item.value} />
-                {item.unit && (
-                  <span className="ml-1 text-[0.6em] font-medium text-muted-foreground">
-                    {item.unit}
-                  </span>
-                )}
-              </span>
+            <div key={item.label} className="flex min-w-0 flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
+              <Icon className="size-5 shrink-0 text-brand-300 sm:size-6" strokeWidth={1.5} aria-hidden="true" />
+              <div className="min-w-0 text-center sm:text-left">
+                <span className="block font-classic-display text-2xl leading-none text-foreground tabular-nums sm:text-4xl">
+                  <CountUp value={item.value} />
+                  {item.unit && (
+                    <span className="ml-1 text-[0.6em] font-medium text-muted-foreground">
+                      {item.unit}
+                    </span>
+                  )}
+                </span>
+                <span className="mt-1 block text-xs font-medium text-muted-foreground sm:text-sm">{item.label}</span>
+              </div>
             </div>
           )
         })}
@@ -144,7 +142,7 @@ const FEATURES = [
   {
     icon: KeyRound,
     title: 'Own Your Data',
-    body: "Bring your data with you across all the internet. Your data isn't stuck anymore, it's with your domain on your terms.",
+    body: "Bring your data with you across all the internet. Your data isn't stuck anymore, it's on your domain on your terms.",
   },
   {
     icon: Unlock,
@@ -157,13 +155,12 @@ function Hero() {
   return (
     <section className="classic-hero flex min-h-[30rem] items-center bg-background px-6 py-20 sm:min-h-[36rem] sm:py-28 lg:min-h-[min(40rem,76svh)]">
       <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
-        <h1 className="font-display text-[clamp(2.25rem,5.5vw,5rem)] font-normal uppercase leading-[1.08] tracking-[-0.025em]">
+        <h1 className="font-classic-display text-[clamp(2.25rem,5.5vw,5rem)] font-normal uppercase leading-[1.08] tracking-[-0.025em]">
           The web10 <span className="block text-brand-300 md:inline">Revolution</span>
         </h1>
         <p className="mt-6 max-w-[36rem] text-balance text-lg leading-relaxed text-foreground sm:text-2xl">
-          Use a web10 app. Sign up for an account. Start owning your photos,
-          music, and data on the internet. The key to the vault is your
-          domain name.
+          Use a web10 app. Sign up for an account. Get a domain name to
+          start owning your photos, music, and data on the internet.
         </p>
         {/* Single entry CTA (operator, 25.11.2026: "should JUST be Enter web10
             social") — into the app; signup happens in the authenticator from
@@ -182,12 +179,12 @@ function Hero() {
 
 function Features() {
   return (
-    <section aria-label="About web10" className="bg-background px-6 py-16 sm:py-20 lg:py-24">
+    <section aria-label="About web10" className="px-6 py-12 sm:py-16 lg:py-20">
       <div className="mx-auto grid max-w-6xl gap-12 md:grid-cols-3 md:gap-8">
         {FEATURES.map((feature) => (
           <div key={feature.title} className="flex flex-col items-center gap-3 text-center">
             <feature.icon className="size-8 text-brand-300" strokeWidth={1.5} />
-            <h2 className="font-display text-xl uppercase tracking-wide text-foreground sm:text-2xl">
+            <h2 className="font-classic-display text-lg uppercase tracking-wide text-foreground sm:text-2xl">
               {feature.title}
             </h2>
             <p className="max-w-[31ch] text-pretty text-lg leading-relaxed text-muted-foreground">
@@ -202,14 +199,15 @@ function Features() {
 
 function Pledge() {
   return (
-    <section className="bg-surface px-6 py-16 sm:py-24">
-      <figure className="mx-auto max-w-3xl text-center">
-        <blockquote className="text-balance font-display text-2xl italic leading-snug text-foreground sm:text-4xl">
-          “We pledge to make an internet space in which users lead their
-          internet destiny.”
+    <section aria-label="The 2022 pledge" className="classic-pledge px-6 py-12 sm:py-20">
+      <figure className="mx-auto max-w-6xl">
+        <blockquote className="max-w-prose text-base leading-relaxed text-foreground">
+          We pledge to make an internet space in which users lead their
+          internet destiny.
         </blockquote>
-        <figcaption className="mt-6 text-xs font-medium uppercase tracking-widest text-brand-300">
-          — web10 Team, 2022
+        <figcaption className="mt-4 text-foreground">
+          <span className="block font-classic-display text-lg">— web10 Team</span>
+          <span className="mt-3 block text-sm italic text-muted-foreground">2022</span>
         </figcaption>
       </figure>
     </section>
@@ -232,7 +230,7 @@ function Team() {
   return (
     <section className="bg-background px-6 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl">
-        <h2 className="font-display text-3xl uppercase tracking-wide text-foreground sm:text-4xl">
+        <h2 className="font-classic-display text-3xl text-foreground sm:text-4xl">
           Team
         </h2>
         <div className="mt-8 grid gap-8 sm:grid-cols-3">
@@ -247,7 +245,7 @@ function Team() {
                 className="aspect-square w-full rounded-sm object-cover"
               />
               <div className="mt-4">
-                <h3 className="font-display text-xl text-foreground">{member.name}</h3>
+                <h3 className="font-classic-display text-xl text-foreground">{member.name}</h3>
                 <p className="mt-1 text-base text-muted-foreground">{member.role}</p>
               </div>
             </div>
@@ -260,7 +258,7 @@ function Team() {
 
 function Footer() {
   return (
-    <footer className="bg-classic-ink px-6 py-12">
+    <footer className="classic-footer px-6 py-12">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
         <span>&copy; {new Date().getFullYear()} web10</span>
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-4">
@@ -282,13 +280,17 @@ function Home() {
     trackFunnel('landing')
   }, [])
   return (
-    <div data-classic="true" className="min-h-screen bg-background">
+    <div className="classic-surface min-h-screen bg-background">
       <main>
         <Hero />
-        <Features />
+        <div className="classic-paper">
+          <Features />
+        </div>
         <StatsBand />
+        <div className="classic-paper">
+          <Team />
+        </div>
         <Pledge />
-        <Team />
       </main>
       <Footer />
     </div>

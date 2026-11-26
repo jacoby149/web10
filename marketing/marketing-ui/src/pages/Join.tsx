@@ -167,7 +167,7 @@ function Join() {
           <p className="reveal text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
             Join web10
           </p>
-          <h1 className="reveal mt-4 font-display text-4xl font-bold leading-[1.1] tracking-[-0.02em] text-foreground [animation-delay:80ms] sm:text-5xl lg:text-[3.5rem]">
+          <h1 className="reveal mt-4 font-display text-4xl font-semibold leading-[1.1] tracking-tight text-foreground [animation-delay:80ms] sm:text-5xl lg:text-[3.5rem]">
             Never miss a post from your favorite creator again.
           </h1>
           <p className="reveal mt-6 max-w-xl text-lg leading-[1.6] text-muted-foreground [animation-delay:160ms]">

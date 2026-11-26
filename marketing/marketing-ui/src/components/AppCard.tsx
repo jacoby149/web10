@@ -5,6 +5,9 @@ import { cn } from '@/lib/utils'
 
 export type AppCardSize = 'default' | 'plug' | 'browse'
 
+const catalogCard = 'h-full rounded-lg border border-border/55 bg-surface transition-colors duration-150 hover:border-border hover:bg-elevated'
+const browseTile = 'flex min-h-32 flex-col items-center justify-center gap-3 px-3 py-4 text-center sm:min-h-36'
+
 // The `?api=` override (isolated e2e stacks on a non-80 port) must survive
 // the card → product-page navigation — the detail page derives its API
 // origin the same way the store does.
@@ -54,15 +57,14 @@ function CardContent({
   href: string
 }) {
   const iconBlock = (
-    <div className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-elevated">
+    <div className={cn('relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-elevated',
+      size === 'plug' ? 'size-11 sm:size-14' : size === 'browse' ? 'size-12 sm:size-14' : 'size-14 sm:size-16',
+    )}>
       {iconSrc ? (
         <ReliableImage
           src={iconSrc}
           alt={name}
-          className={cn(
-            'object-contain',
-            size === 'plug' ? 'h-11 w-11' : size === 'browse' ? 'h-14 w-14' : 'h-14 w-14 sm:h-16 sm:w-16',
-          )}
+          className="size-full object-contain"
           loading="lazy"
           onError={(e) => {
             e.currentTarget.style.display = 'none'
@@ -103,7 +105,9 @@ function CardContent({
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-elevated px-4 py-2 text-sm font-medium text-brand-300 transition-colors duration-150 ease-out hover:bg-brand-muted hover:text-brand-300"
+      className={cn('inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-150 ease-out',
+        size === 'plug' ? 'bg-brand-muted text-brand-300 hover:bg-brand hover:text-brand-foreground' : 'bg-brand text-brand-foreground hover:bg-brand-600',
+      )}
     >
       Open
       <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} />
@@ -112,30 +116,27 @@ function CardContent({
 
   if (size === 'plug') {
     return (
-      <div className="flex items-start gap-5 rounded-2xl border border-border bg-surface p-5 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-brand-muted hover:shadow-lg hover:shadow-brand/5">
-        <div className="h-16 w-16">{iconBlock}</div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            {badgeEl}
-            <span className="truncate font-semibold text-foreground">{name}</span>
-          </div>
-          <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {description}
-          </p>
+      <div className={cn(catalogCard, 'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 p-4 sm:items-start sm:gap-x-4 sm:gap-y-1 sm:p-5')}>
+        <div className="sm:row-span-2">{iconBlock}</div>
+        <div className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
+          <span className="max-w-full truncate text-lg leading-tight font-semibold text-foreground">{name}</span>
+          {badgeEl}
+        </div>
+        <div className="sm:row-span-2">{openBtn}</div>
+        <div className="col-span-3 flex flex-col gap-1 sm:col-span-1 sm:col-start-2">
+          <p className="text-sm leading-snug text-muted-foreground sm:text-base">{description}</p>
           {visitsEl}
         </div>
-        {openBtn}
       </div>
     )
   }
 
   if (size === 'browse') {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-5 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-brand-muted hover:shadow-lg hover:shadow-brand/5">
-        <div className="h-16 w-16">{iconBlock}</div>
-
-        <div className="flex flex-col items-center gap-1 text-center">
-          <span className="line-clamp-1 text-sm font-semibold text-foreground">
+      <div className={cn(catalogCard, browseTile)}>
+        {iconBlock}
+        <div className="flex min-w-0 max-w-full flex-col gap-0.5">
+          <span className="line-clamp-1 text-base font-semibold text-foreground">
             {name}
           </span>
           {visitsEl}
@@ -184,12 +185,14 @@ export function AppCard({
     if (size === 'browse') {
       return (
         <div
-          className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-5"
+          className={cn(catalogCard, browseTile)}
           data-testid={testId ?? 'app-card-skeleton'}
         >
-          <div className="h-16 w-16 animate-pulse rounded-2xl bg-elevated" />
-          <div className="h-4 w-20 animate-pulse rounded bg-elevated" />
-          <div className="h-3 w-16 animate-pulse rounded bg-elevated" />
+          <div className="size-12 animate-pulse rounded-md bg-elevated sm:size-14" />
+          <div className="grid justify-items-center gap-1">
+            <div className="h-4 w-20 animate-pulse rounded-sm bg-elevated" />
+            <div className="h-3 w-16 animate-pulse rounded-sm bg-elevated" />
+          </div>
         </div>
       )
     }
@@ -226,7 +229,7 @@ export function AppCard({
     return (
       <Link
         to={`/app-store/app/${encodeURIComponent(appId)}${apiQuery()}`}
-        className="group block"
+        className="group block h-full rounded-md"
         data-testid={testId ?? 'app-card'}
       >
         {content}
@@ -239,7 +242,7 @@ export function AppCard({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block"
+      className="group block h-full rounded-md"
       data-testid={testId ?? 'app-card'}
     >
       {content}
