@@ -114,6 +114,17 @@ async function readInteriorPalette(page) {
     };
   });
 }
+async function readInteriorIntro(page) {
+  return page.getByRole('heading', { level: 1 }).first().evaluate(heading => {
+    const header = heading.closest('header');
+    if (!header) throw new Error('Expected a compact interior header');
+    return [header, ...Array.from(header.children).slice(0, 3)].map(el => {
+      const css = getComputedStyle(el);
+      return [css.textAlign, css.paddingTop, css.paddingBottom, css.fontFamily, css.fontSize,
+        css.fontWeight, css.lineHeight, css.backgroundColor, css.backgroundImage, css.borderBottomWidth];
+    });
+  });
+}
 async function verifyLightContrast(page) {
   const results = await page.evaluate(() => {
     const css = getComputedStyle(document.documentElement);
@@ -194,7 +205,7 @@ try {
     await tab.close();
     for (const mode of ['light', 'dark']) {
       await page.getByRole('radio', { name: mode === 'light' ? 'Light' : 'Dark', exact: true }).check();
-      let storePalette;
+      let storePalette, storeIntro;
       for (const [route, name] of [
         ['/', 'home'], ['/app-store', 'app-store'], [`/app-store/app/${encodeURIComponent(appUrl)}`, 'app-detail'], ['/freedom', 'freedom'],
         ['/docs', 'docs'], ['/docs/terms', 'docs-article'], ['/appearance', 'appearance'],
@@ -216,22 +227,41 @@ try {
         if (mode === 'light' && name === 'appearance') await verifyLightContrast(page);
         if (name === 'app-store') {
           storePalette = await readInteriorPalette(page);
+          storeIntro = await readInteriorIntro(page);
           assert.equal(storePalette.canvas, mode === 'light' ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)');
           assert.equal(storePalette.tokens.card, mode === 'light' ? '#ffffff' : '#101648');
           assert.equal(storePalette.native, mode);
         } else if (name !== 'home') {
           assert.deepEqual(await readInteriorPalette(page), storePalette, `${name} must match the App Store in ${mode}`);
         }
+        if (['freedom', 'docs', 'appearance'].includes(name)) {
+          assert.deepEqual(await readInteriorIntro(page), storeIntro, `${name} intro must match the App Store in ${mode}`);
+        }
+        if (name === 'freedom') {
+          await page.getByRole('heading', { name: 'How the internet works now' }).waitFor();
+          const firstSection = await page.getByRole('heading', { name: 'How the internet works now' }).boundingBox();
+          assert.ok(firstSection.y < 600, 'Freedom should start the next section in the first viewport');
+        }
         if (name === 'home' || name === 'freedom') {
           const cta = name === 'home' ? page.getByTestId('classic-enter-cta') : page.getByRole('link', { name: 'Explore web10', exact: true });
           await cta.waitFor();
           assert.equal(await cta.getAttribute('href'), process.env.VITE_SOCIAL_URL || 'https://social.web10.app');
         }
-        if (width < 768 && name.startsWith('docs')) {
-          const title = name === 'docs' ? page.getByRole('heading', { name: 'Who are you?' }) : page.getByRole('heading', { level: 1 }).first();
-          await title.evaluate(el => window.scrollBy(0, el.getBoundingClientRect().top - 88));
+        if (name === 'docs') {
+          await page.getByRole('article', { name: 'Overview' }).getByRole('heading', { name: 'web10', exact: true }).waitFor();
+          assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
         }
         await capture(page, `${name}-${mode}-${label}`);
+        if (width < 768 && name === 'docs' && mode === 'dark') {
+          await page.getByRole('link', { name: 'Browse documentation' }).click();
+          assert.equal(new URL(page.url()).hash, '#docs-navigation');
+          const sidebar = page.getByRole('complementary', { name: 'Documentation navigation' });
+          assert.ok((await sidebar.boundingBox()).y < 120, 'documentation navigation jumps into view');
+          await sidebar.getByRole('link', { name: 'Terms of Service', exact: true }).click();
+          await page.getByRole('heading', { name: 'Terms of Service', exact: true, level: 1 }).waitFor();
+          await page.waitForFunction(() => window.scrollY === 0);
+          assert.equal(new URL(page.url()).pathname, '/docs/terms');
+        }
       }
     }
     assert.deepEqual(errors, []);

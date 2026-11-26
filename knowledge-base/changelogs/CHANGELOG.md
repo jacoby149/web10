@@ -1,3 +1,6 @@
+6.30.9 || 26.11.2026
+fix(marketing): give Freedom, Docs Overview, and Appearance the App Store's compact centered introduction in Light and Dark. Remove Freedom's old hero glow and dividers. Keep the Docs reading layout with a quicker way to browse articles on phones, and leave saved theme preferences unchanged.
+
 6.30.8 || 26.11.2026
 research: the full-store hybrid runner now loads the gates' expected references from the persisted billboard-applied receipts when the read-setup step is reused on task-mode resume (the in-memory profiles only exist when that step actually ran). One new control. No engine, host or admission change.
 

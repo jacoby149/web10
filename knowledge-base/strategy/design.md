@@ -885,3 +885,12 @@ browse grid to the same centered 64rem content width, and give the app icons the
 strongest colors. Use the existing App Store components; don't put the homepage
 images behind the catalog. Browse stays icon-led: two columns on phones and five where space
 allows. On phones the featured description gets the full card width.
+
+Freedom uses the App Store's compact centered introduction: the same label
+pill, heading scale, prose treatment, and spacing on a flat canvas. Below it,
+keep the reading rail narrower than the catalog and use headings, spacing, and
+cards rather than full-width dividers. Keep the existing copy and links.
+Docs Overview and Appearance use that same introduction and solid cards.
+Docs articles retain their own title and reading measure, with a bounded
+navigation panel on desktop and a visible jump to that panel on phones.
+Appearance keeps its existing System, Light, and Dark choices and behavior.

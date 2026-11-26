@@ -1,4 +1,4 @@
-# web10
+## web10
 
 > What you make is yours.
 
@@ -8,7 +8,7 @@ On that protocol stands the product: **a platform for creators who refuse to ren
 
 The model is WordPress applied to social media: open, self-hostable nodes. Creators run them, under their own name and their own domain, and keep what they earn. Accounts are free for their audience. web10 takes a small percentage of the revenue that moves through its payment rails — paid for value delivered, not for permission granted.
 
-## The premise, made concrete
+### The premise, made concrete
 
 | | |
 | --- | --- |
@@ -20,17 +20,17 @@ The model is WordPress applied to social media: open, self-hostable nodes. Creat
 | **The internet is too permanent** | Content lives in the author's collection. When the author deletes it, it's gone. Not cached. Not mirrored. Not archived. Gone. |
 | **Self-hostable** | One `docker compose up` runs a node on hardware you own. The escape hatch is real, and that is what makes the ownership real. |
 
-## The reach gap
+### The reach gap
 
 A million followers, and the platform decides which 300,000 see the next post. Subscribing was never delivery — it was permission for the algorithm to maybe show you. That gap is visible in your own analytics right now. On your web10 node, 100% delivery is architecture, not a setting someone can change.
 
-## How it works
+### How it works
 
 1. **You post once** — text, photos, video, published from your node, on your domain.
 2. **It lands in every inbox** — every follower's inbox gets the post the instant you publish. No feed algorithm decides who's shown.
 3. **100% delivery, by architecture** — it can't be quietly revoked, because it isn't a policy; it's how group membership works.
 
-## Groups: the primitive that replaces everything
+### Groups: the primitive that replaces everything
 
 Groups are not data containers. They hold people and roles. Content lives in the author's collection. Groups define who can discover it.
 
@@ -46,7 +46,7 @@ Groups are not data containers. They hold people and roles. Content lives in the
 
 One primitive. Four social patterns. Same tables, same CRUD, same roles.
 
-## User-level IAM
+### User-level IAM
 
 For the first time, a user has AWS-grade control over their data. App contracts are IAM policies — per-app, per-service, per-operation. The user approves or denies in the authenticator.
 
@@ -61,7 +61,7 @@ Services are infinite — any app can invent new ones. Apps are the constraint. 
 
 **Kill switch** — revoke all app contracts. No website touches your data. Ever.
 
-## Principles
+### Principles
 
 - **Data ownership.** Users own their data. Apps are lenses, not platforms.
 - **Statelessness.** Apps hold nothing but a scoped, expiring token.
@@ -70,7 +70,7 @@ Services are infinite — any app can invent new ones. Apps are the constraint. 
 - **Open protocol.** Self-hostable nodes; the reference implementation is one valid node, not the only one.
 - **Never fake it.** No stock photos of smiling people, no invented testimonials, no logos of companies that don't use us. Real screenshots, real numbers, real mechanics.
 
-## Where to go next
+### Where to go next
 
 - **[SDK Guide](/docs/sdk)** — `npm install web10-npm`, the frontend library web10 apps are built with.
 - **[Protocol Spec](/docs/protocol-spec)** — the data model, auth, permissions. The ground truth.
