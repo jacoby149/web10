@@ -1,3 +1,6 @@
+6.32.11 || 26.11.2026
+research: the sustained-DAU Parquet restore now writes the modern-restore receipt the banked read-setup path reads (source, engine, retained-snapshot reference, declared envelope) with fixture=None so the profiles use the banked parity-fixture fallback computed from this store instead of a snapshot fixture. One control extended. No host, no admission, no native execution.
+
 6.32.10 || 26.11.2026
 research: the sustained-DAU sized-host restore now waits for the engine to be actually ready (the banked server_ready probe, bounded and retried) after re-raising the stack under the declared envelope, before the live envelope verification - a bare up -d probes the server while it is still loading the imported store's metadata and races the verify. One control. No host, no admission, no native execution.
 
