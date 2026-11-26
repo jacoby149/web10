@@ -24,10 +24,11 @@ def approval(**overrides):
         row_model_admitted=False,
         dau_sustain_directive=run.DIRECTIVE,
         purpose='DAU_SUSTAINED_CONTRACT_RATE',
-        dau_host=dict(region='nyc2', size='g-48vcpu-192gb-intel', price_hourly=2.6994,
-            storage_gib=720, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=25.0),
-        dau_envelope=dict(container_bytes=107374182400, server_bytes=85899345920,
-            api_bytes=34359738368, minio_bytes=1073741824),
+        dau_host=dict(region='nyc3', size='c-16', price_hourly=0.50,
+            storage_gib=200, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=25.0,
+            cores=16, threads=32, ram_gb=32),
+        dau_envelope=dict(container_bytes=30064771200, server_bytes=23622320128,
+            api_bytes=2147483648, minio_bytes=1073741824),
         dau_store_source='PARQUET_TRANSFER',
         hybrid_k20_projected_admitted=False)
     value.update(overrides)
@@ -55,6 +56,21 @@ class AdmissionGate(unittest.TestCase):
                     store.source_guard.return_value = 'c' * 40
                     with self.assertRaisesRegex(ValueError, 'required|declared|differs|refused|indexed'):
                         run.admission_gate(approval(**overrides))
+
+    def test_derived_requirement_binds_or_a_declared_closest_class_note(self):
+        host = dict(region='nyc3', size='c2-8vcpu-16gb', price_hourly=.25,
+            storage_gib=200, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=25.0)
+        with patch.object(run, 'full_store') as store:
+            store.source_guard.return_value = 'c' * 40
+            with self.assertRaisesRegex(ValueError, 'derived host requirement'):
+                run.admission_gate(approval(dau_host=host))
+            host['class_note'] = ('no dedicated-CPU class in the provider catalogue; the closest class at '
+                'the derived resources (16 cores / 32 threads / 32 GB RAM) is the CPU-Optimized c-16, '
+                '16 vCPU / 32 GB / 200 GB local SSD; vCPU-to-core mapping per the provider class docs')
+            run.admission_gate(approval(dau_host=host))
+            host['class_note'] = '   '
+            with self.assertRaisesRegex(ValueError, 'derived host requirement'):
+                run.admission_gate(approval(dau_host=host))
 
     def test_task_mode_and_source_binding_are_required(self):
         value = approval(costfn_task_id=None, costfn_run_rules=None)
