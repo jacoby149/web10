@@ -3,7 +3,7 @@
 **Current API contract and implementation examples.** JSON remains the app ->
 API input and API -> app/UI response format. It does not prescribe ClickHouse
 storage (D118, DECIDED). Single-`ref_value`/JSON SQL examples are current, not the
-D116 (DECIDED)/D117 (DIRECTION, cell pending) target. See the
+D116 relationship target or D117 refinement. See the
 [canonical design map](../db/design-revolution.md).
 
 The JavaScript/TypeScript SDK. One client. Groups are baked into every verb.

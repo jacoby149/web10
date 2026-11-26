@@ -1,0 +1,191 @@
+# D117 refinement: hybrid K20 preflight
+
+**Status:** the [indexed baseline samples](evidence/hybrid-k20-fingerprint-20261124/RESULTS.md)
+passed the original oracle. The original wrapper STOP is retained and the
+receipt audit reconciles offline after correcting its mode declaration. The
+challengers and fault suite did not run on that lease. The projected canonical
+arm now has source and offline controls; native evidence is pending. The
+[D117 result](evidence/row-model-4096-20261123/RESULTS.md) rejected maximal
+payload decomposition, not every way to store queryable values separately.
+The next question is whether a hybrid is worth its extra writes and repair
+work once the best canonical query has had a fair shot.
+
+## What the fixture found
+
+Run `python3 research/experiments/costfn/hybrid_fixture.py` from the repository
+root. The fixture uses 256 synthetic posts, ~8 KiB bodies, repeated document IDs
+across authors, mixed visibility, and rank ties. The independent input oracle
+and both modeled readers agree on the exact ordered top 20, including versions
+and payloads.
+
+| Read path | Modeled bytes touched |
+| --- | ---: |
+| Canonical, whole documents scanned | 2,110,820 |
+| Canonical, only key/version/policy/rank scanned, then winner documents fetched | 170,389 |
+| Hybrid, current-version manifest and skinny rows scanned, then winner documents fetched | 189,253 |
+
+The hybrid touches **11.15× fewer modeled bytes** than a full document scan,
+but **11.1% more** than the projected canonical model. The hybrid total includes
+18,864 manifest bytes, 5,476 skinny-row bytes and 164,913 winner-document bytes.
+These are synthetic serialization counts (including raw digest lengths), not
+ClickHouse `read_bytes`, device I/O, or latency. The fixture does not show that
+the real canonical layout can prune payload or that the hybrid can reproduce
+the whole-scan ratio on a complete feed.
+
+The model also leaves a staged edit invisible, refuses a publish with a missing
+staged row, resolves an identical retry after an assumed lost commit response,
+ignores a superseded public row, rejects missing/corrupt current rows and a
+corrupt winner payload, and restores parity after a satellite rebuild. Python
+state transitions model these outcomes; they do not establish ClickHouse
+atomicity, receipt semantics, or cleanup safety under concurrency.
+
+## Small native comparison
+
+**Execution amendment: baseline first, then stop.** After the fixed-slice
+source merges and the host/window are bound, run `hybrid_k20_run_current.py`
+on the verified snapshot 255003176 and the pinned engine. The constructor
+seeds historical posts using only the authenticated main post scope and reader
+ownership. Follow-up scopes stay authoritative for reads but do not seed the
+global candidate inventory. Inbound dependencies are selected from the fixed
+post roots; only retained keys are parsed for outgoing references. The constructor
+retains document/attachment/event history, records all three slice lanes and receipts in
+`hybrid-k20-slice.json`, and rejects a slice that disagrees with the independent
+unsliced canonical oracle before measurement. Rebuild furniture and certificates
+for the sliced generation rather than inheriting the snapshot's full-store receipts.
+Both K20 setup oracles order eligible legacy node ads by full creative identity
+before the unchanged round-robin assignment. The indexed path and exact parity
+gate do not change; the previous mismatch remains recorded in
+[#1626](https://github.com/jacoby149/web10/pull/1626).
+Report the original indexed K20 reproduction and stop whether it passes or fails;
+the following three-arm plan applies only after a successful baseline.
+
+Use a fixed, representative post-family slice with enough parts/granules to
+expose payload pruning and with real K20 history, policy checks, and ranking.
+Record the slice manifest and use the same frozen input and authorized request
+for three arms, on the same pinned ClickHouse build and resource envelope:
+
+1. **Current:** the indexed canonical K20 path, including preparation and
+   response assembly. Keep the actual query inventory as the baseline.
+2. **Projected canonical:** retain canonical storage and authority. Resolve
+   current version, eligibility and rank using only the necessary fields, then
+   fetch the winning documents by exact key and version. Verify the actual
+   ClickHouse plan and native receipts; if the layout cannot prune the payload,
+   report that rather than assume it can.
+3. **Hybrid:** read typed Verify/Rank fields from versioned skinny tables;
+   fetch the same whole JSON winners by ordered full key and exact committed
+   version. No payload subpath extraction in the hybrid read. Recheck required
+   authority and charge version/digest checks, fallback and any refill to the
+   arm. Missing or mismatched committed data must reject the read or use a
+   verified canonical fallback; it must not silently drop or reorder winners.
+
+At the API -> ClickHouse boundary, use the same request authority in all three
+arms. Gate cost comparisons on exact ordered complete-response parity against
+the existing independent oracle, including policy, versions, and payloads.
+Keep the candidate window and ranking semantics fixed; a smaller answer is not
+a faster answer. For each arm bank native query IDs, plans, actual rows,
+logical bytes and duration by stage and in total, plus end-to-end wall time.
+Separate setup, auxiliary receipt work, and write/rebuild costs; record cache
+conditions and repeated samples without calling the small fixture a p95 or
+capacity measurement. Keep assembly-to-assembly and complete-to-complete
+comparisons separate.
+
+### Projected canonical: source ready, native comparison pending
+
+At the research API -> ClickHouse boundary, the projected cell runs the same
+mixed resolution/tally query without post and profile bodies in the history,
+policy and ranking pass. It fetches the selected bodies by service, author,
+document ID and exact millisecond version, then restores their original ordered
+rows. Preparation still runs the unmodified canonical binder. Its document
+lookup resolves authorized versions before fetching bodies for the requested
+author. Missing or conflicting exact bodies and saturated prepare results stop
+the cell. Face authorization still needs JSON at read time and remains
+unchanged, as do pin/creative preparation, follow-ups and delivery.
+
+On the **admitted task**, use `hybrid_k20_run_projected.py` with the
+original current-arm source/host/window binding plus
+`hybrid_k20_projected_directive='RD4-HYBRID-K20 projected canonical comparison only'`,
+`hybrid_k20_projected_admitted=true` and `hybrid_k20_hybrid_admitted=false`.
+Set `costfn_run_rules='Jacob Hoffman 2026-11-24 costfn task continuation'` and a
+stable `costfn_task_id`. The `deadline_utc` wire value is the host backstop,
+not a work deadline. To continue after a repair, run the same command over the
+same root and add `--repair-note 'what changed and why'`; do not rewrite the
+original admission. To repeat only a treatment-changing measurement add
+`--restart-measurement indexed`, `projected`, or `both` as appropriate. A failed
+receipt or incomplete preparation is not a reusable verdict; if an input or
+part check disagrees, repair just that component before continuing.
+The runner rebuilds the same slice with the original constructor and unsliced
+oracle, checks the banked event census, and runs both arms sequentially over
+that one store. Each must pass the existing complete HTTP/oracle checks. The
+comparison requires equal quiet delivery history for the two measured samples;
+warmups are archived separately. This fixed order does not control server cache
+carryover or establish repeatable latency.
+
+Review the native `EXPLAIN PLAN` read headers, actions and indexes for both
+targeted stages, alongside exact measured query IDs, query-log columns and
+actual costs. The keys statements should not read `body`; the payload statements
+should read it only through the exact-key/version `PREWHERE`. If the native
+plans still scan broad granules, report that separately from column omission.
+Do not infer physical I/O from logical bytes or present the in-request queries
+as the cost of EXPLAIN and receipt collection. Compare each full measured HTTP
+sequence with captured and request-tagged costs side by side. Do not implement
+the hybrid arm before reviewing that native comparison.
+
+### Step 3: attachment-history layout
+
+Step 2's [native comparison](evidence/k20-projected-20261125/RESULTS.md) showed
+that body pruning did not reduce complete-read costs. At the research API ->
+ClickHouse boundary, the Step 3 arm substitutes a skinny, 256-row-granularity
+attachment history for the two expensive projected key statements only. It
+keeps every canonical version/tombstone and the original policy, tally, rank,
+body materialization and response assembly. The driver uses the retained
+Step 2 store and its same-host manifest/generation; it does not re-prepare it.
+An exact native multiset census and a refusal for ambiguous tombstone ties
+precede serving. Both canonical and satellite part fingerprints are checked
+on the request and their costs are charged. Compare against indexed control
+twice in reversed order and retain the per-statement plans and complete reads.
+
+Before advancing, run the publish/repair faults on the isolated native store:
+crash before commit; dropped data write; lost commit acknowledgment then retry
+of the same immutable operation; deliberately committed version missing a
+required row; stale rows after edit/tombstone; missing or corrupt winner payload;
+and satellite loss/rebuild. Verify exact agreement after repair and that cleanup
+cannot reclaim an in-flight publish or data still needed by a reader. Compare
+observed rows and payloads against canonical committed facts, not just two
+stored digests. An absent receipt is **unknown** until resolved, not proof
+that an insert never landed. The record distinguishing committed versions from
+staged data is canonical state, not a disposable index. A census is detection
+and repair, not a substitute for safe reads before it runs.
+
+**Decision:** advance to the six-case frozen-data cell only if the hybrid
+shows a repeatable, material complete-read gain over the best viable canonical
+arm with exact parity and all fault gates passing. State the observed gain and
+the incremental publish/rebuild cost in the decision. If projection captures
+most of the gain, favor canonical storage and avoid the extra machinery. Keep
+the six-case assembly threshold on comparable assembly stages; do not apply
+the assembly-only denominators to complete Verify/Rank/Return work.
+
+## Budgets and run boundaries
+
+The [indexed K20 receipt](evidence/skinny-pin-20261122/RESULTS.md#complete-feed-captured-query-work)
+is 123,119,689 logical bytes and 7,017.152 ms end to end. Both pin stages
+together used 56,681 logical bytes; the named raw delivery-history read was
+1,722 bytes in that measured request. The 1,332 ms sum is native query duration,
+not CPU time. Do not assume the hybrid can remove 100 MB of the total until
+the complete stage inventory identifies and measures the work it replaces.
+
+- **DigitalOcean:** report logical bytes, not a hard byte cutoff. Keep 25 MB
+  as a historical logical-byte reference, not a gate for this comparison.
+  Around 30 MB logical would be a useful result, not a physical-disk verdict.
+- **R630:** 1.09 GB/s divided by 15 reads/s gives ~73 MB of **gross physical
+  disk throughput per read**, before writes, merges and headroom. Both inputs
+  are planning assumptions. Measure sustained device I/O on the actual array
+  with cold caches and concurrent work; logical bytes are not a physical upper
+  bound. Disk is a candidate bottleneck, not a proven one.
+- **Latency:** retain 500 ms end to end as a separate target. A disk-budget
+  pass is not a latency pass.
+
+Follow the [costfn execution directive](README.md#governing-execution-directive--18-november-2026).
+Bind the small native fixture to its source, owned DigitalOcean host and time
+window before execution. A full run requires its own explicit binding and
+admission after review of the small native result. This preflight records no
+native execution, creates no lease, and changes no production path.

@@ -124,8 +124,12 @@ def install(original, observer, directory, *, operation=None):
                 callers.append(frame.f_code.co_name)
         finally:
             del frame
+        stage = classify(rendered, callers, current)
+        if os.environ.get('HYBRID_K20_PROJECTED') == '1':
+            from hybrid_k20_projected import STAGES
+            stage = next((name for name in STAGES if '/* ' + name + ' */' in rendered), stage)
         row = dict(request_id=request_id, sql_sha256=hashlib.sha256(rendered.encode()).hexdigest(),
-            stage=classify(rendered, callers, current), success=False)
+            stage=stage, success=False)
         started = time.perf_counter()
         try:
             proof = uniform_guard(rendered, current)

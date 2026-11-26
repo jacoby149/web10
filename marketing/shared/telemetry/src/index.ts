@@ -28,7 +28,8 @@ const EVENTS = new Set([
   'trending_view_toggle', 'trending_people_view', 'trending_groups_view',
   'trending_tab', 'experience_video', 'experience_shorts', 'experience_hot_gossip',
   'experience_posts', 'experience_people', 'join_view', 'join_click',
-  'sign_in_click', 'sign_up_click', 'github_click', 'enter_click', 'product_session',
+  'sign_in_click', 'sign_up_click', 'github_click', 'enter_click', 'explore_click',
+  'product_session',
 ]);
 const CAMPAIGN_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_id'] as const;
 const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import urllib.request
 import uuid
@@ -12,6 +13,7 @@ from arm_f_http import HTTP
 from arm_f_native import save
 import arm_f_reads as reads
 import arm_f_startup
+from costfn_task import exact, ParityDivergence
 import engagement_modern as modern
 import engagement_queries as queries
 import restore_dataset
@@ -60,9 +62,20 @@ def serving_state(parent, cell, profile_name):
     return profile
 
 
-def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False):
+def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False, projected=False,
+         hybrid=False):
     parent = Path(parent)
-    completion = json.loads((parent / 'admission.json').read_bytes()).get('engagement_completion_admitted') is True
+    approval = json.loads((parent / 'admission.json').read_bytes())
+    completion = approval.get('engagement_completion_admitted') is True
+    if projected:
+        from hybrid_k20_projected import enabled
+        pattern = r'hybrid-K20-r[12]-attempt-[1-9][0-9]*' if hybrid else r'projected-K20(?:-attempt-[1-9][0-9]*)?'
+        if (not enabled(approval) or approval.get('composition_admitted') is not True
+                or not re.fullmatch(pattern, name)
+                or (profile_name, mode, serving_mode, aggregate) != ('ordinary', 'uniform', 'F_DOCUMENT_STREAM_V1', True)):
+            raise ValueError('projected overlay is limited to the admitted fixed K20 cell')
+    elif hybrid:
+        raise ValueError('hybrid requires projected canonical resolution')
     if completion:
         from engagement_certificates import verify
         verify(parent)
@@ -75,14 +88,19 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
     env = dict(FANOUT_CONFIG_F='1', FANOUT_STATE='/fanout-state', FANOUT_STAGE_DIR='/fanout-stages',
         FANOUT_SERVING_MODE=serving_mode, FANOUT_BOOT_ID=boot_id, ENGAGEMENT_READ_MODE=mode,
         ENGAGEMENT_VIEWS_AGGREGATED='1' if aggregate else '0', ENGAGEMENT_COPY_PROOF='/copy-proof.json')
+    if projected:
+        env['HYBRID_K20_PROJECTED'] = '1'
     volumes = [str(cell / 'fanout-state') + ':/fanout-state', str(stages) + ':/fanout-stages']
+    if hybrid:
+        env['HYBRID_K20_ATTACHMENT_PROOF'] = '/hybrid-attachment-proof.json'
+        volumes.append(str(parent / 'hybrid-attachment-proof.json') + ':/hybrid-attachment-proof.json:ro')
     if mode == 'uniform':
         volumes.append(str(parent / 'copy-proof.json') + ':/copy-proof.json:ro')
     overlay = cell / 'api.overlay.json'
     entry = ('engagement_tally_api' if json.loads((parent / 'admission.json').read_bytes()).get('tally_wiring_admitted') is True
         else 'engagement_api')
     if json.loads((parent / 'admission.json').read_bytes()).get('composition_admitted') is True:
-        entry = 'engagement_composition_api'
+        entry = 'hybrid_k20_attachment_api' if hybrid else 'engagement_composition_api'
         env['ENGAGEMENT_COMPOSITION_PROOF'] = '/composition-proof.json'
         volumes.append(str(parent / 'composition-proof.json') + ':/composition-proof.json:ro')
     save(overlay, {'services': {'api': {'volumes': volumes, 'environment': env,
@@ -158,7 +176,7 @@ async def complete(parent, cell, profile, expected, *, uniform=False, serving_mo
             reads.compare(sample, expected, observation)
             if session.operation.get('composition_admitted') is True:
                 from engagement_billboards import compare
-                compare(sample['rows'], expected['rows'], expected['billboard_setup'])
+                exact(compare, sample['rows'], expected['rows'], expected['billboard_setup'])
             actual = sample['followups'][2]
             after = reads.views(session, expected['ids'], phase + '_raw_delivery_after')
             raw = reads.visible_views(session, expected['ids'], expected['views_readable_groups'], phase + '_raw_canonical')
@@ -170,7 +188,7 @@ async def complete(parent, cell, profile, expected, *, uniform=False, serving_mo
                         and 0 <= current['impressions'] - previous['impressions'] <= expected['ids'].count(doc)):
                     raise ValueError('raw canonical delivery delta exceeds returned multiplicity')
             if actual != raw:
-                raise ValueError('complete HTTP view values differ from independent raw canonical events')
+                raise ParityDivergence('complete HTTP view values differ from independent raw canonical events')
             sample['native'] = http.native(sample['request_ids'], phase)
             sample['parity'] = 'PASS'
             samples.append(sample)
@@ -185,7 +203,9 @@ async def complete(parent, cell, profile, expected, *, uniform=False, serving_mo
         stop(parent)
 
 
-def run_complete(parent, name, profile_name, mode, expected, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False):
-    cell = boot(parent, name, profile_name, mode, serving_mode=serving_mode, aggregate=aggregate)
+def run_complete(parent, name, profile_name, mode, expected, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False,
+                 projected=False, hybrid=False):
+    options = dict(hybrid=True) if hybrid else {}
+    cell = boot(parent, name, profile_name, mode, serving_mode=serving_mode, aggregate=aggregate, projected=projected, **options)
     profile = json.loads((Path(parent) / ('profile-' + profile_name + '.json')).read_bytes())
     return asyncio.run(complete(parent, cell, profile, expected, uniform=mode == 'uniform', serving_mode=serving_mode))

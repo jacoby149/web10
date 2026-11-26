@@ -37,7 +37,13 @@ native outcome. Compare exact response parity, both pin stages, full warmup and
 measured feed costs, peak memory and latency. The operator wants the best observed
 tradeoff, not a 25 MB stop/acceptance requirement. No p95 or capacity inference.
 
-Finish and preserve the active B run. After this source patch merges with all
-checks green, bind the rerun to exact source and unchanged experiment gates and
-resource bounds. Keep off-host receipts and verified owned cleanup. Do not add
-the treatment to the already-running B worker or silently reuse old verdicts.
+## Native result
+
+The later operator instruction superseded the fresh full-repeat plan: stop the
+unrelated typed build, preserve its partial checkpoint, and rerun just the feed
+experiment on the same frozen B store under the original deadline. The indexed
+run passes all four gates, three feed cells and exact decomposition. Measured
+uniform reads 123,119,689 bytes versus B's 8,847,767,874; pin lookup plus
+canonical materialization reads 56,681 bytes. See the
+[results and custody](evidence/skinny-pin-20261122/RESULTS.md), including warmup
+order effects, build costs, partial row verdict and verified cleanup.

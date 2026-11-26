@@ -46,6 +46,7 @@ describe('real media-surface mixed reads', () => {
     const payload = JSON.parse(String(options.body));
     expect(payload.groups).toEqual(['foreign.example/groups/web10/discover']);
     expect(payload.sql).toContain(`'${tag}'`);
+    expect(payload.prepare).toMatchObject({ media: true, ads: tag !== 'music' });
     expect(payload.token).toBe(setup.credential);
     expect(options).toMatchObject({ credentials: 'omit', redirect: 'error' });
     fireEvent.click(screen.getByTestId('preset-most-liked'));
@@ -87,6 +88,28 @@ describe('real media-surface mixed reads', () => {
     view.rerender(<MemoryRouter><Probe /></MemoryRouter>);
     await act(async () => { release(new Response(JSON.stringify({ rows: [row] }))); });
     expect(screen.getByTestId('posts').textContent).not.toContain(setup.foreign);
+  });
+
+  it('paints the first playable Music row before a slow source and keeps its place in the final mix', async () => {
+    const ref = { doc_id: 'audio', read_url: '/song.mp3', mime_type: 'audio/mpeg' };
+    const homePosts = ['first', 'third'].map(id => ({ _id: id, author_key: 'alice', score: 0,
+      created_at: row.created_at, title: id, tags: ['music'], media_refs: [ref] }));
+    vi.mocked(readFeedPage).mockResolvedValue({ posts: homePosts, has_more: true, next_cursor: null });
+    let release!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { release = resolve; })));
+    render(<MemoryRouter initialEntries={['/music']}><MusicProvider><MusicScreen /></MusicProvider></MemoryRouter>);
+    const first = await screen.findByRole('button', { name: 'Play first' });
+    expect(readFeedPage).toHaveBeenCalledWith(expect.objectContaining({ trackList: true }));
+    expect(screen.getByText('Loading more music…')).toBeTruthy();
+    expect(screen.queryByLabelText('Loading music')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Explore more music' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Play third' })).toBeNull();
+    await act(async () => { release(new Response(JSON.stringify({ rows: [{ ...row, tags: ['music'], body: { title: 'second', media_refs: [ref] } }] }))); });
+    const cards = screen.getAllByTestId('music-track-card');
+    expect(cards[0]).toBe(first);
+    expect(cards.map(card => card.getAttribute('aria-label'))).toEqual(['Play first', 'Play second', 'Play third']);
+    expect(screen.queryByText('Loading more music…')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Explore more music' })).toBeEnabled();
   });
 
   it('renders source-bound native music with source-qualified links and no home write controls', async () => {

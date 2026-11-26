@@ -8,17 +8,76 @@ and task breakdowns live in `plan.txt`.
 Status legend: [decided] intent set · [in-progress] · [open] still debating.
 For D115–D120, **DECIDED** records operator intent, **DIRECTION** records a
 chosen design awaiting its proving cell, and **PRINCIPLE** records the lesson.
-None of these labels means implemented, measured or shipped.
+MEASURED records a proving-cell verdict, not implementation or rollout.
 
 **Reading older entries:** original rationale, operator quotations and dated
 implementation receipts are historical, not retroactively revised acceptance.
 Current API/storage examples use JSON and a single `ref_value`; that is not the
-D116 (DECIDED)/D117 (DIRECTION, cell pending) replacement target. D118 is DECIDED
+D116 (DECIDED) relationship target or a shipped D117 refinement. D118 is DECIDED
 about representation separation; the [design map](../web10-v3/db/design-revolution.md)
 links the canonical definitions and reports. Older decisions explicitly
 superseded by a later entry remain visible as history.
 
 ---
+
+### D125 — Essay-length post bodies clamp with a per-post "See more" toggle; the clamp is a budget, not a wall [DECIDED]
+
+**Operator, 25 November 2026** (screenshot of a wall-of-text post that took
+over the feed): "on web10, posts and videos can have text that goes on
+forever, like over 20 lines maybe there should be a See More.... button that
+expands it if interested? like a toggle to expand contract per post, and the
+video descriptions … that shouldn't happen" (an essay dominating the feed).
+
+**Decided** — (1) A post's body (a post's `text`, D82/D85) is clamped **only
+when it is essay-length**: its natural rendered height exceeds **20 body
+lines ≈ 455px** at `text-sm leading-relaxed` — the operator's "over 20
+lines" line, in height (the height is what dominates a feed; characters wrap
+differently at every width). Everything shorter renders exactly as before —
+no clamp style, no toggle, zero drift. (2) The clamp budgets: **6 lines on
+the feed card** (the teaser's height budget, the `line-clamp-6` idiom),
+**12 lines on the detail surfaces** (the lightbox / the watch page / the
+permalink — a reading column earns the bigger budget; the video's
+description is the motivating case). (3) The clamp carries the escape: a
+per-post **"See more" / "See less" toggle** (the link voice, `brand-300`)
+under a fading scrim that blends the clamp's foot into the surface's own
+background token — the clamp is a budget, not a wall. (4) The toggle state is
+**interaction state, not screen state** (the comment-thread open/close
+precedent: a local per-post `useState`, not a URL param) — the deep-link rule
+governs screens, and the feed holds a dozen posts each with its own
+expanded/collapsed state. The shorts lens's `?description=1` is the exception
+that proves the rule (a SHEET — a distinct surface with its own route — not
+an inline clamp). (5) **Embeds are not essays**: a link-only post whose body
+is a provider player card (the D99 unfurl) sits under the trigger's height
+and renders unclamped — the clamp never cuts a player or a card. (6) One
+component, every surface: `ExpandablePostBody` (the social app's
+`Feed/ExpandablePostBody.tsx`) wraps the ONE `<PostBody>` (the D85 read side,
+the density passed through), so the clamp never forks the renderer.
+
+**Why a measured height, not a character count:** the gate has to decide at
+the reader's width — a post that is 30 lines at 375px is ~18 at 1440px. A
+character threshold would clamp the same post on desktop and not on mobile
+(or vice versa); the height is the invariant. The measurement is a
+`useLayoutEffect` (before paint — the toggle appears in the first frame, no
+flash, no layout jump), re-measured on resize (debounced) and on text /
+budget change; a width change that makes the content fit the trigger again
+exits the clamp entirely.
+
+**All client-side, zero node surface (D60):** the clamp is a presentation
+rule on the existing `posts` docs — no node column / endpoint / contract.
+The social app's summary + full surfaces get it; the marketing discover card
+keeps its fixed `line-clamp-6` + click-through (a teaser wall, not a reading
+surface); the shorts lens keeps its description sheet; the profile quote
+tile keeps its title-only teaser.
+
+**Rejected:** a fixed `line-clamp` on every card body regardless of length
+(the pre-D125 spec ideal — it would clamp a 3-line caption's card and cut
+embed-heavy posts); a character-count gate (width-blind, the drift case
+above); URL-owning the expand state on the feed (a dozen posts × their clamp
+state in one query string); a second renderer for the clamped copy (the ONE
+`<PostBody>` stays the single locked sanitize choke point, D85).
+
+Full contract: `web10-v3/social/post-render.md` ("The long-body expand
+rule"); the render densities: `web10-v3/social/rich-text.md`.
 
 ### D124 — Agreeing billboard pins coalesce; distinct full creative targets conflict [DECIDED; amends D115]
 
@@ -176,7 +235,17 @@ this internal-storage decision. Rejects: export format dictating physical
 layout, deleting canonical research JSON before replacement proof, and using
 storage freedom as permission to break clients. No migration or rollout here.
 
-### D117 — Documents become versioned pointers to immutable typed rows [DIRECTION; cell pending]
+<a id="d117--documents-become-versioned-pointers-to-immutable-typed-rows-direction-cell-pending"></a>
+
+### D117 — Documents become versioned pointers to immutable typed rows [MEASURED; maximal rejected]
+
+**23 November 2026 verdict:** all six post-family comparisons matched exactly
+and crossed the pre-committed order-of-magnitude test. Reject decomposition of
+the full payload in this maximal layout. Retain the refinement: queryable values
+as rows, payload as document content. This is not implementation or native proof
+of a replacement design. [Completed cell and measured costs](../../research/experiments/costfn/evidence/row-model-4096-20261123/RESULTS.md).
+
+**Original hypothesis, retained for context.**
 
 **Jacob Hoffman, 19 November 2026:** these are “revolutionary changes to the
 system.” The chosen direction is the maximal row model, not merely a few
@@ -212,7 +281,7 @@ only the cheaper refinement.
 assembly supports maximal decomposition **at page scale only**. Exact parity
 with order-of-magnitude costlier assembly rejects the maximal version and banks
 the refinement: queryable values as rows, payload as document content. A parity
-mismatch blocks measurement; neither verdict is recorded yet.
+mismatch blocks measurement. The completed cell triggered the rejection rule.
 
 **Proof order and admitted scope:** “make all the fixes, then do the experiments.”
 Row-model source preparation is necessary before spending on runs, but its
@@ -225,7 +294,7 @@ tombstones, shared values and zero-payload documents, then separately price
 displayed-key/feed and full post-open assembly. Other families, garbage
 collection, production and §8 are not admitted by this record. Contract:
 [`ROW-MODEL-QUEUED.md`](../../research/experiments/costfn/ROW-MODEL-QUEUED.md).
-No row-model measurement or production acceptance is claimed.
+The completed cell is isolated post-family assembly evidence, not production acceptance.
 
 ### D116 — Docs are nodes, refs are edges: a generic N-ref satellite [DECIDED]
 
@@ -1902,8 +1971,9 @@ gating.
 ### D63 — The flexible read: the API authorizes app SQL before ClickHouse execution [decided]
 
 **Current implementation, not replacement storage.** JSON/single-ref examples
-retain their present API meaning; D116 is DECIDED, D117 is DIRECTION (cell pending)
-and D118 is DECIDED. See the [design map](../web10-v3/db/design-revolution.md).
+retain their present API meaning; D116 and D118 are DECIDED. D117's measured
+rejection retains queryable rows and document payload as the refinement. See the
+[design map](../web10-v3/db/design-revolution.md).
 
 **The decision.** An app writes a ClickHouse `SELECT` over its **service
 names** (`posts`, `comments`, …); the node compiles it through the safe-query

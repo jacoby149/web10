@@ -1,18 +1,20 @@
 # The row model — a document is a set of rows
 
+**Historical proving contract.** The 23 November [completed cell](evidence/row-model-4096-20261123/RESULTS.md)
+rejected the maximal layout below on assembly cost. This original hypothesis
+is retained for reproducibility, not as a new queue item or migration target.
+
 Jacob Hoffman, 19 November 2026. The MEASURED CELL queues behind all-fixes
 banking. Its SOURCE WORK DOES NOT WAIT. Jacob subsequently clarified: “the row
 model work is necessary” and “no point in running lease without row model
 work.” Prepare both source implementations before any spending. Preserve the
 measurement order rather than running an incomplete intermediate design.
-No row-model native execution or fresh lease has started.
 
 ## Current implementation versus target — do not confuse the two
 
-The destination is the maximal replacement: typed rows and pointers, NOT a
-permanent JSON-plus-index hybrid. Old production code and canonical research
-JSON remaining in this branch do not reverse that decision. D117 is DIRECTION
-(cell pending); D115/D116/D118 are DECIDED, D119 is DIRECTION and D120 is PRINCIPLE.
+The historical treatment was the maximal replacement: typed rows and pointers,
+not a permanent JSON-plus-index hybrid. D117 now retains only the refinement:
+queryable values as rows and payload as document content.
 The [design map](../../../knowledge-base/web10-v3/db/design-revolution.md) links the canonical ledger. Nothing
 here claims that unmeasured source prototypes have completed a production cutover.
 
@@ -38,7 +40,7 @@ Source modules now implement:
   `row_model_run.py`: concrete typed-driver/owned-container wiring, full-family
   setup, real canonical/typed controls, physical sharing and zero-pointer
   verification, native query receipts and private comparison packets. Source
-  integration is implemented; actual native/data-scale acceptance remains OPEN.
+  integration is implemented; the completed cell verifies parity but rejects economics.
   Invocation/admission/cost scopes: [`ROW-MODEL-RUN.md`](ROW-MODEL-RUN.md).
 
 **Snapshot consistency choice:** each committed experimental version contains a
@@ -53,10 +55,8 @@ rows; container content changes cannot retain their previous immutable ID.
 
 The cell's typed layouts answer row-ID assembly seeks; do not infer numeric-
 range/text-prefix query-planner performance from that test. No new `documents`
-projection is introduced. Full-scale native type/driver/layout/assembly proof
-and eventual production JSON read-path retirement remain OPEN. The connected
-action-provider/worker/host entry is now source-implemented and source-tested,
-not claimed natively accepted.
+projection is introduced. The completed experiment is not production acceptance
+or authorization to retire the production JSON read path.
 
 ## The goal
 
@@ -68,8 +68,8 @@ economics, not declare victory because a row happens to be skinny.
 
 ## Storage rules
 
-**Canonical design home:** [D117 (DIRECTION; cell pending)](../../../knowledge-base/strategy/decisions.md#d117--documents-become-versioned-pointers-to-immutable-typed-rows-direction-cell-pending)
-owns the storage rules. The checklist below applies that decision to this
+**Canonical design home:** [D117 (MEASURED; maximal rejected)](../../../knowledge-base/strategy/decisions.md#d117--documents-become-versioned-pointers-to-immutable-typed-rows-measured-maximal-rejected)
+owns the verdict. The checklist below records the rejected hypothesis for this
 isolated proving contract; it is not a second source of implementation status.
 
 - Storage contains only skinny typed rows. **No JSON is stored.** JSON is the

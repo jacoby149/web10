@@ -7,6 +7,8 @@ import re
 import subprocess
 import sys
 
+import engagement_window as window
+
 
 def registered(root):
     root = Path(root)
@@ -31,6 +33,9 @@ def stop(root, *, api_only=False):
 
 def arm(root):
     approval, project = registered(root)
+    if window.task(approval):
+        subprocess.run(['systemctl', 'is-active', 'fanout-hard-stop.timer'], check=True, capture_output=True, timeout=10)
+        return {'unit': 'fanout-hard-stop', 'project': project, 'stop_utc': approval['deadline_utc'], 'verified': True}
     deadline = datetime.fromisoformat(approval['deadline_utc']).timestamp()
     when = datetime.fromtimestamp(deadline - 240, UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
     unit = 'fanout-trial-stop-' + hashlib.sha256(project.encode()).hexdigest()[:12]

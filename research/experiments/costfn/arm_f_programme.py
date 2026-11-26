@@ -24,6 +24,7 @@ from arm_f_runtime import Session, admitted
 import arm_f_t4 as t4
 from arm_satellite_reconcile_native import run as native_rehearsal
 import arm_t
+import engagement_window as window
 import restore_realism as restore
 
 
@@ -34,7 +35,7 @@ def wait_for_step0(root):
     previous = None
     while True:
         deadline = admitted(approval, host)
-        if (deadline - datetime.now(UTC)).total_seconds() < 180:
+        if window.work_seconds(approval, deadline) < 180:
             raise TimeoutError('Step0 wait exhausted original cleanup margin')
         value = json.loads((root / 'result.json').read_bytes())
         if value.get('outcome') == 'P_STEP0_COMPLETE':
@@ -60,7 +61,7 @@ class Actions:
 
     def check(self):
         deadline = admitted(self.approval, self.host)
-        if (deadline - datetime.now(UTC)).total_seconds() < 180:
+        if window.work_seconds(self.approval, deadline) < 180:
             raise TimeoutError('original cleanup margin reached; remaining gates UNREACHED')
 
     def step0(self, output):

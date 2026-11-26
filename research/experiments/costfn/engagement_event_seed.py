@@ -9,6 +9,8 @@ from arm_f_native import save
 from arm_satellite_sql import literal as q
 import engagement_events as events
 import engagement_all_time_seed as all_time_seed
+import engagement_window as window
+from costfn_seed_resume import Seed
 
 
 def plan(first, end, buckets_by_day=None):
@@ -60,7 +62,9 @@ def install(session, root, *, writers_stopped, expected_events=1_600_000_000, bu
         raise ValueError('API writers must be stopped before DDL/MV/seed')
     root = Path(root)
     output = root / 'aggregate-seed'
-    output.mkdir(mode=0o700, exist_ok=False)  # No implicit resume or partial reseed.
+    resumable = window.task(getattr(session, 'operation', {}))
+    output.mkdir(mode=0o700, exist_ok=resumable)
+    resume = Seed(session, output, expected_events, buckets_by_day) if resumable else None
     started = time.perf_counter()
     record = dict(outcome='BUILDING', expected_events=expected_events, slices=[], setup=[],
         writers_stopped=True, group_key=['doc_id', 'service', 'event_type', 'day'],
@@ -75,8 +79,14 @@ def install(session, root, *, writers_stopped, expected_events=1_600_000_000, bu
         checkpoint()
         query_id = None
         try:
-            value, query_id = (session.rows(label, sql) if rows else session.query(label, sql))
-            item.update(query_id=query_id, native=native(session, query_id))
+            def action():
+                return (session.rows if rows else session.query)(label, sql)
+            if resume is None or label in ('composition_aggregate_seed_reconcile', 'composition_aggregate_all_time_census'):
+                value, query_id = action()
+                receipt = native(session, query_id)
+            else:
+                value, query_id, receipt = resume.step(label, sql, rows, action, native)
+            item.update(query_id=query_id, native=receipt)
             if item['native']['exception_code'] or item['native'].get('type') != 'QueryFinish':
                 raise ValueError('original seed statement did not finish successfully')
             item['outcome'] = 'PASS'

@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from sqlglot import exp
 
 
-def install(endpoint):
+def install(endpoint, *, project=None):
     canonical = endpoint._canonical_prepare_docs
     execute = endpoint.ch.execute_query
     selected_author = ContextVar('F_canonical_prepare_author', default=None)
@@ -22,6 +22,8 @@ def install(endpoint):
     def exact_lookup(sql, *args, **kwargs):
         author = selected_author.get()
         if author is not None:
+            if project is not None:
+                return project(lambda query: execute(query, *args, **kwargs), sql, author)
             # This SQL is already the original server-written, safe-query-
             # compiled canonical lookup. A selector can only remove its rows.
             sql = ('SELECT * FROM (' + sql + ') AS f_author_lookup WHERE author_key='

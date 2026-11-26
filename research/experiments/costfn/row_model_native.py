@@ -25,6 +25,9 @@ from arm_satellite_sql import literal as q
 import engagement_limits as limits
 from row_model_fence import TABLES
 
+DEFAULT_QUERY_BYTES = 256 * 1024
+BUILD_QUERY_BYTES = 16 * 1024**2
+
 
 class IdentityMismatch(ValueError):
     def __init__(self, expected, actual):
@@ -208,6 +211,10 @@ class Driver:
 
     def query(self, statement):
         def execute(settings):
+            # Ingest expands full keys and typed row IDs into SQL literals.
+            # Leave the parser settings for measured assembly unchanged.
+            if self.variant is None and len(statement.encode()) > DEFAULT_QUERY_BYTES:
+                settings = {**settings, 'max_query_size': BUILD_QUERY_BYTES}
             result = self.client.query(statement, settings=settings,
                 query_tz='UTC', tz_mode='aware')
             # Consume typed result blocks inside the submitted operation. A

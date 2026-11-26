@@ -25,6 +25,7 @@ const learnItems = [
 
 function Navbar() {
   const location = useLocation()
+  const classic = location.pathname === '/'
   const [mobileOpen, setMobileOpen] = useState(false)
   const [learnOpen, setLearnOpen] = useState(false)
   const learnRef = useRef<HTMLDivElement>(null)
@@ -41,8 +42,8 @@ function Navbar() {
 
   const isActive = (path: string) => {
     if (path === '/') {
-      // Home = the pitch: the bare `/` (the landing page).
-      return location.pathname === '/'
+      // Home = the classic landing (D125): the bare `/`.
+      return classic
     }
     return location.pathname === path || location.pathname.startsWith(path)
   }
@@ -65,13 +66,14 @@ function Navbar() {
 
   return (
     <nav
-      className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm"
+      data-classic={classic ? 'true' : undefined}
+      className={`sticky top-0 z-40 ${classic ? 'bg-classic-ink' : 'border-b border-border bg-background/95 backdrop-blur-sm'}`}
       role="navigation"
       aria-label="main navigation"
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link to="/" className="flex shrink-0 items-center" onClick={() => setMobileOpen(false)}>
-          <BrandLogo className="h-7" />
+          <BrandLogo className={classic ? 'h-8' : 'h-7'} onDark={classic} />
         </Link>
 
         <div className="hidden items-center gap-1 lg:flex">
@@ -139,7 +141,7 @@ function Navbar() {
           >
             <Search className="h-4 w-4" strokeWidth={1.75} />
           </a>
-          <Button variant="brand" size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
+          <Button variant={classic ? 'outline' : 'brand'} size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
             Open web10 social
           </Button>
           <Link to="/links">
@@ -161,7 +163,7 @@ function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="flex flex-col gap-1 border-t border-border px-4 pb-4 pt-2 lg:hidden">
+        <div className={`flex flex-col gap-1 px-4 pb-4 pt-2 lg:hidden ${classic ? '' : 'border-t border-border'}`}>
           {navItems.map(item => (
             <Link
               key={item.path}
@@ -197,7 +199,7 @@ function Navbar() {
             ))}
           </div>
           <div className="mt-2 flex flex-col gap-2">
-            <Button variant="brand" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
+            <Button variant={classic ? 'outline' : 'brand'} size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
               Open web10 social
             </Button>
             <Link to="/links" onClick={() => setMobileOpen(false)}>

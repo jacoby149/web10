@@ -47,7 +47,8 @@ start, deadline = (datetime.fromisoformat(admission[key]) for key in ('approved_
 if (admission.get('configuration') != 'F' or admission.get('droplet_id') != p.host
         or admission.get('approved_by') != 'Jacob'
         or admission.get('cutoff') != f.CUTOFF or admission.get('sort_order_arm_admitted') is not False
-        or not window.valid(admission, (deadline - start).total_seconds()) or not start <= datetime.now(UTC) < deadline):
+        or not window.valid(admission, (deadline - start).total_seconds())
+        or not window.working(admission, start, deadline, datetime.now(UTC))):
     raise RuntimeError('exact current parent F admission required')
 build = json.loads((ROOT / 'build.json').read_bytes())
 banked_comparator = (admission.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
@@ -175,7 +176,7 @@ p.ch.client.query = query
 
 def active():
     admitted(admission, p.host)
-    if fatal.is_set() or (ROOT / 'F.stop').exists() or not start <= datetime.now(UTC) < deadline:
+    if fatal.is_set() or (ROOT / 'F.stop').exists():
         raise HTTPException(503, 'research admission closed')
 
 
@@ -511,7 +512,13 @@ p.ch.execute_query = execute_query
 # The declared document-stream contract includes same-ID/different-author rows.
 # Retain the node's canonical authority check; narrow its exact-ID lookup to
 # each requested author rather than bypassing its doc_id ambiguity refusal.
-install_full_key_prepare(query_endpoint)
+if os.environ.get('HYBRID_K20_PROJECTED') == '1':
+    import hybrid_k20_projected as k20
+    if not k20.enabled(admission):
+        raise ValueError('K20 projection requires separate admission')
+    install_full_key_prepare(query_endpoint, project=k20.preparation)
+else:
+    install_full_key_prepare(query_endpoint)
 
 
 def inventory():

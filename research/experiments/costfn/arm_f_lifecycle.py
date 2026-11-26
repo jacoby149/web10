@@ -1,6 +1,7 @@
 """Real follow, entitlement, tombstone, retry and fenced-rebuild gate drivers."""
 import asyncio
 from datetime import UTC, datetime, timedelta
+import engagement_window as window
 import hashlib
 import json
 from pathlib import Path
@@ -215,8 +216,9 @@ async def boundaries(root, output):
         publish_task = follow_task = None
         publish_operation, follow_operation = str(uuid.uuid4()), str(uuid.uuid4())
         while True:
-            deadline = admitted(json.loads((root / 'admission.json').read_bytes()), session.host_id)
-            if (deadline - datetime.now(UTC)).total_seconds() < 180:
+            approval = json.loads((root / 'admission.json').read_bytes())
+            deadline = admitted(approval, session.host_id)
+            if window.work_seconds(approval, deadline) < 180:
                 raise TimeoutError('concurrent rebuild did not finish inside original admission')
             if path.is_file():
                 state = json.loads(path.read_bytes())

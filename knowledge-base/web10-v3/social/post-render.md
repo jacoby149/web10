@@ -63,8 +63,8 @@ This kills the "showing it in multiple ways" question: it is not multiple
 | Density | What it is | The surfaces | The body |
 |---|---|---|---|
 | **Teaser** | the at-a-glance tile / thumbnail. 1–2 lines. | the grid tile, the home card (video wall), the shorts tile, the repost embed, the share preview | the title (or first line) only — no markdown, no body |
-| **Summary** | the in-the-stream card. A few lines. | the feed card, the discover card, the profile feed, the hashtag board | the title + **light markdown** (inline bold/italic/code/links/mentions/hashtags), `line-clamp`'d |
-| **Full** | the read-it surface. The whole post. | the post lightbox, the watch page, the post permalink, the expanded Shorts description | the title + **full markdown** (headings, lists, code blocks, blockquotes, the `@` mentions) at a reading measure |
+| **Summary** | the in-the-stream card. A few lines. | the feed card, the discover card, the profile feed, the hashtag board | the title + **markdown body**, clamped to the card's line budget (6 lines) with a **"See more" toggle** when the body is essay-length (D125) — a body that fits the budget renders unclamped, as before |
+| **Full** | the read-it surface. The whole post. | the post lightbox, the watch page, the post permalink, the expanded Shorts description | the title + **full markdown** (headings, lists, code blocks, blockquotes, the `@` mentions) at a reading measure; an **essay-length** body clamps to the detail's budget (12 lines) with the same **"See more" toggle** (D125) — a body that fits renders unclamped, as before |
 
 The **shorts lens** is **video-first**: the 9:16 video is the hero, with a
 clamped plain-text caption overlay. Tapping the title/caption or More opens
@@ -132,19 +132,21 @@ summary density:
 
 - **The author row** (avatar + name + `@handle` + timestamp) anchors the top.
 - **The title** (the display font, the anchor) leads the body.
-- **The body** is **light markdown** — inline bold/italic/code/links/mentions/
-  hashtags only (no headings, no code blocks, no blockquotes in a card) — and
-  is `line-clamp`'d (the card is a teaser of the body, not the body). A card that
-  renders a code block or a heading is a card that blew up in height; the
-  summary density is *inline* markdown, clamped.
+- **The body** is clamped to the card's line budget (6 lines) when it is
+  essay-length, with a **"See more" toggle** under the clamp (D125,
+  `ExpandablePostBody` — the "long-body expand" rule, below). A body that fits
+  the budget renders exactly as before: no clamp, no toggle, zero drift.
 - **The media** renders below (the grid for images, the inline player for
   video, the 9:16 frame for a short).
 - **The action bar** (the labeled Like / Comment / Share, the counts) closes
   the card.
-- **The "read more" seam.** A card whose body is clamped is *clickable* —
-  tapping the body (or the card) opens the **full** post (the lightbox). The
-  clamp is the invitation; the click is the payoff. A card that clamps but
-  doesn't open the full post is a dead end.
+- **The "read more" seam.** The clamp is the invitation; the payoff is
+  surface-specific. The feed's `PostCard` (a flat inline surface, 3.68.0 — no
+  lightbox) pays it off **in the card**: the **"See more" toggle** expands the
+  body to its full length and back (D125). The teaser-shaped surfaces (the
+  profile grid tile, the marketing discover card) pay it off **with the
+  click**: tapping the tile / card opens the **full** post (the lightbox / the
+  social permalink). A clamped surface with neither affordance is a dead end.
 
 ### The detail surfaces (the full) — the post-detail system
 
@@ -153,7 +155,11 @@ share **one layout** (the post-detail system, specified in `rich-text.md`):
 the identity row, the display-font title, the body (full markdown at a reading
 measure), the media, the quiet stats row, the labeled action bar, the `⋯` owner
 menu, and a **content-sized** container (a text-only post gets a centered
-reading column, not 320px-in-896px). The three surfaces differ only in the
+reading column, not 320px-in-896px). An **essay-length** body clamps to the
+detail's budget (12 lines) with the same **"See more" toggle** (D125) — the
+video's description is the case that motivated it: an essay under a video
+pushes the stats / actions / comments off the page. A body that fits the
+budget renders exactly as before. The three surfaces differ only in the
 chrome around the shared layout:
 
 - **The lightbox** — the modal. The shared layout in a panel; the media is the
@@ -196,15 +202,61 @@ How each density cuts the content. The rule is **honest truncation** (the
   caption-only). No body. A title longer than the tile's measure clips at a
   complete-word break with an ellipsis (the quote card's `line-clamp`). The teaser
   never shows a partial sentence that reads wrong on its own.
-- **The summary** (card): the body is `line-clamp`'d (a fixed number of lines,
-  the card's height budget). The clamp cuts between complete words + an ellipsis.
-  A clamped body is *clickable* → the full post (the "read more" seam). The
-  clamp is the invitation, not the end.
-- **The full** (detail): **no truncation** — the whole post, at a reading
-  measure. A very long post scrolls (the detail surface is a reading surface;
-  scrolling is correct, clamping is not). The one exception: the **shorts lens**
-  overlay clamps the caption (the video is the hero; the caption is a few
-  lines, expandable).
+- **The summary** (card): the in-stream card clamps its body to the card's
+  height budget — 6 lines on the social feed's `PostCard` — **only when the
+  body is essay-length** (the long-body expand rule, D125, below). The clamp
+  cuts at a line boundary; a fading scrim marks the foot; the **"See more"
+  toggle** is the invitation (in-card for the flat feed, click-through for the
+  teaser-shaped surfaces). A body that fits the budget is never clamped.
+  (The marketing discover card keeps its fixed `line-clamp-6` + click-through —
+  it is a teaser wall, not a reading surface.)
+- **The full** (detail): **no truncation within the budget** — a body that
+  fits the detail's budget (12 lines) renders whole, at a reading measure. A
+  body beyond it is essay-length and clamps at the budget with the same
+  **"See more" toggle** (D125) — the video-description case: an essay under a
+  video must not push the stats / actions / comments off the page. The one
+  other exception: the **shorts lens** overlay clamps the caption (the video is
+  the hero; the caption is a few lines, expandable in its description sheet).
+
+### The long-body expand rule (D125)
+
+The operator's rule (25.11.2026, the wall-of-text post that took over the
+whole feed): **a post's text can run forever — an essay must not dominate a
+surface it is shared with.** The rule:
+
+- **The essay gate is a height, not a character count.** Characters wrap
+  differently at every width; the height is what dominates a feed. A body
+  whose natural (unclamped) rendered height exceeds the trigger budget —
+  **20 body lines ≈ 455px** at `text-sm leading-relaxed`, the operator's
+  "over 20 lines" line — is essay-length; everything else renders exactly as
+  it did before (no clamp style, no toggle, zero drift). The gate is measured
+  from the real layout (`scrollHeight`, a `useLayoutEffect` before paint,
+  re-measured on resize) — never guessed from the string.
+- **The clamp budgets** (the resting state, collapsed): **6 lines on the card**
+  (the teaser's height budget, the `line-clamp-6` idiom), **12 lines on the
+  detail surfaces** (a reading column earns the bigger budget). The clamp is
+  the CSS line-clamp applied to the full renderer — it cuts at a line
+  boundary, never mid-word.
+- **The toggle** is the per-post expand/contract: **"See more"** (collapsed) /
+  **"See less"** (expanded), a text affordance in the link voice
+  (`brand-300`), under a fading scrim that blends the clamp's foot into the
+  surface's own background token (`card` on the feed card / the lightbox
+  panel, `background` on the watch page's column).
+- **The toggle state is interaction state, not screen state** (the
+  comment-thread open/close precedent): a local `useState` per post, not a URL
+  param — the feed holds a dozen posts, each with its own expanded/collapsed
+  state. The deep-link rule governs screens; the shorts lens's
+  `?description=1` is the exception that proves the rule (a SHEET — a
+  distinct surface with its own route — not an inline clamp).
+- **Embeds are not essays.** A link-only post whose body is a provider player
+  card (the D99 unfurl) sits under the trigger's height and renders
+  unclamped — the clamp never cuts a player or a card.
+- **One component, every surface.** `ExpandablePostBody` (the social app's
+  `Feed/ExpandablePostBody.tsx`) wraps the ONE `<PostBody>` (the D85 read
+  side) and passes the surface's density through — the clamp never forks the
+  renderer. (The social feed card renders at `full` density today: D99's
+  unfurl cards need it; the summary row's "light markdown" is the card's
+  pre-D99 shape. The clamp is orthogonal to density.)
 
 The **anchor rule** ties it together: the element that appears at *every*
 density (the title, or the first line) is the same string at every density. The
@@ -267,11 +319,20 @@ model, made checkable):
    densities.
 3. **A summary that renders block markdown.** A card is inline markdown,
    clamped. A card that renders a code block, a heading, or a blockquote is a
-   card that blew up in height. Block markdown is the full density.
-4. **A full post that truncates.** The detail surface is a reading surface — it
-   shows the whole post (it scrolls). Clamping the full post is clamping the
-   thing the user clicked to read. (The one exception: the shorts lens overlay,
-   where the video is the hero.)
+   card that blew up in height. Block markdown is the full density. (The
+   social feed card is the documented exception: it runs at `full` density
+   today so D99's unfurl cards render in-card — the clamp (D125) is what keeps
+   it from blowing up, not the density. The marketing discover card keeps the
+   inline-only shape.)
+4. **A full post that truncates without a way back.** The detail surface is a
+   reading surface — it shows the whole post (it scrolls). A body that fits
+   the detail's budget (12 lines) is never clamped; an essay-length body
+   clamps at the budget **with the "See more" toggle** (D125 — the clamp is a
+   budget, not a wall: the full text is one tap away, and the toggle always
+   offers the way back). Clamping a body the user can never get is clamping
+   the thing they came to read. (The one other exception: the shorts lens
+   overlay, where the video is the hero — its caption clamps with the
+   description-sheet escape.)
 5. **A teaser that doesn't land.** A tile / card that isn't clickable to the
    full post is a dead end. The teaser's job is to invite the click; a teaser
    that can't be clicked is a poster, not a teaser.
@@ -296,8 +357,16 @@ model, made checkable):
   social app's preview server — the client-side teaser, D85's markdown strip in
   `preview/markdown.mjs`).
 - **The body in every surface:** `<PostBody>` (the renderer, `rich-text.md`) at
-  the surface's density (teaser = title only, no `<PostBody>`; summary = light
-  markdown, clamped; full = full markdown, reading measure).
+  the surface's density (teaser = title only, no `<PostBody>`; summary = the
+  card's clamped body; full = full markdown at a reading measure). **The
+  essay-length clamp + toggle (D125):** the social app's
+  `Feed/ExpandablePostBody.tsx` — wraps the ONE `<PostBody>` (the density is
+  passed through), the height-gated essay trigger (20 body lines ≈ 455px), the
+  line-clamp budgets (6 on the card / 12 on the detail), the fading scrim
+  (the surface's background token), and the per-post "See more" / "See less"
+  toggle (interaction state, not screen state). Wired into: `FeedScreen.tsx`
+  (`PostCard`'s body), `PostDetail.tsx` (the lightbox / permalink body),
+  `WatchScreen.tsx` (the video's description — `fadeColor="background"`).
 
 **KB:** `social/rich-text.md` (the model — the markdown, the editor, the
 renderer, the post-detail system), `social/ads.md` (an ad is a post — it

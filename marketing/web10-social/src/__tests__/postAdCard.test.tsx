@@ -148,6 +148,18 @@ describe('PostAdCard creative media (the "looks like a post" render)', () => {
     expect(img.className).not.toContain('object-contain');
   });
 
+  it('an image creative renders the ORIGINAL, not the 480px tile rendition (grainy-feed report, 25.11.2026)', async () => {
+    vi.mocked(data.resolveMediaRefs).mockResolvedValueOnce([
+      { _id: 'm2', url: 'http://media.test/original.jpg', created_at: new Date().toISOString(), mime_type: 'image/jpeg', width: 1600, height: 900, thumbnail_url: 'http://media.test/thumb-480.webp' },
+    ] as never);
+    const { PostAdCard } = await import('@/components/Feed/PostAdCard');
+    render(<PostAdCard ad={{ ...POST_AD, media_refs: ['m2'] }} />);
+    const frame = await screen.findByTestId('post-ad-media-image');
+    const img = frame.querySelector('img')!;
+    expect(img.src).toBe('http://media.test/original.jpg');
+    expect(img.src).not.toContain('thumb-480');
+  });
+
   it('a video creative rides the shared VideoPlayer (the hls/tap-to-play surface)', async () => {
     vi.mocked(data.resolveMediaRefs).mockResolvedValueOnce([
       { _id: 'v1', url: 'https://cdn.example/v.mp4', created_at: new Date().toISOString(), mime_type: 'video/mp4', width: 1280, height: 720, thumbnail_url: 'data:image/png;base64,x' },

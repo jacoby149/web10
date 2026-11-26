@@ -3,6 +3,39 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 22.11.2026 22:55 — OpenCode (paris-v1 / jacoby149/whitelabel-details) — host audit, key provisioning, and insurance clone for the R630 move
+did:
+  - Operator approved the R630 serving-machine purchase and move
+    (plan: `ubuntu-deployment/HARDWARE-UPGRADE-PLAN.md`).
+  - Read-only audit of host `pve` (192.168.8.20) after the
+    operator-provided root password bootstrap: board
+    PIO-1UUP-ND1-AI036 (1U, Q170 AHCI), Xeon E3-1240 v5 4C/8T (HT on —
+    /proc/cpuinfo = 8 logical), 4×16 GB Micron DDR4-2400 **ECC RDIMM**
+    (part 18ADF2G72AZ-2G3A1, SMBIOS total width 72 bits) running at
+    2133, PVE 9.1.5 / kernel 6.17.4-2-pve. Drives inventoried with
+    serials: sda `...800099` raw-passthrough to VM 100 (626 GB used),
+    sdb `...8000878` PVE system + 1.67 T thin pool (Data% 0.01, empty),
+    sdc `...800021` empty, sdd `...800213` effectively empty. NICs:
+    X540-AT2 dual 10GbE **linked at 10 Gbps (2×10000 Mbps measured)** +
+    2× I210 1GbE. Banked `qm config 100`, storage.cfg, interfaces.
+  - Installed this Mac's ed25519 key for root on the host
+    (/root/.ssh/authorized_keys) for ongoing read-only ops and
+    cutover-day work. Bootstrap password (provided in chat) is now
+    redundant; rotation pending with the operator.
+  - Launched the insurance clone: `dd if=/dev/sda of=/dev/sdc bs=64M`
+    (script /root/dd-sda-sdc.sh, pid 3725830, log /root/dd-sda-sdc.log,
+    done-marker /root/dd-sda-sdc.done, started 22:48 UTC, ~75 MB/s
+    live read, overnight ETA). sda is read-only for the run; sdb and
+    the running stacks are untouched.
+why: the R630 move plan needs (a) a byte-exact fallback of all-spark's
+raw disk before any drive is wiped on the new box, (b) a recorded host
+baseline — the raw-disk-passthrough layout is not obvious from pvesm
+status alone (the pool reads 0.01% while VM 100's 626 GB lives on raw
+sda), and (c) key access for cutover-day ops.
+state: dd RUNNING — verify /root/dd-sda-sdc.done shows DD_EXIT:0
+before any drive work on the new box. No DNS, no prod, no stack
+changes. Old box otherwise untouched.
+
 ## 22.11.2026 15:40 — OpenCode (rome-v1 / jacoby149/prod-web10-music-missing-v2) — backfill the missing `music` tag on 6 vertical performance videos
 did:
   - Operator requests backfilling the music videos that 6.28.1's exclusive

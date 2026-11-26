@@ -320,9 +320,44 @@ class RowModelTests(unittest.TestCase):
         self.assertEqual((result['identities'], result['versions']), (1,2))
         self.assertEqual(store.read([model.Identity('a','p')])[model.Identity('a','p')]['body'], {'text':'new'})
         self.assertEqual(len(checkpoints), 1)
+        self.assertTrue(all(query.count('LIMIT 4096') == 2 for query in queries if query.startswith('SELECT DISTINCT')))
         self.assertNotIn('LIMIT', next(q for q in queries if not q.startswith('SELECT DISTINCT')))
         with self.assertRaisesRegex(ValueError, 'frozen'):
             build.Builder(source, store, checkpoints.append, source_tables=['engagement_documents'])
+
+    def test_full_page_loads_three_history_lanes_before_one_verified_write(self):
+        tables = ('engagement_documents', 'tally_verify_documents', 'canonical_row_model_fixture')
+        names = [f'{i:04x}' for i in range(4096)]
+        rows = [dict(author_key='author', doc_id=name, collection_name='posts', body='{"text":"old"}',
+            created_at='2026-11-18T00:00:00Z', updated_at='2026-11-18T00:00:00Z') for name in names]
+        edit = {**rows[0], 'updated_at':'2026-11-19T00:00:00Z', 'body':'{"text":"edit"}'}
+        histories = {tables[0]: rows[:-1], tables[1]: [rows[-1], edit], tables[2]: [{**edit, 'deleted':True}]}
+        seen, committed, checkpoints = [], [], []
+
+        def query(statement):
+            if statement.startswith('SELECT DISTINCT'):
+                return [] if '(author_key,doc_id)>' in statement else rows
+            self.assertNotIn('UNION ALL', statement)
+            self.assertNotIn('LIMIT', statement)
+            self.assertEqual(statement.count('unhex('), 8192)
+            lane, = [table for table in tables if f'FROM `{table}`' in statement]
+            seen.append(lane)
+            return histories[lane]
+
+        class Capture:
+            def write_many(self, batches, *, setup_only, writers_stopped):
+                assert setup_only and writers_stopped
+                committed.append((tuple(seen), batches))
+
+        builder = build.Builder(query, Capture(), checkpoints.append, source_tables=tables, quiescent_verified=True)
+        result = builder.run()
+        self.assertEqual((result['identities'], result['versions']), (4096, 4097))
+        (lanes, batches), = committed
+        self.assertEqual(lanes, tables)
+        first = model.Identity('author', names[0])
+        self.assertEqual([batch.node.deleted for batch in batches if batch.node.identity == first], [False, True])
+        self.assertEqual(len(checkpoints), 1)
+        self.assertEqual(checkpoints[0]['after'], ('author', names[-1]))
 
     def test_legacy_relationships_cannot_sneak_back_as_text_or_guessed_target_authors(self):
         for document in (dict(ref_value=False), dict(body={'target_id':None}), dict(body={'refs':[False]})):

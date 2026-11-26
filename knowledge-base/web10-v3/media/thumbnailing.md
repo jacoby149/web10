@@ -134,6 +134,29 @@ around. It composes the social card from the platform's thumbnail:
   permalink shape, the card shape, and the fallback — all social concepts. The
   platform contributes exactly one thing: the thumbnail.
 
+**The client-side image rendition + the rendering rule** (25.11.2026, the
+grainy-feed report): the social composer uploads **two** objects per image —
+the original (the media doc's `object_key`) and a client-side 480px WebP
+(`generateThumbnail`, `THUMBNAIL_EDGE = 480`, quality 0.7 → the doc's
+`thumbnail_object_key`, the same seam the video poster + album art ride). The
+small rendition is for **tile grids** (the watch queue rail, the 56px pin
+previews, the product/album-art tiles, the composer tray, the ad block's square
+thumbnail, HomeCard's 16:9 cards): many small cells, bandwidth matters. The
+**full-size photo surfaces** — the feed's single-image card, the shared
+carousel's image slides, the shared DiscoverCard's single image + the
+repost-embed image, the post-format ad card, the profile wall grid, the group
+media grid and the post lightbox — render the **original** (`url` first; the
+thumbnail is only the last-resort fallback for degraded legacy media), per the
+selection table above (an image doc's representative is its read_url): a 480px
+rendition upscaled to card width reads as grainy, and the profile-vs-feed
+inconsistency was the operator report (the profile wall + the lightbox already
+rendered the original; the feed did not). The lightbox's media pane caps
+**portrait frames** (first slide's ratio < 1) at the feed's photobox height
+(60vh desktop / 50vh mobile) so a tall photo letterboxes into black side bars
+(the pane's `bg-black`) instead of dominating the panel and pushing the
+caption + engagement row off-screen; landscape frames keep the 88vh desktop
+cap.
+
 ## The card's home: decided — Option A (the social app's preview server)
 
 The generic primitive + SDK + endpoint are unambiguous and shipped. The one

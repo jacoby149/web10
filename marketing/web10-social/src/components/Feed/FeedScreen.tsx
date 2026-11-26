@@ -46,6 +46,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { PostActions } from './PostActions';
 import { TextWithLinks } from './LinkEmbed';
 import { PostBody } from './PostBody';
+import { ExpandablePostBody } from './ExpandablePostBody';
 import { AdBlock } from './AdBlock';
 import { AttachedAd } from './AttachedAd';
 import { AdPicker } from './AdPicker';
@@ -145,7 +146,14 @@ function MediaItem({ media, audioTitle, audioArtist }: { media: MediaRecord; aud
   // FILLS it (object-cover) so a multi-photo carousel crops to one consistent
   // frame instead of letterboxing. Measure on load only as a fallback for
   // legacy media that predates dimension storage.
-  const src = media.thumbnail_url || media.url;
+  // The photo renders the ORIGINAL (`url`), not the client's 480px tile
+  // rendition (`thumbnail_url`) — the thumbnailing contract: an image doc's
+  // representative is its read_url; the small rendition is for tile grids,
+  // video posters and audio covers. Preferring it here upscaled the photo to
+  // card width and read as grainy (25.11.2026 operator report, feed vs
+  // profile). `url` is absent only on degraded legacy media — the thumbnail
+  // then stays the honest fallback.
+  const src = media.url || media.thumbnail_url;
   const knownRatio = media.width && media.height ? media.width / media.height : null;
   const ratio = knownRatio ?? measuredRatio ?? 4 / 3;
   const onMediaLoaded = (el: HTMLImageElement) => {
@@ -726,7 +734,11 @@ export function PostCard({
             </h3>
           )}
           <div className="text-sm text-foreground">
-            <PostBody text={post.text} density="full" />
+            {/* The card's body (D125): essay-length posts (20+ lines of text)
+                clamp to the card's 6-line budget + a "See more" toggle, so an
+                essay stops dominating the feed; a post that fits renders
+                exactly as before (no button, no clamp style). */}
+            <ExpandablePostBody text={post.text} density="full" collapsedLines={6} testId="post-card-see-more" />
           </div>
         </div>
       ) : post.title && !post.repost_of ? (

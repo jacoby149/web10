@@ -1,11 +1,63 @@
 # Access-Control Cost Function Experiment
 
-## Skinny type-aware pin lookup —source only
+## Governing scheduling and handoff — 24 November 2026
 
-The operator requests a research-only skinny placement lookup followed by a
-fresh rerun. Exact full post keys select historical pin candidates, then the
-canonical read resolves only those full identities. No API or document-model
-change. Native proof and cost savings remain pending. [Contract](PIN-INDEX.md).
+Jacob's task directive replaces the older scheduling and handoff rules for
+future costfn execution. One explicit admission covers the task, not each
+repair, attempt, or affected measurement restart. Commit source fixes as they
+are made and retain the starting and ending revisions plus the reason for
+each repair. No new admission, binding, or pull request is needed inside the
+task. The droplet's **24-hour poweroff timer is a failsafe, not a work deadline**;
+it does not release the provider resource or guarantee billing stops. The agent
+still verifies custody and deletes owned temporary resources at task end.
+
+Keep the validated slice, seeds, fixtures and prepared store on the owned host.
+Check the existing slice manifest, canonical generation fingerprint and native
+receipts before reuse. Repair or rebuild only invalid work. An uncertain insert
+is not evidence that nothing ran; resolve its exact original native ID before
+replaying it. Repair setup defects in the same task. If a repair changes what
+the arm measures, preserve the old attempt and restart that measurement only.
+An exact ordered response divergence against the independent oracle stops the
+task and publishes no comparison costs.
+
+Use task-mode admissions (`costfn_run_rules` and `costfn_task_id`), not older
+work-window packets. For RD4 step 2 see the [fixed-slice run contract](HYBRID-K20-PREFLIGHT.md).
+The 18 November statement-level measurement policy still applies. Keep rows,
+logical read bytes, largest individual statement memory, summed native duration
+(not CPU time) and complete HTTP wall time distinct. The original snapshot
+`255003176` remains retained. Verify private archives by SHA-256 before cleanup;
+report estimated compute separately from storage and the invoice.
+
+## D117 row-model proving cell — complete; maximal model rejected
+
+Merged #1620 completed the full post-family load, independent parity, and six
+assembly comparisons. All six crossed D117's pre-committed cost threshold;
+retain queryable values as rows and payload as document content. No production
+change or new admission. [Results and original receipt custody](evidence/row-model-4096-20261123/RESULTS.md).
+
+The [hybrid K20 preflight](HYBRID-K20-PREFLIGHT.md) reproduces the no-engine
+fixture and plans a three-arm native comparison before a full retained-design
+cell. It separates modeled bytes, native logical bytes, and R630 physical I/O.
+
+The [full-store hybrid contract](FULL-STORE-HYBRID.md) defines the next RD4
+measurement: the hybrid (dual) layout on the full frozen store — the missing
+cell that is ratio arithmetic today (36.2 MB/read → ~0.54 GB/s at the
+contract peak), on the post-cleanup steady state (OPTIMIZE + parts census
+precondition; the slice's −70.6% remains the transient pre-merge regime
+reference). Satellite build from canonical history, two frozen uniform K20
+hybrid reads, exact ordered oracle parity, indexed baseline cited from
+banked PR #1618. Settles the disk-demand line only; six-case, supply and
+production remain separate. Planning contract only: no source change, host,
+admission or measurement.
+
+## Skinny type-aware pin lookup —native same-store result
+
+On the same frozen store, measured uniform reads fall from 8.85GB to 123.1MB
+with exact parity and the original authorized creative SQL. The two pin reads
+total 56,681 bytes. The operator stopped the unrelated full typed build at
+2,104,576 of 4,000,675 identities; no typed comparisons ran. No added lease,
+platform/API change or production proof. [Contract](PIN-INDEX.md) ·
+[Native results and cleanup](evidence/skinny-pin-20261122/RESULTS.md).
 
 ## Workstream B —skinny pin selection, then exact materialization
 
@@ -160,9 +212,9 @@ is consumed/closed, no automatic retry. Exact failure/cost/custody/cleanup:
 
 ## Directive precedence index
 
-**As of 20 November 2026.** This index owns precedence, not design definitions
+**As of 23 November 2026.** This index owns precedence, not design definitions
 or measured values. The [decision ledger](../../../knowledge-base/strategy/decisions.md)
-owns D115/D116/D118 DECIDED, D117/D119 DIRECTION and D120 PRINCIPLE. Evidence
+owns D115/D116/D118 DECIDED, D117 MEASURED, D119 DIRECTION and D120 PRINCIPLE. Evidence
 reports own numerical facts. Current implementation is still documented in the
 [v3 schema](../../../knowledge-base/web10-v3/db/clickhouse.md); source machinery
 and a chosen direction are not native acceptance or production replacement.
@@ -177,9 +229,9 @@ retroactive waiver of failed or missing gates.
 |---|---|
 |20 November layout/clock amendment above; D122 | **Operative for the newly admitted composition→row cell** — analytics layout mutable, logical events frozen,24h self-kill; supersedes prior raw-layout/four-hour fences only |
 | `README.md`, Governing execution directive below | **Operative** — current execution policy; overrides older row/deadline/client/byte aborts, not receipts |
-| [ALL-FIXES-THEN-MEASURE.md](ALL-FIXES-THEN-MEASURE.md) | **Operative** — composed read treatment and required prechecks; no measured result banked |
-| [ROW-MODEL-QUEUED.md](ROW-MODEL-QUEUED.md) | **Queued behind ALL-FIXES-THEN-MEASURE measurements** — source work precedes both runs; D117 proving cell pending |
-| [ROW-MODEL-RUN.md](ROW-MODEL-RUN.md) | **Operative runbook for the queued ROW-MODEL-QUEUED cell** — explicit host/window/source binding required; not execution evidence |
+| [ALL-FIXES-THEN-MEASURE.md](ALL-FIXES-THEN-MEASURE.md) | **Operative contract** — composed read treatment and prechecks; measured attempts are in the evidence reports |
+| [ROW-MODEL-QUEUED.md](ROW-MODEL-QUEUED.md) | **Executed** — original proving contract; D117 exact parity, maximal assembly rejected |
+| [ROW-MODEL-RUN.md](ROW-MODEL-RUN.md) | **Runbook and attempt lineage** — explicit host/window/source binding; completed result reported separately |
 | [task-block-engagement-ref-redesign.md](task-block-engagement-ref-redesign.md) | **Superseded for new treatment/run selection by ALL-FIXES-THEN-MEASURE** — retains earlier admissions, closed attempts and receipt pointers |
 | [task-block-fanout-arm.md](task-block-fanout-arm.md) | **Executed and banked, qualified Config F history** — later complete-read work proceeds through ALL-FIXES-THEN-MEASURE; unearned F capacity/write gates remain OPEN |
 | [ARM-F-DESIGN-CLOSURE.md](ARM-F-DESIGN-CLOSURE.md) | **Executed and banked, partial/stopped research attempts** — no whole-F acceptance; current composed-read successor is ALL-FIXES-THEN-MEASURE |
@@ -313,10 +365,10 @@ private Spaces in the droplet region plus a canonical MinIO copy alongside V2,
 both manifest/digest verified. No public posting before freeze and operator
 review of the 1M statistics; any approved public release comes from MinIO.
 
-**Current source capture after dev integration:** `core-feed-wire-v7.json` plus
-cursor `core-feed-next-page-v5.json`. The merged hashtag/directory changes alter
-feed/SDK/posts/types source pins; all four request payloads and cursor SQL are
-exactly unchanged from wire v6 / cursor v4. Historical
+**Current source capture after dev integration:** `core-feed-wire-v8.json` plus
+cursor `core-feed-next-page-v6.json`. PR#1616 exported the existing exact feed
+engagement reader for Shorts, changing the feed source hash only. All four
+request payloads and cursor SQL are exactly unchanged from wire v7 / cursor v5. Historical
 fixtures/receipts remain intact. This required test fixture is not disposable
 generated-report clutter; no network or benchmark execution occurs in capture CI.
 

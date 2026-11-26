@@ -9,14 +9,17 @@ from arm_f_native import save
 from arm_f_runtime import Session
 from arm_satellite_ad_parity import validate_main
 from arm_satellite_sql import literal as q
+from costfn_task import exact, ParityDivergence
 import restore_realism as restore
 
 
-def reference(root, *, profile=None, name='F-reference'):
+def reference(root, *, profile=None, name='F-reference', legacy_node_ad_order=None):
     root = Path(root)
     directory = root / name
     directory.mkdir(mode=0o700, exist_ok=False)
     profile = profile or json.loads((root / 'profile/inventory.json').read_bytes())
+    if legacy_node_ad_order is not None:
+        profile = {**profile, 'legacy_node_ad_order': legacy_node_ad_order}
     save(directory / 'input.json', profile)
     session = Session(root)
     # A separate canonical-only process. No token or treatment output supplies
@@ -35,17 +38,17 @@ def rowset(rows):
 
 
 def compare(sample, expected, observation):
-    validate_main(sample['rows'], expected['rows'], expected['eligible_ads'])
+    exact(validate_main, sample['rows'], expected['rows'], expected['eligible_ads'])
     for actual, wanted in zip(sample['followups'][:2], expected['followups'], strict=True):
         if rowset(actual.get('rows', [])) != rowset(wanted):
-            raise ValueError('complete canonical engagement follow-up mismatch')
+            raise ParityDivergence('complete canonical engagement follow-up mismatch')
     checks = observation.get('fanout_view_checks', [])
     if len(checks) != 1:
         raise ValueError('exact same-snapshot canonical view check missing')
     values = {doc: {'impressions': count, 'reach': reach} for doc, count, reach in checks[0]['values']}
     actual = sample['followups'][2]
     if actual != values:
-        raise ValueError('HTTP views differ from checked canonical snapshot')
+        raise ParityDivergence('HTTP views differ from checked canonical snapshot')
     if set(values) - set(expected['ids']):
         raise ValueError('unrequested view values')
 

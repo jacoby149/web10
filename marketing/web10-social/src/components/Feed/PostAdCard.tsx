@@ -304,8 +304,12 @@ function PostAdMedia({ media }: { media: MediaRecord }) {
   const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '60vh' };
   return (
     <div className="w-full bg-elevated overflow-hidden relative" style={containerStyle} data-testid="post-ad-media-image">
+      {/* The original — the ad fills the card frame exactly like the feed's
+          photo (object-cover at natural ratio); the 480px tile rendition
+          upscaled to it would read as grainy (the thumbnailing contract:
+          an image doc's representative is its read_url). */}
       <ReliableImage
-        src={media.thumbnail_url || media.url}
+        src={media.url || media.thumbnail_url}
         alt={media.alt_text || ''}
         className="w-full h-full object-cover"
         loading="lazy"

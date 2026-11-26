@@ -5,16 +5,19 @@ import json
 from pathlib import Path
 import time
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import arm_satellite_batch as batching
 import arm_satellite_counts as counts
 from arm_f_native import save
 from arm_satellite_sql import literal as q
+from costfn_seed_resume import setup_writes
 import engagement_certificates as certificates
 import engagement_hot as hot
 import engagement_hot_read as hot_reference
 import engagement_modern as modern
 import engagement_tally_sql as sql
+import engagement_window as window
 
 HOT = dict(post_id='06d10881-9274-4d65-acbd-282e069ac036', clock_utc='2026-11-11T03:36:42.827922+00:00',
     actors=100000, comments=50000, post_reactions=6731, comment_reactions=6731,
@@ -147,7 +150,18 @@ def run(root):
     if session.operation.get('tally_wiring_admitted') is not True:
         raise ValueError('separate tally admission required')
     output = root / 'tallies'
-    output.mkdir(mode=0o700, exist_ok=False)
+    resumable = window.task(session.operation)
+    certificate = root / 'certification-tally'
+    if resumable and (certificate / 'certificate.json').exists():
+        certificates.verify(root)
+        receipt = json.loads((output / 'build.json').read_bytes())
+        parts, _ = session.rows('tally_current_parts', "SELECT name,toString(rows) AS rows,toString(data_version) AS data_version FROM system.parts "
+            "WHERE database='web10' AND table='" + sql.TABLE + "' AND active ORDER BY name")
+        if not receipt['verified'] or hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest() != receipt['parts_sha256']:
+            raise ValueError('retained tally differs from its verified parts')
+        return receipt
+    output.mkdir(mode=0o700, exist_ok=resumable)
+    session = setup_writes(session, root / 'task-setup/tallies', 'engagement_documents', 'doc_groups')
     started = time.perf_counter()
     generation, _ = counts.generation(session)
     copy_hash = json.loads((root / 'copy-proof.json').read_bytes())['parts_sha256']
@@ -199,5 +213,7 @@ def run(root):
         receipt['tally'] = {**record, 'routing': record['routing'][profile]}
         save(path, receipt)
     before = json.loads((root / 'before-projection-fingerprint.json').read_bytes())
+    if resumable and certificate.exists():
+        certificate.rename(certificate.with_name(certificate.name + '-incomplete-' + uuid4().hex))
     certificates.refresh(root, before, 'tally')
     return record

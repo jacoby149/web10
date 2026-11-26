@@ -1,5 +1,55 @@
 # Run the post-family row-model proving cell
 
+**Current verdict:** [the full 23 November proving cell](evidence/row-model-4096-20261123/RESULTS.md)
+completed with exact parity and rejected maximal decomposition on all six
+measured assembly comparisons. Earlier probes and stops below remain history.
+
+## 23 November — 4,096-key probe and composed history parse stop
+
+Merged #1619's single-source snapshot probe on DO622385751 completed 113
+batches: 462,848 identities in 606.600s (763.0/s, 717.4/s in the second half).
+That projects 87–93 minutes of loading, excluding setup and verification;
+it is not composed-store throughput. The largest single native query used
+81,983,012 bytes (about 78 MiB). Probe receipts verified off-host before cleanup.
+
+The separate full run on DO622389844 passed setup (319 daily slices and 489
+all-time batches), all four parity gates, all three complete-feed cells and
+statement accounting. Its first typed page selected 4,096 identities, but the
+three-source history statement copied the same tuple list into each branch.
+ClickHouse returned `TOO_BIG_AST` (168, 50,000-node limit) before execution:
+zero native reads or writes for that statement, no committed typed batch and
+no assembly comparisons. Final state and original stopped query-log parts
+verified off-host before owned cleanup. The source snapshot was retained.
+The failed exact query ID was `row-model-188e27d6c2384c97890888a5a4758c07`;
+state/native archive SHA-256 prefixes are `cd72cff51543` and `5fc580def85ff`.
+The elapsed compute estimates were $0.0823 for the probe and $0.9476 for the
+full attempt (not invoices; retained snapshot storage is separate).
+
+The source repair reads each named source's complete history separately for the
+same page, validates combined coverage, and writes/checkpoints once for the
+whole 4,096-key page. The canonical assembly and oracle paths are unchanged.
+Neither the AST limit nor native memory or execution limits are raised. A new
+native preflight needs all three source lanes on a 4,096-key page, not another
+single-source timing probe. The stopped run and D117 verdict remain unchanged.
+
+## Earlier outcome —receipt proof passes, full-family build stopped partial
+
+The B baseline's repaired native preflight proves five exact data IDs and
+separate metadata/observation IDs. The later full-family worker builds
+2,104,576 of 4,000,675 identities before the operator stops the long load in
+favor of a pin-only comparison. Original RUNNING and distinct supervisor STOP
+are preserved; no active native row statement remained at stop. No full build
+or six typed comparisons were banked. The same-store indexed feed result is
+independent of typed loading. [Results and custody](evidence/skinny-pin-20261122/RESULTS.md).
+
+## 4,096-identity loading batches — source only
+
+The builder now takes up to 4,096 distinct full keys per page instead of 256,
+still loading complete histories and validating staged rows before publishing
+version headers. Large unmeasured queries get a bounded SQL text allowance for
+the generated key lists. Receipt checks and native execution/memory limits stay
+the same. This does not add resume support or establish native fit or speed.
+
 ## Receipt-identity repair —source only
 
 ClickHouse query_log.Settings contains changed settings. An unchanged zero row/

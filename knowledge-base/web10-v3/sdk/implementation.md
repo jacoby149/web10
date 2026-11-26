@@ -2,7 +2,7 @@
 
 **Current API -> ClickHouse implementation, not replacement storage.** The
 JSON-body SQL and single `ref_value` column below remain current descriptions.
-D116 is DECIDED; D117 is DIRECTION (cell pending); D118 is DECIDED about API
+D116 is DECIDED; D117 is MEASURED (maximal rejected); D118 is DECIDED about API
 messages versus storage. [The design map](../db/design-revolution.md) owns links
 to those canonical definitions; no migration or native result is asserted here.
 
