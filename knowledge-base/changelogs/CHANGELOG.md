@@ -1,3 +1,6 @@
+6.32.8 || 26.11.2026
+research: the sustained-DAU runner's sized-host restore is now task-mode re-enterable: it writes the P-subordinate operation vehicle the sessions require, re-verifies a completed banked import instead of re-importing (receipt + overlay both present, counts re-checked), refuses partial restore states (overlay without receipt or receipt without overlay), and banks the host's own canonical fingerprint as the run baseline under the Parquet-transfer provenance (the verified-input manifest is the byte lineage there). The store-verification re-entry now re-checks counts only. Four new controls. No host, no admission, no native execution.
+
 6.32.7 || 26.11.2026
 research: the 26.10 admission vehicle now carries the sustained-DAU purpose: DAU_SUSTAINED_CONTRACT_RATE with the named DAU directive takes the full-store composition vehicle (engine, limits, composition/tally/K20/completion flags, ref admission) exactly as the banked all-fixes purpose does; every other purpose and flag combination still refuses. One new control beside the banked approval fixture. No engine, host or admission change.
 
