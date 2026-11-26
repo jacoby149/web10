@@ -20,6 +20,14 @@ superseded by a later entry remain visible as history.
 
 ---
 
+### D127 — Give web10 Social a blue accent [DECIDED]
+
+Carry the app icon's blue into Social's own Light and Dark appearances: the
+selected navigation, links, buttons, focus rings and ambient glow. Keep the
+neutral reading surfaces and existing appearance choices. This is not a palette
+change for Hub or marketing, and does not recolor profile or post content.
+Tokens and contrast rules: [Social blue accent](design.md#social-blue-accent).
+
 ### D126 — Make Revolution the marketing design language [DECIDED]
 
 Carry the homepage's navy, sky, Georgia and Jost styling through the

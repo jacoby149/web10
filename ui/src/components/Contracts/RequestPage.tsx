@@ -4,6 +4,7 @@ import { CircleCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import PermissionSummary from '../Consent/PermissionSummary';
+import PermissionListSearch from './PermissionListSearch';
 
 // Derive a readable origin label from the ACR's allowed_origin.
 function originLabel(origin: string): string {
@@ -15,6 +16,10 @@ function originLabel(origin: string): string {
 
 function Requests({ I }: { I: Record<string, any> }) {
   const pendingACRs = I.pendingACRs || [];
+  const query = (I.search ?? '').trim().toLowerCase();
+  const matches = pendingACRs
+    .map((acr: any, idx: number) => ({ acr, idx }))
+    .filter(({ acr }: { acr: any }) => !query || originLabel(acr.allowed_origin).toLowerCase().includes(query));
 
   const handleApprove = (acr: any) => {
     I.approveACR(acr);
@@ -32,13 +37,20 @@ function Requests({ I }: { I: Record<string, any> }) {
           Apps requesting access to your data — review exactly what each one wants before you approve.
         </p>
       </div>
+      {pendingACRs.length > 0 && (
+        <div className="mx-auto max-w-[800px]">
+          <PermissionListSearch I={I} label="Search requests" />
+        </div>
+      )}
       {pendingACRs.length === 0 ? (
         <div className="py-12 text-center text-muted-foreground">
           <CircleCheck className="mx-auto mb-3 h-8 w-8 text-success" strokeWidth={1.5} />
           No pending requests.
         </div>
+      ) : matches.length === 0 ? (
+        <p className="mt-8 text-center text-sm text-muted-foreground">No requests match “{I.search}”.</p>
       ) : (
-        pendingACRs.map((acr: any, idx: number) => {
+        matches.map(({ acr, idx }: { acr: any; idx: number }) => {
           const origin = acr.allowed_origin;
           const perms = acr.permissions || {};
 

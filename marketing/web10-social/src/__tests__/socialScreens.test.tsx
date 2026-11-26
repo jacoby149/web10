@@ -1012,6 +1012,13 @@ describe('Layout', () => {
     const profileCard = screen.getByTestId('nav-profile-mobile');
     expect(profileCard.querySelector('img')).toHaveAttribute('src', 'http://test.com/avatar.png');
     expect(within(profileCard).getByText('View profile')).toBeInTheDocument();
+    const moreProfile = screen.getByTestId('more-profile-card');
+    const change = within(moreProfile).getByRole('button', { name: /Change identity/ });
+    expect(change).toHaveAccessibleDescription('Current posting identity: Test User');
+    expect(change.querySelector('img')).toHaveAttribute('src', 'http://test.com/avatar.png');
+    expect(change).not.toHaveTextContent('Test User');
+    expect(profileCard).not.toContainElement(change);
+    expect(within(screen.getByTestId('topbar-mobile')).queryByText('Acting as')).not.toBeInTheDocument();
     const appearance = screen.getByTestId('nav-appearance-mobile');
     expect(profileCard.compareDocumentPosition(appearance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -1079,7 +1086,7 @@ describe('Layout', () => {
     expect(within(sheet).queryByTestId('nav-music-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
     const expectedMoreOrder = [
-      'nav-profile-mobile', 'nav-people-mobile', 'nav-messages-mobile', 'nav-appearance-mobile', 'nav-settings-mobile', 'nav-monetization-mobile',
+      'nav-profile-mobile', 'change-identity-mobile', 'nav-people-mobile', 'nav-messages-mobile', 'nav-appearance-mobile', 'nav-settings-mobile', 'nav-monetization-mobile',
     ].concat(screen.queryByTestId('nav-node-settings-mobile') ? ['nav-node-settings-mobile'] : []);
     expect(Array.from(sheet.querySelectorAll('button[data-testid]')).map(button => button.getAttribute('data-testid')).slice(0, expectedMoreOrder.length)).toEqual(expectedMoreOrder);
     expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
@@ -1318,6 +1325,9 @@ describe('Layout', () => {
     );
     fireEvent.click(screen.getByTestId('user-menu-trigger'));
     const menu = screen.getByTestId('user-menu');
+    expect(within(screen.getByRole('navigation', { name: 'Primary' })).queryByTestId('acting-identity-trigger')).not.toBeInTheDocument();
+    expect(within(menu).getByText('Signed in as')).toBeInTheDocument();
+    expect(within(menu).getByRole('button', { name: 'Change identity' })).toHaveAccessibleDescription('Current posting identity: testuser');
     expect(within(menu).getByTestId('user-menu-profile')).toBeInTheDocument();
     expect(within(menu).getByTestId('user-menu-settings')).toBeInTheDocument();
     expect(within(menu).getByTestId('user-menu-report-bug')).toBeInTheDocument();
@@ -1356,7 +1366,7 @@ describe('Layout', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 
-  it('pairs the Social name with the conversation mark', async () => {
+  it('pairs the Social name with transparent conversation artwork on the blue bar', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1365,9 +1375,14 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    const marks = screen.getAllByTestId('social-conversation-mark');
+    const marks = screen.getAllByTestId('social-header-mark');
     expect(marks).toHaveLength(2);
-    for (const mark of marks) expect(mark).toHaveAttribute('src', '/social-conversation-pair.png');
+    for (const mark of marks) {
+      expect(mark).toHaveAttribute('src', '/social-conversation-pair.png');
+      expect(mark).toHaveAttribute('alt', '');
+      expect(mark).toHaveClass('size-8');
+      expect(mark).not.toHaveClass('rounded-sm');
+    }
     expect(screen.getAllByText('social')).toHaveLength(2);
   });
 
@@ -1507,7 +1522,7 @@ describe('Layout', () => {
     const sheet = screen.getByTestId('more-sheet');
     expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-appearance-mobile')).toBeInTheDocument();
-    for (const id of ['nav-profile-mobile', 'nav-messages-mobile', 'nav-settings-mobile', 'nav-monetization-mobile', 'nav-node-settings-mobile']) {
+    for (const id of ['nav-profile-mobile', 'change-identity-mobile', 'nav-messages-mobile', 'nav-settings-mobile', 'nav-monetization-mobile', 'nav-node-settings-mobile']) {
       expect(within(sheet).queryByTestId(id)).not.toBeInTheDocument();
     }
     fireEvent.click(within(sheet).getByTestId('nav-people-mobile'));

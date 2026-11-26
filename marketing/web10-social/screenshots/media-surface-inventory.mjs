@@ -17,7 +17,7 @@ const exceptions = new Map([
   ['web10-social/src/lib/mediaProcessing.ts', 'local upload metadata decoder'],
   ['web10-social/src/lib/videoEditing.ts', 'local upload editor decoder'],
   ['web10-social/src/components/shared/ReportBug.tsx', 'local screenshot attachment'],
-  ['web10-social/src/components/shared/ThemeMark.tsx', 'bundled transparent light/dark brand pair'],
+  ['web10-social/src/components/shared/ThemeMark.tsx', 'bundled platform marks, Social chrome artwork and install icon'],
   ['marketing-ui/src/components/ReportBug.tsx', 'local screenshot attachment'],
   ['marketing-ui/src/components/BrandLogo.tsx', 'bundled transparent light/dark brand lockup pair'],
   ['marketing-ui/src/pages/Join.tsx', 'bundled brand lockup'],

@@ -41,7 +41,7 @@ describe('InstallPrompt', () => {
   it('shows the Install button when forced via ?pwa-prompt=1', () => {
     window.history.pushState({}, '', '/?pwa-prompt=1');
     render(<InstallPrompt />);
-    expect(screen.getByTestId('install-prompt')).toBeInTheDocument();
+    expect(screen.getByTestId('install-prompt').querySelector('img')).toHaveAttribute('src', '/logo192.png');
     expect(screen.getByTestId('install-prompt-install')).toBeInTheDocument();
   });
 

@@ -3,6 +3,7 @@ import PermissionSummary from '../Consent/PermissionSummary';
 import { dataTypeLabel } from '@/lib/consentLanguage';
 import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
+import PermissionListSearch from './PermissionListSearch';
 import { Button } from '@/components/ui/button';
 import React from 'react';
 
@@ -213,6 +214,7 @@ function AppContracts({ I }: { I: Record<string, any> }) {
           Choose which apps can access your data and what each app can do.
         </p>
       </div>
+      {contracts.length > 0 && <PermissionListSearch I={I} label="Search app permissions" />}
       {contracts.length === 0 ? (
         <EmptyContracts />
       ) : filtered.length === 0 ? (

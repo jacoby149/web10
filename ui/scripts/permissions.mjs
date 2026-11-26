@@ -103,7 +103,10 @@ try {
       window.I.setAuth(true); window.I.setMode('contracts');
     }, request);
     await page.getByTestId('contract-page').getByRole('heading', { name: 'App permissions', exact: true }).waitFor();
-    assert.equal(await page.getByPlaceholder('Search app permissions…', { exact: true }).count(), 1);
+    const appSearch = page.getByTestId('contract-page').getByRole('searchbox', { name: 'Search app permissions' });
+    await appSearch.fill('unknown.example');
+    await page.getByTestId('contracts-no-match').waitFor();
+    await appSearch.fill('NOTES');
     await page.getByTestId('app-contract-toggle').click();
     assert.equal(await page.getByText('Read posts you can access', { exact: true }).isVisible(), true);
     await capture(page, `apps-${theme}-${width}`);
@@ -127,10 +130,21 @@ try {
     await capture(page, `roles-${theme}-${width}`);
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
     await page.evaluate(request => {
-      window.I.setPendingACRs([{ allowed_origin: request.app_origin, permissions: request.permissions }]);
+      window.I.setPendingACRs([
+        { allowed_origin: 'https://other.example', permissions: {} },
+        { allowed_origin: request.app_origin, permissions: request.permissions },
+      ]);
       window.I.setMode('requests');
     }, request);
     await page.getByTestId('request-page').waitFor();
+    const requestSearch = page.getByTestId('request-page').getByRole('searchbox', { name: 'Search requests' });
+    assert.equal(await requestSearch.inputValue(), '');
+    await requestSearch.fill('nothing matches');
+    await page.getByText('No requests match “nothing matches”.', { exact: true }).waitFor();
+    await requestSearch.fill('NOTES.EXAMPLE');
+    assert.equal(await page.getByTestId('request-approve-0').count(), 0);
+    assert.equal(await page.getByTestId('request-approve-1').isVisible(), true);
+    await requestSearch.blur();
     assert.equal(await page.getByText('Read posts you can access', { exact: true }).isVisible(), true);
     await capture(page, `pending-${theme}-${width}`);
     assert.deepEqual(errors, []);

@@ -75,9 +75,12 @@ try {
       await page.evaluate(() => document.fonts.ready);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.equal(await page.locator('html').getAttribute('data-theme'), mode);
-      const mark = page.getByRole('link', { name: 'web10 social home' }).getByTestId('social-conversation-mark');
-      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair.png');
-      assert.equal(await mark.evaluate(el => el.complete && el.naturalWidth > 0), true);
+      const mark = page.getByRole('link', { name: 'web10 social home' }).getByTestId('social-header-mark');
+      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair-blue.png');
+      assert.deepEqual(await mark.evaluate(el => {
+        const css = getComputedStyle(el);
+        return [el.naturalWidth, css.width, css.height, css.borderTopLeftRadius];
+      }), [192, '40px', '40px', '8px']);
       for (const id of ['join-button', 'join-sign-in', 'join-explore']) {
         const bounds = await page.getByTestId(id).boundingBox();
         assert.ok(bounds.height >= 44 && bounds.width >= 44, `${id} touch target`);
@@ -113,7 +116,7 @@ try {
       await page.goBack();
       await page.getByTestId('join-screen').waitFor();
       assert.deepEqual(errors, []);
-      receipts.push({ mode, width, rootAndReload: true, noOverflow: true, artwork: true,
+      receipts.push({ mode, width, rootAndReload: true, noOverflow: true, roundedArtwork: true,
         targetsAndFocus: true, appearanceAndBack: true, blockedPopupAndKeyboardRetry: true,
         realPopupOpeningOnly: true, cancelledPopupNoSession: true, exploreAndBack: true });
       await context.close();

@@ -29,34 +29,31 @@ describe('ActingIdentitySwitcher partial loading', () => {
     mocks.query.mockResolvedValue({ rows: [] });
   });
 
-  it('opens a profile-first menu without loading groups or changing posting identity', () => {
-    const onViewProfile = vi.fn();
-    render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={onViewProfile} />);
-    fireEvent.keyDown(screen.getByTestId('acting-identity-trigger'), { key: 'ArrowDown' });
-    expect(screen.getByRole('menu', { name: 'Profile' })).toBeInTheDocument();
+  it('shows the personal avatar without loading the picker or repeating the name in the button', () => {
+    render(<ActingIdentitySwitcher personalName="Alice" personalAvatar="https://cdn.example/face-alice.jpg" />);
+    const change = screen.getByRole('button', { name: 'Change identity' });
+    expect(change.querySelector('img')).toHaveAttribute('src', 'https://cdn.example/face-alice.jpg');
+    expect(change).toHaveAccessibleDescription('Current posting identity: Alice');
+    expect(change).not.toHaveTextContent('Alice');
     expect(mocks.getMyGroups).not.toHaveBeenCalled();
-    expect(mocks.select).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'View profile' }));
-    expect(onViewProfile).toHaveBeenCalledOnce();
     expect(mocks.select).not.toHaveBeenCalled();
   });
 
-  it('keeps active group posting visible while profile navigation stays personal', () => {
+  it('uses the active group photo rather than the personal photo on the compact switcher', async () => {
     mocks.selected = 'good';
-    const onViewProfile = vi.fn();
-    render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={onViewProfile} />);
-    expect(screen.getByText('Acting as')).toBeInTheDocument();
-    fireEvent.keyDown(screen.getByTestId('acting-identity-trigger'), { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('menuitem', { name: 'View profile' }));
-    expect(onViewProfile).toHaveBeenCalledOnce();
+    mocks.query.mockResolvedValue({ rows: [{ group_id: 'good', avatar_url: 'https://cdn.example/face-good.jpg' }] });
+    render(<ActingIdentitySwitcher personalName="Alice" personalAvatar="https://cdn.example/face-alice.jpg" placement="profile-card" />);
+    const change = screen.getByRole('button', { name: 'Change identity' });
+    await waitFor(() => expect(change.querySelector('img')).toHaveAttribute('src', 'https://cdn.example/face-good.jpg'));
+    expect(change).toHaveAccessibleDescription('Current posting identity: Group good');
+    expect(change).not.toHaveTextContent('Group good');
+    expect(mocks.getMyGroups).not.toHaveBeenCalled();
     expect(mocks.select).not.toHaveBeenCalled();
-    expect(mocks.selected).toBe('good');
   });
 
   it('keeps the confirmed identity picker behind an explicit secondary action', async () => {
-    render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={vi.fn()} />);
-    fireEvent.keyDown(screen.getByTestId('acting-identity-trigger'), { key: 'ArrowDown' });
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Change identity' }));
+    render(<ActingIdentitySwitcher personalName="Alice" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change identity' }));
     await screen.findByRole('button', { name: /^Group good\s*Group$/ });
     fireEvent.click(screen.getByRole('button', { name: /^Group good\s*Group$/ }));
     expect(mocks.select).not.toHaveBeenCalled();

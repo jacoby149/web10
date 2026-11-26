@@ -86,7 +86,7 @@ describe('App-wide acting identity', () => {
     fireEvent.click(screen.getByText('Team'));
     fireEvent.click(screen.getByRole('button', { name: 'Use identity' }));
     expect(getActingAuthor()).toBe(group);
-    expect(screen.getByTestId('acting-identity-trigger')).toHaveTextContent('Acting as');
+    expect(screen.getByTestId('acting-identity-trigger')).toHaveAccessibleDescription('Current posting identity: Team');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

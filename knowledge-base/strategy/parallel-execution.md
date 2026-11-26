@@ -85,6 +85,8 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
+- [✓ 6.32.13 local] **Hub top-bar navigation and in-page search** — desktop header navigation from 768px, phone dock retained, App permissions and Pending requests search in their lists. Verified in both themes at 375/768/1280/1440px with Chromium fixtures; no live auth or deployment claim.
+
 - [✓ 6.32.4 local] **Hub navigation and blue header** — dock at every width, ice-blue Hub and sign-in chrome and no sidebar promos. Keep role-based navigation and account controls. Social keeps the keys and adds “social” to its wordmark; App Store artwork is unchanged. Avatar interop follows separately.
 **Owns:** `ui/src/components/shared/{MobileNav,AppShell,DockGlass}.tsx`, `ui/src/lib/glassLens.ts`, navigation material tokens/CSS and focused UI/browser fixtures; serialized design/plan/changelog updates. No auth interface, credentials, consent, API, SDK or social runtime changes.
 
@@ -275,6 +277,20 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 - [ ] **MK-CLASSIC-05 — decision + ship (Phase 5)** — single end-of-window read; winner renders at `/` (flag retired, code simplified to the winner); loser stays at `/revolution` if it has ongoing value or is retired; outcome + decision recorded in `decisions.md` (new D number), lane ticked. Optional follow-up only if classic wins: a second experiment splitting pitch vs ask (classic hero, current Explore-only CTA) to attribute story vs signup-ask.
 
 ### Lane: social-appearance
+
+- [✓ 6.32.24 local] **Social dark sidebar and transparent toolbar mark** — preview the marketing charcoal on desktop Dark and the unboxed PNG on Social's ice-blue toolbar; preserve Join, install, and mobile dock art.
+
+- [✓ 6.32.23 local] **Social ice-blue top bar** — match the shared ice blue in Light and Dark; verify the desktop strip and phone header while retaining the dock and themed panels.
+
+- [✓ 6.32.22 local] **Compact Social identity entry** — place desktop Change identity below Signed in as, remove the sidebar duplicate, and use the active avatar with one label on both layouts. Preserve the confirmed chooser and focus return.
+
+- [✓ 6.32.21 local] **Mobile Social header and identity entry** — remove Acting as from the phone bar; More leads with personal profile, then a separate Change identity action and current posting identity. Preserve desktop, dock, and the chooser's preview/confirmation behavior.
+
+- [✓ 6.32.20 local] **Social rounded-square mark** — use the blue-backed two-person artwork with rounded corners in Social and Join chrome in both themes; leave catalog and install artwork unchanged.
+
+- [✓ 6.32.19 local] **Social blue theme accent (D127)** — Social-only blue brand steps, focus, and glow; verify text/action contrast and the desktop and 375px feed in both appearances. No deployment.
+
+- [✓ 6.32.18 local] **Blue Social app icon** — use the same blue-backed conversation pair in the catalog and on install surfaces. Verify desktop/375px rendering and shipped icon sizes/cache; no physical-device or rollout claim.
 
 - [✓ 6.32.9 local] **Social conversation mark** — use full-body three-person artwork without a background in Social chrome and Join, on white in the App Store. No theme-specific variant or installed-icon change.
 

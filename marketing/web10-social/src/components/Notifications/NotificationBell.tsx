@@ -39,7 +39,7 @@ export default function NotificationBell({
         <span
           data-testid="notification-badge"
           aria-hidden="true"
-          className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.625rem] font-bold flex items-center justify-center animate-glow-pulse"
+          className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-brand text-brand-foreground text-[0.625rem] font-bold flex items-center justify-center animate-glow-pulse"
         >
           {unread > 99 ? '99+' : unread}
         </span>

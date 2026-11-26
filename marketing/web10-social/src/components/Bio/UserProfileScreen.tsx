@@ -1074,8 +1074,8 @@ export default function UserProfileScreen({ username, provider: requestedProvide
                   data-testid="user-profile-followers-link"
                   aria-label={`View ${followerCount} followers`}
                 >
-                  <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand transition-colors">{followerCount}</span>
-                  <span className="text-xs text-muted-foreground group-hover:text-brand transition-colors">Followers</span>
+                  <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand-400 transition-colors">{followerCount}</span>
+                  <span className="text-xs text-muted-foreground group-hover:text-brand-400 transition-colors">Followers</span>
                 </button>
               )}
               <button
@@ -1085,10 +1085,10 @@ export default function UserProfileScreen({ username, provider: requestedProvide
                 data-testid="user-profile-following-link"
                 aria-label="View who is being followed"
               >
-                <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand transition-colors">
+                <span className="tabular-nums font-display font-bold text-foreground text-lg block group-hover:text-brand-400 transition-colors">
                   {followingCountError ? '—' : followingCount ?? ''}
                 </span>
-                <span className="text-xs text-muted-foreground group-hover:text-brand transition-colors">Following</span>
+                <span className="text-xs text-muted-foreground group-hover:text-brand-400 transition-colors">Following</span>
               </button>
             </div>
 

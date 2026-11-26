@@ -10,10 +10,10 @@ const makeInterface = (overrides = {}) => ({
   isAuthenticated: () => true, isAdmin: true, mode: 'contracts', setMode: vi.fn(), ...overrides,
 });
 
-describe('console mobile dock', () => {
-  it('keeps all six admin destinations and their accessible names', () => {
+describe('console navigation', () => {
+  it.each(['dock', 'header'] as const)('keeps all six admin destinations and their accessible names in the %s', (placement) => {
     const I = makeInterface();
-    render(<MobileNav I={I} />);
+    render(<MobileNav I={I} placement={placement} />);
     const nav = screen.getByRole('navigation', { name: 'Console navigation' });
     expect(within(nav).getAllByRole('button')).toHaveLength(6);
     for (const [name, mode] of [

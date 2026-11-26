@@ -31,7 +31,7 @@ import type { CreatorAnalytics, TopPostDetail } from '@/data/creator-analytics';
 //
 // Charting: Recharts (the KB decision — hover tooltips + gradient fills +
 // responsive, the dashboard feel without a 300kb dependency). Colors are
-// tokens-only (brand violet for impressions, success green for reach).
+// tokens-only (brand blue for impressions, success green for reach).
 //
 // No data → a designed empty state, not a blank chart.
 
@@ -41,7 +41,7 @@ const WINDOW_OPTIONS = [
   { days: 90, label: '90d' },
 ] as const;
 
-// Chart palette (tokens). Impressions = brand violet (the primary metric);
+// Chart palette (tokens). Impressions = brand blue (the primary metric);
 // reach = success green (distinct, in the semantic set).
 const C_IMPRESSIONS = 'var(--color-brand)';
 const C_REACH = 'var(--color-success)';
@@ -352,7 +352,7 @@ export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDeta
                   className={cn(
                     'rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium transition-colors',
                     activeSub === f.value
-                      ? 'border-brand bg-brand/10 text-brand'
+                      ? 'border-brand bg-brand/10 text-brand-400'
                       : 'border-border text-muted-foreground hover:text-foreground',
                   )}
                   data-testid={`analytics-top-sub-${f.value}`}

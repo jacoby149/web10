@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { INSTALL_PROMPT_EVENT, useInstallPrompt } from '@/lib/pwa';
-import { ThemeMark } from './ThemeMark';
+import { SocialAppIcon } from './ThemeMark';
 
 /**
  * The install surface (D72, pwa.md) — one tasteful, dismissible card that
@@ -64,10 +64,10 @@ export function InstallPrompt() {
         data-testid="install-prompt"
       >
         <div className="flex items-start gap-3">
-          <ThemeMark className="h-12 w-12" />
+          <SocialAppIcon />
           <div className="flex-1 min-w-0">
             <h3 className="font-display text-base font-medium text-foreground">
-              web<span className="text-brand">10</span> social
+              web<span className="text-brand-400">10</span> social
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               {showIOSInstructions ? (
