@@ -1,3 +1,6 @@
+6.32.7 || 26.11.2026
+research: the 26.10 admission vehicle now carries the sustained-DAU purpose: DAU_SUSTAINED_CONTRACT_RATE with the named DAU directive takes the full-store composition vehicle (engine, limits, composition/tally/K20/completion flags, ref admission) exactly as the banked all-fixes purpose does; every other purpose and flag combination still refuses. One new control beside the banked approval fixture. No engine, host or admission change.
+
 6.32.6 || 26.11.2026
 research: recapture the pinned core-feed wire and cursor-builder captures after the current dev marketing work moved `posts.ts`/`types.ts`, and re-pin the ARM-F-DESIGN-CLOSURE.md authorized-source manifest to the recaptured `core-feed-wire-v8.json` and the drifted `api/app/v3/services/clickhouse.py` (the captured four-request topology is unchanged against the historical v3 pin; no other authorized source moved). Unblocks the research CI that had gone stale on dev.
 

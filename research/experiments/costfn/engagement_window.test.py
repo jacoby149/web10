@@ -31,6 +31,17 @@ class WindowTests(unittest.TestCase):
             engagement_ref_admitted=True, tally_wiring_admitted=True, initial_k20_count_build_admitted=True,
             engagement_completion_admitted=True, stages_b_d_admitted=False)
 
+    def test_dau_purpose_uses_the_composition_vehicle_with_its_own_directive(self):
+        value = self.approval()
+        value.update(purpose='DAU_SUSTAINED_CONTRACT_RATE',
+            dau_sustain_directive='Jacob Hoffman 2026-11-25 sustained-DAU contract-rate load test')
+        modern.admitted(value, 123)
+        for bad in (dict(value, dau_sustain_directive='other'),
+                {key: item for key, item in value.items() if key != 'dau_sustain_directive'}):
+            with self.subTest(bad=bad.get('dau_sustain_directive', '<absent>')), \
+                    self.assertRaisesRegex(ValueError, 'full-store engagement admission required'):
+                modern.admitted(bad, 123)
+
     def test_after_four_hours_parent_modern_and_generated_subordinate_still_accept_original_24h(self):
         value = self.approval()
         modern.admitted(value, 123)
