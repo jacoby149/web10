@@ -790,8 +790,8 @@ revived as the primary marketing surface (`homepage-classic-revival.md`)
 — uses a **fixed editorial palette** regardless of the visitor's D108 choice:
 a dark hero, paper content, and a charcoal footer. The rest of marketing uses the same visual
 language in its selected System/Light/Dark appearance. The marketing navbar
-uses Home's ink navy and white logo on Home and on Light-mode pages. In Dark
-mode the shared interior pages use ice-blue (`#b5d4dc` as the solid fill),
+uses Home's ink navy and white logo on Home. In both Light and Dark the shared
+interior pages use ice-blue (`#b5d4dc` as the solid fill),
 near-black type, and the dark logo. Desktop uses a plain full-width bar. On
 mobile, use the social dock's glass layer order: live backdrop refraction on
 the rim, a frosted center, then the edge and undistorted controls. The closed

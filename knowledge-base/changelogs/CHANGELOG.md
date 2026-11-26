@@ -3,7 +3,7 @@ feat(stats): expose retained, counted app visits as `app_visits` in public `/v3/
 
 style(marketing): bring Home's art-then-content rhythm to App Store, Freedom, Docs Overview, and Appearance. Give each introduction its own illustration and mixed-case Georgia title in Light and Dark, then return to the ordinary reading surface. Replace the local framed-card experiment; preserve the catalog layout and Home.
 
-style(marketing): give the mobile Dark interior navbar and its expanded menu the social dock's glass treatment: a frosted bed, a refractive rim in tested Chromium, and sharp controls above the edge. Keep desktop a plain full-width bar, preserve opaque accessibility fallbacks, and leave Home and Light mode unchanged.
+style(marketing): give the mobile interior navbar and its expanded menu the social dock's glass treatment in Light and Dark: a frosted bed, a refractive rim in tested Chromium, and sharp controls above the edge. Use the same solid ice-blue desktop bar in both modes, preserve opaque accessibility fallbacks, and leave Home's navbar unchanged.
 
 6.30.10 || 26.11.2026
 fix(marketing): use a softer charcoal and slate palette with blue accents in Dark mode for the App Store, app details, Freedom, Docs, and Appearance. Give the navbar an ice-blue band with blue edging, near-black type, the dark logo, and a brighter selected tab. Keep Light mode, app artwork, and the homepage palette unchanged. Give the homepage stats band more vertical space and use Jost Light for the Brown-inspired counter numerals, preserving the fixed backdrop and live values.

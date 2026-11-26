@@ -3936,7 +3936,12 @@ def get_node_app_activity() -> tuple[int, dict[str, int]]:
         "FROM app_visits"
     )
     row = result.result_rows[0] if result.result_rows else (0, 0, 0, 0, 0)
-    return int(row[0]), {"users_1d": int(row[1]), "users_30d": int(row[2]), "users_90d": int(row[3]), "users_1y": int(row[4])}
+    return int(row[0]), {
+        "users_1d": int(row[1]),
+        "users_30d": int(row[2]),
+        "users_90d": int(row[3]),
+        "users_1y": int(row[4]),
+    }
 
 
 def list_store_apps(limit: int = 20, offset: int = 0) -> dict:

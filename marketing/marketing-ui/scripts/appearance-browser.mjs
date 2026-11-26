@@ -269,8 +269,8 @@ try {
         await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
         await page.getByRole('heading', { level: 1 }).first().waitFor();
         await waitTheme(page, mode);
-        const darkInteriorNav = mode === 'dark' && name !== 'home';
-        await verifyLogo(page, darkInteriorNav ? 'dark' : 'white');
+        const interiorNav = name !== 'home';
+        await verifyLogo(page, interiorNav ? 'dark' : 'white');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${name} at ${width}`);
         const chrome = await page.evaluate(() => ({ background: getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim(), native: getComputedStyle(document.documentElement).colorScheme, chrome: document.querySelector('meta[name="theme-color"]').content }));
         assert.equal(chrome.background, mode === 'light' ? '#fafafa' : '#2b2f32');
@@ -291,14 +291,14 @@ try {
             inset: rect.left > 0 && rect.right < innerWidth && rect.top >= 12,
             supportsFrost: CSS.supports('backdrop-filter', 'blur(1px)') && matchMedia('(prefers-reduced-transparency: no-preference)').matches };
         });
-        assert.equal(nav.ink, darkInteriorNav ? 'rgb(24, 35, 44)' : 'rgb(250, 250, 250)');
-        if (darkInteriorNav && width < 1024) {
+        assert.equal(nav.ink, interiorNav ? 'rgb(24, 35, 44)' : 'rgb(250, 250, 250)');
+        if (interiorNav && width < 1024) {
           assert.equal(nav.token, '#b5d4dc');
-          assert.ok(nav.inset && nav.radius >= 32, 'the closed dark interior navbar floats as a capsule');
+          assert.ok(nav.inset && nav.radius >= 32, 'the closed interior navbar floats as a capsule');
           assert.equal(nav.color, 'rgba(0, 0, 0, 0)', 'the outer bar must not become its own backdrop');
           assert.equal(nav.frost, nav.supportsFrost ? 'blur(12px) saturate(1.4)' : 'none');
           if (!nav.supportsFrost) assert.equal(nav.bedColor, 'rgb(181, 212, 220)');
-        } else if (darkInteriorNav) {
+        } else if (interiorNav) {
           assert.equal(nav.color, 'rgb(181, 212, 220)');
           assert.equal(nav.radius, 0);
           assert.equal(nav.inset, false);
@@ -350,26 +350,26 @@ try {
           assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
         }
         await capture(page, `${name}-${mode}-${label}`);
-        if (name === 'freedom' && mode === 'dark') {
+        if (name === 'freedom') {
           if (width < 1024) {
-            receipts.push({ width, closedNavbarOptics: await verifyNavbarOptics(page) });
+            receipts.push({ width, mode, closedNavbarOptics: await verifyNavbarOptics(page) });
             const closedMap = await page.locator('.marketing-navbar feImage').getAttribute('href');
             await page.evaluate(() => window.scrollTo(0, 120));
-            await capture(page, `freedom-glass-scroll-${label}`);
+            await capture(page, `freedom-glass-scroll-${mode}-${label}`);
             await page.getByRole('button', { name: 'Open menu', exact: true }).click();
             await page.waitForFunction(original => {
               const nav = document.querySelector('.marketing-navbar[data-menu-open="true"]');
               const map = nav?.querySelector('feImage')?.getAttribute('href');
               return nav && getComputedStyle(nav).borderTopLeftRadius === '16px' && map && map !== original;
             }, closedMap);
-            receipts.push({ width, expandedNavbarOptics: await verifyNavbarOptics(page) });
+            receipts.push({ width, mode, expandedNavbarOptics: await verifyNavbarOptics(page) });
           }
           const current = page.getByRole('link', { name: 'Freedom', exact: true }).filter({ visible: true }).first();
           assert.equal(await current.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(225, 242, 246)');
           const social = page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true });
           assert.equal(await social.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(194, 223, 237)');
           if (width < 1024) {
-            await capture(page, `freedom-navigation-dark-${label}`);
+            await capture(page, `freedom-navigation-${mode}-${label}`);
             await page.getByRole('button', { name: 'Close menu', exact: true }).click();
           }
         }

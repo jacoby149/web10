@@ -202,8 +202,8 @@
 .marketing-navbar [data-brand-variant="white"] { display: block; }
 .marketing-navbar [data-brand-variant="dark"] { display: none; }
 
-/* Floating ice-blue chrome, reserved for the shared interior pages in Dark. */
-.dark .marketing-navbar:has(+ .interior-theme) {
+/* A shared ice-blue header for the interior pages in both appearances. */
+.marketing-navbar:has(+ .interior-theme) {
   color-scheme: light;
   --color-background: #b5d4dc;
   --color-navbar-edge: #6a91a5;
@@ -228,14 +228,18 @@
   background: transparent;
 }
 
-.dark #root:has(> .interior-theme) {
+#root:has(> .interior-theme) {
   display: flow-root;
+  background: var(--color-background);
+}
+
+.dark #root:has(> .interior-theme) {
   background: var(--color-interior-canvas);
 }
 
 .marketing-nav-bed, .marketing-nav-rim { display: none; }
 
-.dark .marketing-navbar:has(+ .interior-theme) :is(.marketing-nav-bed, .marketing-nav-rim) {
+.marketing-navbar:has(+ .interior-theme) :is(.marketing-nav-bed, .marketing-nav-rim) {
   display: block;
   position: absolute;
   inset: 0;
@@ -243,12 +247,12 @@
   pointer-events: none;
 }
 
-.dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+.marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
   z-index: 1;
   background: var(--color-background);
 }
 
-.dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-rim {
+.marketing-navbar:has(+ .interior-theme) .marketing-nav-rim {
   z-index: 0;
   padding: 8px;
   background: color-mix(in srgb, var(--color-background) 24%, transparent);
@@ -256,12 +260,12 @@
   mask-composite: exclude;
 }
 
-.dark .marketing-navbar:has(+ .interior-theme):has(.marketing-nav-rim) .marketing-nav-bed {
+.marketing-navbar:has(+ .interior-theme):has(.marketing-nav-rim) .marketing-nav-bed {
   clip-path: inset(8px round max(0px, calc(var(--marketing-nav-radius) - 8px)));
 }
 
 /* Draw the edge after the optical layers so it isn't itself refracted. */
-.dark .marketing-navbar:has(+ .interior-theme)::after {
+.marketing-navbar:has(+ .interior-theme)::after {
   content: '';
   position: absolute;
   inset: -1px;
@@ -272,20 +276,20 @@
   pointer-events: none;
 }
 
-.dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-controls {
+.marketing-navbar:has(+ .interior-theme) .marketing-nav-controls {
   position: relative;
   z-index: 2;
 }
 
-.dark .marketing-navbar:has(+ .interior-theme) :is(a[aria-current="page"], button) {
+.marketing-navbar:has(+ .interior-theme) :is(a[aria-current="page"], button) {
   border-radius: var(--radius-full);
 }
 
 @media (width < 64rem) {
-  .dark .marketing-navbar[data-menu-open="true"]:has(+ .interior-theme) {
+  .marketing-navbar[data-menu-open="true"]:has(+ .interior-theme) {
     --marketing-nav-radius: var(--radius-lg);
   }
-  .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-menu {
+  .marketing-navbar:has(+ .interior-theme) .marketing-nav-menu {
     max-height: calc(100dvh - 5.5rem);
     overflow-y: auto;
   }
@@ -293,7 +297,7 @@
 
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   @media (prefers-reduced-transparency: no-preference) {
-    .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+    .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
       background: color-mix(in srgb, var(--color-background) 86%, transparent);
       -webkit-backdrop-filter: blur(12px) saturate(140%);
       backdrop-filter: blur(12px) saturate(140%);
@@ -302,32 +306,32 @@
 }
 
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
-  .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-rim { display: none; }
-  .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+  .marketing-navbar:has(+ .interior-theme) .marketing-nav-rim { display: none; }
+  .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
     background: var(--color-background);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  .dark .marketing-navbar:has(+ .interior-theme):has(.marketing-nav-rim) .marketing-nav-bed { clip-path: none; }
+  .marketing-navbar:has(+ .interior-theme):has(.marketing-nav-rim) .marketing-nav-bed { clip-path: none; }
 }
 
 @media (forced-colors: active) {
-  .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+  .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
     background: Canvas;
   }
-  .dark .marketing-navbar:has(+ .interior-theme)::after {
+  .marketing-navbar:has(+ .interior-theme)::after {
     border: 0;
     box-shadow: none;
     outline: 1px solid CanvasText;
   }
-  .dark .marketing-navbar:has(+ .interior-theme) a[aria-current="page"] {
+  .marketing-navbar:has(+ .interior-theme) a[aria-current="page"] {
     background: Highlight;
     color: HighlightText;
   }
 }
 
 @media (width >= 64rem) {
-  .dark .marketing-navbar:has(+ .interior-theme) {
+  .marketing-navbar:has(+ .interior-theme) {
     top: 0;
     width: 100%;
     margin: 0;
@@ -335,20 +339,20 @@
     background: var(--color-background);
     box-shadow: inset 0 -1px 0 var(--color-navbar-edge);
   }
-  .dark .marketing-navbar:has(+ .interior-theme) :is(.marketing-nav-bed, .marketing-nav-rim) { display: none; }
-  .dark .marketing-navbar:has(+ .interior-theme)::after { content: none; }
+  .marketing-navbar:has(+ .interior-theme) :is(.marketing-nav-bed, .marketing-nav-rim) { display: none; }
+  .marketing-navbar:has(+ .interior-theme)::after { content: none; }
 }
 
 @media (width >= 64rem) and (forced-colors: active) {
-  .dark .marketing-navbar:has(+ .interior-theme) {
+  .marketing-navbar:has(+ .interior-theme) {
     background: Canvas;
     box-shadow: none;
     outline: 1px solid CanvasText;
   }
 }
 
-.dark .marketing-navbar:has(+ .interior-theme) [data-brand-variant="white"] { display: none; }
-.dark .marketing-navbar:has(+ .interior-theme) [data-brand-variant="dark"] { display: block; }
+.marketing-navbar:has(+ .interior-theme) [data-brand-variant="white"] { display: none; }
+.marketing-navbar:has(+ .interior-theme) [data-brand-variant="dark"] { display: block; }
 
 /* One illustrated chapter opener; the content below keeps the shared palette. */
 .interior-intro {
