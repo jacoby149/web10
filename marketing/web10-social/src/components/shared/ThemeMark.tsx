@@ -6,7 +6,12 @@ export function ThemeMark({ className }: { className: string }) {
   </span>;
 }
 
-/** The Social conversation mark uses the same transparent artwork in both themes. */
+/** The blue-backed conversation pair; the adjacent wordmark names the app. */
 export function SocialMark({ className }: { className: string }) {
-  return <img src="/social-conversation-pair.png" alt="" className={`${className} shrink-0 object-contain`} data-testid="social-conversation-mark" />;
+  return <img src="/social-conversation-pair-blue.png" alt="" className={`${className} shrink-0 rounded-sm object-contain`} data-testid="social-header-mark" />;
+}
+
+/** The same bundled icon used by the manifest, for the in-app install prompt. */
+export function SocialAppIcon() {
+  return <img src="/logo192.png" alt="" width={48} height={48} className="h-12 w-12 shrink-0 rounded-lg" />;
 }

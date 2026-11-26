@@ -67,7 +67,7 @@ self-possession. The brand is confident and quiet; it never begs.
 - **Dark-first.** The brand's native habitat is dark. Its original logo
   assets are white-on-transparent, with derived dark counterparts; creator/streaming
   culture (Kick, Twitch, OBS, Discord) lives in dark mode; and dark
-  is where the violet accent reads as electric instead of corporate.
+   is where the accent reads as electric instead of corporate.
    The console, social and marketing follow the
    device by default, with remembered System / Light / Dark choices (D108).
    Both palettes are built from tokens; media stages retain dark controls.
@@ -93,7 +93,8 @@ a wrong logo is worse than no logo.
 | Asset | File (today) | What it is | Use |
 |---|---|---|---|
 | **Full lockup** | `marketing/marketing-ui/public/brand/logo-lockup.png` (1200×400, moved from `layouts/images/logo_white.png` by D13) | Keys-on-keyring mark + lowercase thin-outline "web10" wordmark, white on transparent | Navbars, footers, hero, og-image. Dark backgrounds ONLY (it is white). Min height 24px; keep clear space ≥ the height of the "w" on all sides. |
-| **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Avatars, favicons, PWA icons, app-store tiles, anywhere square. Dark backgrounds only. Also the default profile picture in web10-social. |
+| **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Platform avatars, favicons, PWA icons and app-store tiles. Dark backgrounds only. Social's app icon is the exception below. |
+| **Social app icon** | `marketing/marketing-ui/public/brand/social-conversation-pair.png` (catalog); `marketing/web10-social/public/{logo192.png,logo512.png,apple-touch-icon.png,favicon.ico}` (browser and install) | Pink-and-blue conversation pair on solid `#0467f2`, sampled from the operator's blue swatch in sRGB | Social's App Store listing, app detail, install prompt, home-screen and browser icons. Not a theme token or a replacement for the platform keys. |
 | **Dark counterparts (D108)** | `marketing/marketing-ui/public/brand/logo-lockup-dark.png`, `marketing/web10-social/public/keys-mark-dark.png` | Zinc-900 copies with exactly the original dimensions/alpha | Light-mode lockup and square mark; never put a dark backing behind them. White originals remain unchanged. |
 | **Share-card images (D109)** | `marketing/web10-social/public/og-image.png` (1200×1200, keys mark on `#09090b` + subtle violet glow), `marketing/marketing-ui/public/brand/og-image.png` (1200×630, lockup on `#09090b` + subtle glow; the shared copy is `.context/brand-assets/og-image.png`) | Opaque `og:image` assets for link previews | Share surfaces only (the app-root static tags + the social crawler card's brand fallback). Opaque ON PURPOSE: the receiving app composites `og:image` onto its own (white) card frame, so the image bakes in its own dark background — a transparent white mark is invisible there. Never use them in-app (in chrome, the transparent marks + the page's background are correct). |
 
@@ -128,10 +129,10 @@ Rules of use:
 
 | File | What it actually is | Action |
 |---|---|---|
-| `ui/public/logo512.png`, `logo192.png`, `marketing/web10-social/public/logo512.png`, `logo192.png` | **The React atom.** Create-react-app boilerplate. | Replace with exports of the square keys mark at 192/512. |
+| `ui/public/logo512.png`, `logo192.png` | **The React atom.** Create-react-app boilerplate. | Replace with exports of the square keys mark at 192/512. |
 | `ui/public/hub.png`, `ui/public/hub.jpg` | **Apple's App Store logo.** A trademark we have no right to ship, referenced as `apple-touch-icon` in `ui/index.html`. | Replace immediately with the keys mark. This is a legal fix, not an aesthetic one. |
 | `ui/public/home.png` | Clipart house. | Delete; use a Lucide icon. |
-| `*/public/favicon.ico` | Unverified boilerplate. | Regenerate all three from the square keys mark. |
+| Non-Social `public/favicon.ico` | Unverified unless superseded by a canonical icon link. | Use the square keys mark. |
 | `marketing/marketing-ui/public/layouts/images/*` (berk, cmu, mit, stan, gonzaga, thumbnail, back*.jpg, sky, mountains…) | The "web10 for education" era — old pitch, old fonts, old navy palette, university logos. | The marketing rebuild (§10) decides per file; default is delete. University logos are other people's trademarks — same rule as hub.png. **Classic landing exceptions:** `back2.jpg` returns as `public/hero-fractal.jpg`, `back3.jpg` as `public/stats-2022.webp`, and `sky.jpg` as `public/pledge-sky-2022.jpg`. |
 | `ui/public/YourOrgsLogo/*` (key_white/black, generic_school_logo) | Feature fixtures — placeholder art for a provider's own branding slot. Not web10 brand assets. | Keep, but they are white-label placeholders; label them as such where shown. |
 
@@ -146,7 +147,7 @@ existing files (do not invent a new mark):
    zinc-900 transparent PNGs preserve original alpha/size. Print/vector
    counterparts still follow the original geometry.
 3. **Icon set**: favicon.ico + 192/512 PNG + apple-touch-icon per app,
-   all from the square mark on `#09090b`, replacing every squatter above.
+   from the square mark on `#09090b` except for Social's blue icon above.
 4. **One shared og-image** (1200×630): full lockup on `#09090b` with
    the violet glow treatment (§4), used by all three apps.
    *Paid (D109, 10.11.2026):* the marketing share surface is that asset —
@@ -174,7 +175,7 @@ rejection — if a color isn't a token, it doesn't exist.
 | `--color-muted-foreground` | `#a1a1aa` | Secondary text. ~7.4:1 on background — safe for body copy. |
 | `--color-foreground` | `#fafafa` | Primary text. Never `#fff`. |
 
-### Brand (violet — the electric thread)
+### Brand (shared violet defaults; Social overrides them in §13)
 
 | Token | Value | Role |
 |---|---|---|
@@ -197,12 +198,12 @@ light. See §10 for per-app direction.
 | `--color-glow-intense` | `rgba(139, 92, 246, 0.35)` | Focused composer glow, active CTA halos, live indicator pulse. |
 | `--color-glow-danger` | `rgba(239, 68, 68, 0.25)` | Like-burst animation, heart-pop afterglow. |
 
-Usage discipline (social only): violet is still an accent, not wallpaper.
+Usage discipline (social only): blue is still an accent, not wallpaper.
 But the social flagship may use glow liberally as ambient light — a soft
 `brand` blur behind active elements, a colored `box-shadow` on card hovers,
 a pulse on interactive feedback. The rule shifts from "one flourish per
 screen" to "glow is the texture, not the content." If the feed looks like
-a dark spreadsheet, add glow. If it looks like a purple laser show, pull
+a dark spreadsheet, add glow. If it looks like a laser show, pull
 back. The middle is Kick-grade: energy without chaos.
 
 ### Glow — ambient light (console & marketing)
@@ -496,11 +497,10 @@ floating New post shortcut as the complementary scrolled-down entry.
 
 ### Social navigation glass — first pass (11.11.2026)
 
-Social uses the transparent pink-and-blue conversation pair (one version
-for both themes) and spells out `web10 social` in
-desktop and mobile chrome. On very narrow phones, the label is available to
-screen readers while the mark stays visible. The public Join header uses the
-same mark. Installed app icons remain unchanged.
+Social uses the two-person conversation artwork on solid blue next to
+`web10 social` in desktop and mobile chrome, with the square image clipped
+to rounded corners. Use the same artwork in both themes and on Join. Preserve
+the separate catalog and install exports.
 
 Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
 mute choice across Posts/Video/Shorts and shared video renderers. Never persist
@@ -516,17 +516,17 @@ signed-in-only. Desktop navigation is unchanged.
 Messages moves into More, retaining its unread count both on the More
 entry and its Messages row, direct routes and active destination indication.
 More begins with a distinct personal profile card: resolved profile photo (or
-initial fallback), name, username and View profile, before Appearance or utility
-rows. The header avatar opens a profile-first menu; Change posting identity is
-secondary and reveals the existing confirmed chooser only when requested.
-Keep the header's Acting as label, current name/avatar and visible expand arrow
-on phones and desktop. The first menu action is View profile; Change identity
-is the visible second action and needs another tap to open the existing picker.
+initial fallback), name, username and View profile, followed by a separate
+Change identity button with the active posting identity's avatar or initial,
+without a visible secondary label. Keep the phone
+header for the Social wordmark and existing utility controls, without Acting as.
+Desktop keeps one personal profile row in the sidebar. The top-right account
+menu keeps its Signed in as header and puts the same compact Change identity
+row underneath it.
 Profile navigation never changes the selected posting identity or grants authority.
-The small profile menu is a compact, collision-aware popover anchored beneath
-the header trigger on phones as well as desktop, not a bottom sheet. Use two
-tight 44px-or-larger action rows without a repeated heading/close/card stack.
-Only the full identity chooser uses the phone bottom sheet after the second tap.
+Change identity opens the existing chooser beside the desktop account menu or
+as a sheet on phones. Closing it returns to the originating control without
+applying a draft choice.
 Below the profile card, More's action order is People, Messages, Appearance,
 Settings, Monetization, then admin-only Node Settings. Keep the card premier;
 People is the first ordinary navigation row.
@@ -536,7 +536,7 @@ smoked dark / milky light headers, sidebar and navigation menus. Content, forms
 and media keep their existing reading surfaces. This is a bounded visual trial,
 not a platform-wide redesign or an optical-refraction claim. Use shared
 `--chrome-*` material tokens derived from the current palette: surface tint,
-foreground edge highlights, violet ambient light and a floating shadow. Blur is
+foreground edge highlights, blue ambient light and a floating shadow. Blur is
 static, never animated; controls keep their focus rings and 44px touch targets.
 Without backdrop-filter, with reduced transparency or forced colors, use opaque
 surfaces. Reserve the floating dock plus device safe area in scrolling content,
@@ -796,6 +796,26 @@ these CSS variables at runtime — which is exactly why every color in
 every component must come through a token. A hardcoded hex isn't just
 ugly, it breaks phase-4 theming.
 
+### Social blue accent
+
+D127 overrides the shared violet brand steps in `marketing/web10-social/`
+only. Keep the zinc canvases, System / Light / Dark behavior, semantic colors,
+and authored media or text-tile colors. Use the icon's blue for solid actions
+with `#fafafa` labels, and the theme-specific text steps for links and labels.
+Media islands retain dark background and text steps even in Light mode.
+
+| Token | Dark / media | Light |
+|---|---|---|
+| `--color-brand` | `#0467f2` | `#0467f2` |
+| `--color-brand-600` | `#075acf` | `#075acf` |
+| `--color-brand-300` | `#a8ceff` | `#03438f` |
+| `--color-brand-400` | `#7db6ff` | `#064eae` |
+| `--color-brand-muted` | `#102c54` | `#e0edff` |
+| `--color-ring` | `#4c97ff` | `#0467f2` |
+
+Derive ambient glows from the blue fill. Do not use the text steps behind
+white action labels; hover and pressed gradients stay within the fill steps.
+
 ### Classic landing surface (D125, 25.11.2026)
 
 The classic "web10 Revolution" landing — the pre-D13 own-your-data page
@@ -896,12 +916,12 @@ light gray secondary text (`#cbcbcb`), and the hero's sky accent (`#87ceeb`).
 The startup browser tint matches the resolved canvas. Keep the fractal on `/`
 only; interior reading surfaces use flat colors. Shared marketing prose and
 controls use Jost; code keeps its mono face. Social's listing and canonical
-detail use the pink-and-blue pair on a solid white tile in both themes. The
+detail use the pink-and-blue pair on a solid blue tile in both themes. The
 tile crops through both figures below the waist, before the woman's legs
-show. Social uses that same crop with a transparent background in the app. Hub keeps the original
+show. Social chrome uses the same crop with rounded corners. Hub keeps the original
 `/brand/icon-192.png`: white keys on near-black (`#09090b`), not cobalt.
-Other apps retain their artwork. Installed icons and the social, authenticator,
-and standalone demo interfaces do not inherit the marketing palette.
+Other apps retain their artwork. App icons and the social, authenticator, and
+standalone demo interfaces do not inherit the marketing palette.
 
 Use one continuous canvas per screen, with a neighboring tone for grouped
 content and a stronger accent only for actions and focus. Type and spacing

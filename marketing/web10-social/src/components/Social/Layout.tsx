@@ -85,15 +85,15 @@ const comingSoonItems = [
 ];
 
 function Wordmark({ className }: { className?: string }) {
-  // The full lockup: the keys mark + "web10" (the "10" in brand violet).
+  // The Social mark and wordmark, with "10" in the accent text color.
   // The sidebar top row (desktop) and the mobile header both carry it — the
   // 29.09.2026 pass restored the wordmark to the sidebar (the mark-only
   // Facebook-style variant was retired with the sidebar search).
   return (
     <span className={cn('flex items-center gap-2', className)}>
       <SocialMark className="size-8" />
-      <span className="wordmark-label font-display text-lg font-bold tracking-tight text-foreground">
-        web<span className="text-brand">10</span> <span className="max-md:block">social</span>
+      <span className="wordmark-label whitespace-nowrap font-display text-lg font-bold tracking-tight text-foreground">
+        web<span className="text-brand-400">10</span> <span>social</span>
       </span>
     </span>
   );
@@ -116,6 +116,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // (Settings, Node Monetization, Node Settings, coming-soon).
   const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, musicItem, messagesItem, monetizationItem];
   const [moreOpen, setMoreOpen] = useState(false);
+  const [moreIdentityOpen, setMoreIdentityOpen] = useState(false);
   const { unread } = useNotifications();
   // The Messages unread badge (the purple count on the Messages icon) — DMs
   // have their own badge, separate from the notifications bell.
@@ -133,8 +134,8 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // The Shorts LENS (`/shorts/:postId`) is a full-screen immersive surface
   // (the TikTok model): the bottom tab bar would overlap the action rail + the
   // comment sheet, so it is hidden on the lens. The exit is the back arrow the
-  // lens renders itself (top-left → /feed); the mobile top header stays so the
-  // account actions remain reachable. Dropping the `pb-16` reserve too makes
+  // lens renders itself (top-left → /feed); the mobile top header stays.
+  // Dropping the `pb-16` reserve too makes
   // the lens truly full-bleed (the video runs edge to edge, no dead band under
   // the bar). The Shorts WALL (`/shorts`, no `:postId`) is a normal scrollable
   // grid — it keeps the normal chrome (top bar + bottom nav + pb-16).
@@ -168,6 +169,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // "clear way to log out".
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
   // The desktop "More" popover — the coming-soon surfaces, tucked out of the
   // permanent nav (they're not real destinations yet, so they don't hold a
   // nav row; the popover keeps the roadmap discoverable).
@@ -209,7 +211,9 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setUserMenuOpen(false);
+      if (e.key !== 'Escape' || userMenuRef.current?.querySelector('[data-testid="acting-identity-panel"]')) return;
+      setUserMenuOpen(false);
+      userMenuTriggerRef.current?.focus();
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -287,7 +291,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
-          {!isAnon && <div className="mb-3"><ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} onCreateGroup={() => go('/groups')} /></div>}
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
             const target = path === '/profile' ? profilePath : path;
             // The profile item shows the user's own name (the operator's call:
@@ -326,7 +329,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                     <span
                       data-testid="nav-messages-badge-desktop"
                       aria-hidden="true"
-                      className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center"
+                       className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-brand text-brand-foreground text-[0.5625rem] font-bold flex items-center justify-center"
                     >
                       {messagesUnread > 99 ? '99+' : messagesUnread}
                     </span>
@@ -421,8 +424,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
         <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-3 h-14 border-b sticky top-0 z-20 gap-1">
-          <Wordmark className="shrink-0 gap-1 [&_.wordmark-label]:text-xs [&_.wordmark-label]:leading-none max-[359px]:[&_.wordmark-label]:sr-only" />
-          {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} onCreateGroup={() => go('/groups')} />}
+          <Wordmark className={cn('shrink-0 [&_.wordmark-label]:text-base', isAnon && 'max-[359px]:[&_.wordmark-label]:sr-only')} />
           <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
               onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-elevated hover:text-foreground">
@@ -518,7 +520,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 <span
                   data-testid="nav-notifications-badge"
                   aria-hidden="true"
-                  className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center animate-glow-pulse"
+                   className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 rounded-full bg-brand text-brand-foreground text-[0.5625rem] font-bold flex items-center justify-center animate-glow-pulse"
                 >
                   {unread > 99 ? '99+' : unread}
                 </span>
@@ -526,9 +528,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             </button>
             <div className="relative shrink-0 pr-3" ref={userMenuRef}>
               <button
+                ref={userMenuTriggerRef}
                 type="button"
                 data-testid="user-menu-trigger"
-                aria-haspopup="menu"
+                aria-label="Account"
+                aria-haspopup="dialog"
                 aria-expanded={userMenuOpen}
                 onClick={() => setUserMenuOpen((o) => !o)}
                 className={cn(
@@ -558,8 +562,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
 
               {userMenuOpen && (
                 <div
-                  role="menu"
+                  role="dialog"
+                  aria-label="Account"
                   data-testid="user-menu"
+                  data-replay-private
                   className="chrome-glass chrome-floating absolute right-0 top-full mt-2 w-64 rounded-lg border p-1 z-30"
                 >
                   <div className="border-b border-border px-3 py-2">
@@ -567,10 +573,13 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                     <p className="truncate text-sm font-medium text-foreground">{displayName || username}</p>
                     <p className="truncate text-xs text-muted-foreground">@{username}</p>
                   </div>
+                  <div className="border-b border-border py-1">
+                    <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl}
+                      onCreateGroup={() => { setUserMenuOpen(false); go('/groups'); }} />
+                  </div>
                   <div className="pt-1">
                     <button
                       type="button"
-                      role="menuitem"
                       data-testid="user-menu-profile"
                       onClick={() => { setUserMenuOpen(false); navigate(profilePath); }}
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
@@ -580,7 +589,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                     </button>
                     <button
                       type="button"
-                      role="menuitem"
                       data-testid="user-menu-settings"
                       onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
@@ -590,7 +598,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                     </button>
                     <button
                       type="button"
-                      role="menuitem"
                       data-testid="user-menu-report-bug"
                       onClick={() => { setUserMenuOpen(false); onReportBug(); }}
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
@@ -601,7 +608,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                     <div className="my-1 h-px bg-border" aria-hidden="true" />
                     <button
                       type="button"
-                      role="menuitem"
                       data-testid="logout-button"
                       onClick={onLogout}
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-danger-muted hover:text-danger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
@@ -702,7 +708,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             className="chrome-nav-item relative min-w-0 flex-1 flex flex-col items-center justify-center gap-1 min-h-12 py-2 text-foreground"
           >
             <span className="relative"><MoreHorizontal className="w-5 h-5" strokeWidth={1.75} />
-              {!isAnon && messagesUnread > 0 && <span data-testid="nav-more-messages-badge" aria-hidden="true" className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.5625rem] font-bold text-background">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
+               {!isAnon && messagesUnread > 0 && <span data-testid="nav-more-messages-badge" aria-hidden="true" className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.5625rem] font-bold text-brand-foreground">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
             </span>
             <span className="text-[0.625rem] font-medium">More</span>
           </button>
@@ -712,7 +718,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             the coming-soon surfaces, so the roadmap is discoverable on
             mobile without cramming six dead icons into the bottom bar. */}
         {moreOpen && (
-          <div className="md:hidden fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label="More">
+          <div className="md:hidden fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal={isAnon || !moreIdentityOpen} inert={!isAnon && moreIdentityOpen} aria-label="More">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMoreOpen(false)} aria-hidden="true" />
             <div className="chrome-glass chrome-floating relative w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-t-lg border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]" data-testid="more-sheet">
               <div className="flex items-center justify-between mb-3">
@@ -728,10 +734,16 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               </div>
 
               <div className="space-y-1">
-                {!isAnon && <button type="button" data-testid="nav-profile-mobile" aria-label="View your profile" data-replay-private onClick={() => go(profileItem.path)} className="mb-4 flex min-h-20 w-full items-center gap-3 rounded-lg border border-border bg-elevated p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-12 w-12 shrink-0">{avatarUrl && <AvatarImage src={avatarUrl} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{(displayName || username || '?').charAt(0).toUpperCase()}</AvatarFallback></Avatar>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-base font-semibold text-foreground">{displayName || username || 'Your profile'}</span><span className="mt-1 block truncate text-xs text-muted-foreground">@{username}</span><span className="mt-1 block text-sm font-medium text-brand-300">View profile</span></span>
-                </button>}
+                {!isAnon && <div className="mb-4 rounded-lg border border-border bg-elevated p-1" data-replay-private data-testid="more-profile-card">
+                  <button type="button" data-testid="nav-profile-mobile" aria-label="View your profile" onClick={() => go(profileItem.path)} className="flex min-h-20 w-full items-center gap-3 rounded-sm p-3 text-left hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <Avatar className="h-12 w-12 shrink-0">{avatarUrl && <AvatarImage src={avatarUrl} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{(displayName || username || '?').charAt(0).toUpperCase()}</AvatarFallback></Avatar>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-base font-semibold text-foreground">{displayName || username || 'Your profile'}</span><span className="mt-1 block truncate text-xs text-muted-foreground">@{username}</span><span className="mt-1 block text-sm font-medium text-brand-300">View profile</span></span>
+                  </button>
+                  <div className="border-t border-border pt-1">
+                    <ActingIdentitySwitcher placement="profile-card" personalName={displayName || username} personalAvatar={avatarUrl}
+                      onPickerOpenChange={setMoreIdentityOpen} onCreateGroup={() => go('/groups')} />
+                  </div>
+                </div>}
                 {/* People — the discovery/browse surface, kept in More. */}
                 <button
                   data-testid="nav-people-mobile"
@@ -755,7 +767,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 >
                   <MessageSquare className="w-5 h-5" strokeWidth={1.75} />
                   {messagesItem.label}
-                  {messagesUnread > 0 && <span data-testid="nav-messages-badge-mobile" className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-background">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
+                   {messagesUnread > 0 && <span data-testid="nav-messages-badge-mobile" className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-brand-foreground">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
                 </button>}
                 <button type="button" data-testid="nav-appearance-mobile" onClick={() => go('/appearance')}
                   className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-elevated">

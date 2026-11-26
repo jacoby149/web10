@@ -17,16 +17,16 @@
   --color-elevated: #18181b;
   --color-border: #27272a;
   --color-input: #27272a;
-  --color-ring: #8b5cf6;
+  --color-ring: #4c97ff;
   --color-muted: #18181b;
   --color-muted-foreground: #a1a1aa;
 
-  /* brand — violet (§4) */
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-muted: #2e1065;
+  /* D127 — Social blue; design.md §13 */
+  --color-brand-300: #a8ceff;
+  --color-brand-400: #7db6ff;
+  --color-brand: #0467f2;
+  --color-brand-600: #075acf;
+  --color-brand-muted: #102c54;
   --color-brand-foreground: #fafafa;
 
   /* text-tile palette — text-only posts on the 9:16 wall (design.md §13).
@@ -43,8 +43,8 @@
   --color-tile-foreground: #fafafa;
 
   /* glow — ambient light, social flagship only (§4) */
-  --color-glow: rgba(139, 92, 246, 0.15);
-  --color-glow-intense: rgba(139, 92, 246, 0.35);
+  --color-glow: color-mix(in srgb, var(--color-brand) 15%, transparent);
+  --color-glow-intense: color-mix(in srgb, var(--color-brand) 35%, transparent);
   --color-glow-danger: rgba(239, 68, 68, 0.25);
 
   /* semantic (§4) */
@@ -92,12 +92,10 @@
   --color-border: #d4d4d8;
   --color-input: #d4d4d8;
   --color-muted-foreground: #52525b;
-  --color-ring: #7c3aed;
-  --color-brand-300: #6d28d9;
-  --color-brand-400: #5b21b6;
-  --color-brand: #7c3aed;
-  --color-brand-600: #6d28d9;
-  --color-brand-muted: #ede9fe;
+  --color-ring: var(--color-brand);
+  --color-brand-300: #03438f;
+  --color-brand-400: #064eae;
+  --color-brand-muted: #e0edff;
   --color-success: #166534;
   --color-warning: #854d0e;
   --color-danger: #b91c1c;
@@ -308,12 +306,10 @@
   --color-input: #27272a;
   --color-muted: #18181b;
   --color-muted-foreground: #a1a1aa;
-  --color-ring: #8b5cf6;
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-muted: #2e1065;
+  --color-ring: #4c97ff;
+  --color-brand-300: #a8ceff;
+  --color-brand-400: #7db6ff;
+  --color-brand-muted: #102c54;
   --color-card: #111113;
   --color-card-foreground: #fafafa;
   --color-popover: #18181b;
@@ -592,10 +588,10 @@
   /* design.md §7 — brand-glow-pulse for active nav / ambient energy */
   @keyframes brand-glow-pulse {
     0%, 100% {
-      box-shadow: 0 0 8px rgba(139, 92, 246, 0.15);
+      box-shadow: 0 0 8px var(--color-glow);
     }
     50% {
-      box-shadow: 0 0 16px rgba(139, 92, 246, 0.3);
+      box-shadow: 0 0 16px color-mix(in srgb, var(--color-brand) 30%, transparent);
     }
   }
 
@@ -652,20 +648,21 @@
 
   /* Glow utilities — social flagship (§4) */
   .glow-card {
-    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0), 0 0 16px rgba(139, 92, 246, 0);
+    box-shadow: 0 0 0 1px transparent, 0 0 16px transparent;
     transition: box-shadow 150ms ease-out;
   }
 
   .glow-card:hover {
-    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.1), 0 0 20px rgba(139, 92, 246, 0.1);
+    --card-hover-glow: color-mix(in srgb, var(--color-brand) 10%, transparent);
+    box-shadow: 0 0 0 1px var(--card-hover-glow), 0 0 20px var(--card-hover-glow);
   }
 
   .glow-active {
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-brand) 20%, transparent);
   }
 
   .glow-intense {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.35);
+    box-shadow: 0 0 20px var(--color-glow-intense);
   }
 
   /* Gradient border utility */

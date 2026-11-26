@@ -1,3 +1,18 @@
+6.32.22 || 26.11.2026
+style(social): move desktop Change identity below Signed in as in the account menu, leaving one profile row in the sidebar. Both desktop and mobile show the active identity avatar beside the single action label and keep the existing confirmation step.
+
+6.32.21 || 26.11.2026
+style(social): on phones, give the rounded logo and full wordmark room in the top bar. Put Change identity under View profile in More, showing the active posting identity. Leave desktop placement and the confirmed chooser unchanged.
+
+6.32.20 || 26.11.2026
+style(social): show the two conversation characters on a blue background with rounded corners in Social and Join chrome. Keep the wordmark, blue accent palette and separate App Store and install icons.
+
+6.32.19 || 26.11.2026
+style(social): carry the app icon's blue into the Light and Dark accent palettes: navigation, links, buttons, focus rings and glow. Keep neutral surfaces, appearance behavior, media colors, and other apps unchanged.
+
+6.32.18 || 26.11.2026
+style(social): put the conversation pair on the operator's blue for the App Store listing and detail, install prompt, home-screen icons and favicon. Refresh the service-worker shell cache. Keep the transparent Social and Join marks, Hub artwork and app theme unchanged.
+
 6.32.12 || 26.11.2026
 research: the 26.10 setup statements take their per-query memory cap from the admission-declared DAU envelope (the sized host's server cap) instead of the banked 22 GiB frame pin, so the full-store engagement migration INSERT fits on the sized host; banked admissions (no dau_envelope) keep the exact 22 GiB pin and the measured single-read comparison frame is unchanged. One control. No host, no admission, no native execution.
 
