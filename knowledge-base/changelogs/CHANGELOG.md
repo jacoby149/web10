@@ -1,5 +1,7 @@
 6.30.5 || 25.11.2026
 fix(marketing): use the App Store's paper Light and ink-and-navy Dark palettes on Freedom, Docs, and Appearance. Keep System and saved overrides. Pin the homepage's Mandelbrot and stats artwork behind the scrolling sections on desktop and phones, regardless of the device motion setting.
+6.30.4 || 25.11.2026
+research: the pinned setup-transport bootstrap now banks an already-settled `OPTIMIZE ... FINAL` as a completed no-op when the engine aborts the trivial entry with code 236 'Cancelled merging parts' (the signature is exact: OPTIMIZE prefix, write kind, code 236, that message). Every other native stop still refuses the repeat. Four new transport controls. No engine, host or admission change.
 
 6.30.3 || 25.11.2026
 fix(marketing): match the dark App Store and app details to the homepage's ink and navy palette. Tighten and center the existing catalog without changing its components or adding background artwork.
