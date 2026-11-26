@@ -1,3 +1,6 @@
+6.29.9 || 25.11.2026
+research: recapture the pinned core-feed wire and cursor-builder captures after the Music Explore trackList option changed `feed.ts` (#1644). The four-request topology (three queries + contentViews, 21 fetched / 20 displayed) is unchanged against the historical v3 pin; only the source hash binding moved, and the ARM-F-DESIGN-CLOSURE.md authorized-source manifest re-pins `feed.ts` and the recaptured `core-feed-wire-v8.json` (no other authorized source moved). Unblocks the research CI that had gone stale on dev.
+
 6.29.8 || 25.11.2026
 fix(social): stop the signed-in feed crash (React #185) when clamping a post makes its reported scroll height shrink. Measure the natural height before deciding whether to clamp, preserve See more/See less, and cover the failing layout and resize path.
 
