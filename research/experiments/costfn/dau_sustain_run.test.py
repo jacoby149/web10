@@ -26,7 +26,9 @@ def approval(**overrides):
         purpose='DAU_SUSTAINED_CONTRACT_RATE',
         dau_host=dict(region='nyc2', size='g-48vcpu-192gb-intel', price_hourly=2.6994,
             storage_gib=720, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=25.0),
-        dau_envelope=dict(container_bytes=107374182400, server_bytes=85899345920),
+        dau_envelope=dict(container_bytes=107374182400, server_bytes=85899345920,
+            api_bytes=34359738368, minio_bytes=1073741824),
+        dau_store_source='PARQUET_TRANSFER',
         hybrid_k20_projected_admitted=False)
     value.update(overrides)
     return value
@@ -44,7 +46,9 @@ class AdmissionGate(unittest.TestCase):
                 dict(dau_host=dict(region='nyc2', size='g-48vcpu-192gb-intel', price_hourly=2.6994,
                     storage_gib=720, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=50.0)),
                 dict(dau_envelope=dict(container_bytes=10, server_bytes=20)),
+                dict(dau_envelope=dict(container_bytes=107374182400, server_bytes=85899345920)),
                 dict(restored_snapshot_id='999999999'),
+                dict(dau_store_source='SNAPSHOT'),
                 dict(hybrid_k20_projected_admitted=True)):
             with self.subTest(overrides=overrides):
                 with patch.object(run, 'full_store') as store:
@@ -130,6 +134,46 @@ class OracleAudit(unittest.TestCase):
         with patch.object(run.ads, 'compare'):
             with self.assertRaises(costfn_task.ParityDivergence):
                 run.audit_response(bad, 'reader-1', self.billboards, self.expected_views)
+
+
+class EnvelopeOverlay(unittest.TestCase):
+    @staticmethod
+    def overlay_value():
+        return dict(services={
+            'clickhouse': dict(image='ghcr.io/x/base-clickhouse:26.10.4.207',
+                environment={'CLICKHOUSE_DO_NOT_CHOWN': '1'},
+                volumes=[{'type': 'bind', 'source': '/opt/fanout/input',
+                    'target': '/var/lib/clickhouse/user_files/input', 'read_only': True}]),
+            'api': dict(mem_limit='2g'), 'minio': dict(mem_limit='512m')})
+
+    def test_envelope_rewrites_caps_and_preserves_the_input_bind(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'restore.overlay.json').write_text(json.dumps(self.overlay_value()))
+            approval = dict(dau_envelope=dict(container_bytes=107374182400,
+                server_bytes=85899345920, api_bytes=34359738368, minio_bytes=1073741824))
+            got = run.apply_envelope_overlay(root, approval)
+            clickhouse = got['services']['clickhouse']
+            self.assertEqual(clickhouse['mem_limit'], '107374182400')
+            self.assertEqual(clickhouse['volumes'][0], 'clickhouse-data:/var/lib/clickhouse')
+            self.assertEqual(clickhouse['volumes'][2],
+                {'type': 'bind', 'source': '/opt/fanout/input',
+                 'target': '/var/lib/clickhouse/user_files/input', 'read_only': True})
+            self.assertIn('dau-memory.xml', clickhouse['volumes'][3])
+            self.assertEqual(got['services']['api']['mem_limit'], '34359738368')
+            self.assertEqual(got['services']['minio']['mem_limit'], '1073741824')
+
+    def test_missing_overlay_or_input_bind_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, 'restore overlay required'):
+                run.apply_envelope_overlay(Path(directory), dict(dau_envelope=dict(
+                    container_bytes=1, server_bytes=1, api_bytes=1, minio_bytes=1)))
+            broken = self.overlay_value()
+            broken['services']['clickhouse']['volumes'] = []
+            (Path(directory) / 'restore.overlay.json').write_text(json.dumps(broken))
+            with self.assertRaisesRegex(ValueError, 'input bind missing'):
+                run.apply_envelope_overlay(Path(directory), dict(dau_envelope=dict(
+                    container_bytes=1, server_bytes=1, api_bytes=1, minio_bytes=1)))
 
 
 class CanonicalFingerprint(unittest.TestCase):

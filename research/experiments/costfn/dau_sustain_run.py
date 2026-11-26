@@ -18,6 +18,7 @@ from arm_f_reads import rowset
 from costfn_task import Task, read, digest, exact, ParityDivergence
 import arm_f_http
 import arm_f_run as arm_run
+import arm_t
 import arm_satellite_sql as sql
 import dau_sustain_workload as wl
 import engagement_billboards as ads
@@ -59,9 +60,12 @@ def admission_gate(approval):
             and host.get('backstop_h') == 12 and host.get('compute_ceiling_usd') == 25.0):
         raise ValueError('budget-sized host class declared at admission required')
     envelope = approval.get('dau_envelope')
-    if not (envelope and type(envelope.get('container_bytes')) is int
-            and type(envelope.get('server_bytes')) is int and envelope['server_bytes'] < envelope['container_bytes']):
+    if not (envelope and all(type(envelope.get(key)) is int and envelope[key] > 0
+            for key in ('container_bytes', 'server_bytes', 'api_bytes', 'minio_bytes'))
+            and envelope['server_bytes'] < envelope['container_bytes']):
         raise ValueError('engine envelope declared at admission required')
+    if approval.get('dau_store_source') != 'PARQUET_TRANSFER':
+        raise ValueError('sized-host store provenance (verified Parquet transfer) required')
     if approval.get('restored_snapshot_id') != '255003176':
         raise ValueError('frozen store of the retained snapshot required')
     if not window.task(approval):
@@ -69,6 +73,57 @@ def admission_gate(approval):
     if approval.get('hybrid_k20_projected_admitted') is not False:
         raise ValueError('sustained-DAU measures the indexed complete path only')
     full_store.source_guard(approval)
+
+
+def restore_parquet(root, approval):
+    """The sized host cannot restore the snapshot (the snapshot lives in
+    nyc3; no >=32-vCPU 400GB+ droplet exists there). Its store is the banked
+    verified-input Parquet rebuild — the snapshot's own frozen files,
+    transferred byte-verified — through the unchanged banked restore path,
+    then the declared DAU envelope overlay replaces the banked 28/22 GiB
+    frame for the sized host."""
+    project = 'web10-costfn-frozen-satellite-dau-' + str(approval['droplet_id'])
+    if (root / 'restore.json').exists() or (root / 'restore.overlay.json').exists():
+        raise FileExistsError('restore already bound; no re-restore')
+    restore.restore(root / 'input', root / 'input' / 'validation.json', arm_t.DATASET,
+        arm_t.VALIDATION, project, 6098, root / 'restore.json', engine=modern.ENGINE)
+    apply_envelope_overlay(root, approval)
+    # Re-raise the stack under the declared envelope and verify it live.
+    session = modern.Session(root)
+    restore.command(session.compose, session.env, 'stop', timeout=120)
+    restore.command(session.compose, session.env, 'up', '-d', 'clickhouse', 'minio', timeout=300)
+    value = verify_envelope(root)
+    value['restore_source'] = 'ARCHIVED_PARQUET_TRANSFERRED_FROM_SNAPSHOT_HOST'
+    value['verified_input'] = 'banked verified_input manifest + per-file sha256 + validation receipt'
+    save(root / 'dau-restore.json', value)
+    return value
+
+
+def apply_envelope_overlay(root, approval):
+    """Replace the banked 28/22 GiB frame with the admission-declared sized
+    envelope: 100 GiB container, 80 GiB server cap via the committed
+    clickhouse-config/dau-memory.xml, plus declared api/minio caps. The
+    banked input bind and the store volume survive the rewrite verbatim."""
+    envelope = approval['dau_envelope']
+    overlay_path = Path(root) / 'restore.overlay.json'
+    if not overlay_path.is_file():
+        raise ValueError('banked restore overlay required before the envelope rewrite')
+    overlay = json.loads(overlay_path.read_bytes())
+    clickhouse = overlay['services']['clickhouse']
+    input_bind = next((value for value in clickhouse['volumes']
+        if isinstance(value, dict) and value.get('target') == '/var/lib/clickhouse/user_files/input'),
+        None)
+    if input_bind is None:
+        raise ValueError('banked input bind missing from the restore overlay')
+    clickhouse['mem_limit'] = str(envelope['container_bytes'])
+    clickhouse['volumes'] = ['clickhouse-data:/var/lib/clickhouse',
+        '../../../clickhouse-init:/docker-entrypoint-initdb.d:ro',
+        {**input_bind},
+        './clickhouse-config/dau-memory.xml:/etc/clickhouse-server/config.d/costfn-memory.xml:ro']
+    overlay['services']['api']['mem_limit'] = str(envelope['api_bytes'])
+    overlay['services']['minio']['mem_limit'] = str(envelope['minio_bytes'])
+    overlay_path.write_bytes(json.dumps(overlay, indent=1).encode())
+    return overlay
 
 
 def verify_envelope(root):
@@ -601,8 +656,9 @@ def run(root, *, note=None):
         modern.install_sessions()
         actions = Actions(root, task)
         try:
-            task.step('restore', lambda: actions.restore(),
-                validate=lambda stored: verify_envelope(root))
+            task.step('restore', lambda: restore_parquet(root, approval),
+                validate=lambda stored: verify_envelope(root) == {key: stored.get(key)
+                    for key in ('engine', 'container_bytes', 'server_bytes')})
             task.step('verify-envelope', lambda: verify_envelope(root))
             task.step('verify-store', lambda: verify_store(root))
             task.step('steady-state', lambda: full_store.steady_state(root))
