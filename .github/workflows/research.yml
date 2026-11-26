@@ -58,6 +58,8 @@ jobs:
           python hybrid_k20_projected.test.py
           python hybrid_k20_attachment.test.py
           python hybrid_k20_full_store.test.py
+          python dau_sustain_workload.test.py
+          python dau_sustain_run.test.py
           python costfn_task.test.py
       - name: Run full F satellite and engagement no-engine suite
         working-directory: research/experiments/costfn
