@@ -34,8 +34,16 @@ def admitted(value, host, now=None):
         and value.get('composition_admitted') is True and value.get('tally_wiring_admitted') is True
         and value.get('initial_k20_count_build_admitted') is True
         and value.get('engagement_completion_admitted') is True and value.get('stages_b_d_admitted') is False)
+    DAU_DIRECTIVE = 'Jacob Hoffman 2026-11-25 sustained-DAU contract-rate load test'
+    dau = (value.get('purpose') == 'DAU_SUSTAINED_CONTRACT_RATE'
+        and value.get('dau_sustain_directive') == DAU_DIRECTIVE
+        and value.get('run_directive') == composition_directive and limits.enabled(value)
+        and value.get('composition_admitted') is True and value.get('tally_wiring_admitted') is True
+        and value.get('initial_k20_count_build_admitted') is True
+        and value.get('engagement_completion_admitted') is True and value.get('stages_b_d_admitted') is False)
     if (value.get('engagement_engine') != ENGINE or value.get('engagement_directive') != DIRECTIVE
-            or (value.get('purpose') != 'ENGAGEMENT_FULL_STORE_A_D' and not completion and not tally and not composition)
+            or (value.get('purpose') != 'ENGAGEMENT_FULL_STORE_A_D' and not completion and not tally
+                and not composition and not dau)
             or value.get('engagement_ref_admitted') is not True):
         raise ValueError('explicit26.10.4.207 full-store engagement admission required')
     return deadline
