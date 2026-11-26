@@ -100,11 +100,12 @@ try {
       assert.equal(colors.overflow, false);
       const mark = page.getByTestId('social-header-mark').filter({ visible: true });
       assert.equal((await mark.locator('..').textContent()).trim(), 'web10 social');
-      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair-blue.png');
+      assert.equal(await mark.locator('..').getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color), 'rgb(6, 78, 174)');
+      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair.png');
       assert.deepEqual(await mark.evaluate(el => {
         const css = getComputedStyle(el);
         return [el.naturalWidth, css.width, css.height, css.borderTopLeftRadius];
-      }), [192, '32px', '32px', '8px']);
+      }), [256, '32px', '32px', '0px']);
       {
         const ratios = await page.evaluate(() => {
           const css = getComputedStyle(document.documentElement);

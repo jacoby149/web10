@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.24 local] **Social dark sidebar and transparent toolbar mark** — match the desktop sidebar to marketing charcoal in Dark mode; let the ice-blue toolbar supply the backdrop for the conversation PNG.
+
 - [✓ 6.32.23 local] **Social ice-blue top bar** — align Social’s desktop and phone headers with Hub and marketing; preserve app branding, account behavior, and surrounding surfaces.
 
 - [✓ 6.32.22 local] **Compact Social identity entry** — desktop uses the account menu instead of a second sidebar profile; desktop and mobile use the active avatar and a single Change identity label.

@@ -1366,7 +1366,7 @@ describe('Layout', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 
-  it('pairs the Social name with the rounded blue conversation artwork', async () => {
+  it('pairs the Social name with transparent conversation artwork on the blue bar', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1378,9 +1378,10 @@ describe('Layout', () => {
     const marks = screen.getAllByTestId('social-header-mark');
     expect(marks).toHaveLength(2);
     for (const mark of marks) {
-      expect(mark).toHaveAttribute('src', '/social-conversation-pair-blue.png');
+      expect(mark).toHaveAttribute('src', '/social-conversation-pair.png');
       expect(mark).toHaveAttribute('alt', '');
-      expect(mark).toHaveClass('size-8', 'rounded-sm');
+      expect(mark).toHaveClass('size-8');
+      expect(mark).not.toHaveClass('rounded-sm');
     }
     expect(screen.getAllByText('social')).toHaveLength(2);
   });

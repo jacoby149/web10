@@ -91,9 +91,9 @@ function Wordmark({ className }: { className?: string }) {
   // Facebook-style variant was retired with the sidebar search).
   return (
     <span className={cn('flex items-center gap-2 text-social-header-ink', className)}>
-      <SocialMark className="size-8" />
+      <SocialMark className="size-8" transparent />
       <span className="wordmark-label whitespace-nowrap font-display text-lg font-bold tracking-tight">
-        web<span>10</span> <span>social</span>
+        web<span className="text-social-header-accent">10</span> <span>social</span>
       </span>
     </span>
   );
@@ -279,12 +279,12 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   return (
     <div className="social-shell flex h-dvh overflow-hidden">
       <aside className={cn(
-        'chrome-glass hidden md:flex flex-col w-64 shrink-0 border-r relative',
+        'social-sidebar chrome-glass hidden md:flex flex-col w-64 shrink-0 border-r relative',
       )}>
         {/* The decorative glow is clipped by its OWN container (the
             overflow-hidden wrapper), so the aside itself carries no
             overflow rule. */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden dark:hidden" aria-hidden="true">
           <div className="absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
         </div>
         <div className="relative -mr-px flex h-14 items-center bg-social-header px-4" data-testid="sidebar-brand-strip">

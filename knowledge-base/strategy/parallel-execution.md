@@ -278,6 +278,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.24 local] **Social dark sidebar and transparent toolbar mark** — preview the marketing charcoal on desktop Dark and the unboxed PNG on Social's ice-blue toolbar; preserve Join, install, and mobile dock art.
+
 - [✓ 6.32.23 local] **Social ice-blue top bar** — match the shared ice blue in Light and Dark; verify the desktop strip and phone header while retaining the dock and themed panels.
 
 - [✓ 6.32.22 local] **Compact Social identity entry** — place desktop Change identity below Signed in as, remove the sidebar duplicate, and use the active avatar with one label on both layouts. Preserve the confirmed chooser and focus return.

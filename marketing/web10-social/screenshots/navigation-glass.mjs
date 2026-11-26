@@ -51,6 +51,8 @@ try {
         const brand = await strip.boundingBox(), bar = await header.boundingBox();
         assert.equal(brand.height, bar.height);
         assert.equal(brand.x + brand.width, bar.x, 'brand strip and toolbar meet with no seam');
+        assert.equal(await strip.locator('..').evaluate(el => getComputedStyle(el).backgroundColor),
+          mode === 'dark' ? 'rgb(27, 32, 38)' : 'color(srgb 1 1 1 / 0.88)', 'sidebar charcoal is dark-only');
       }
       assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'no painted frost gradient');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

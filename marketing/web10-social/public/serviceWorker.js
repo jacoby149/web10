@@ -31,6 +31,7 @@ const PRECACHE_URLS = [
   '/favicon.ico',
   '/keys-mark.png',
   '/keys-mark-dark.png',
+  '/social-conversation-pair.png',
   '/social-conversation-pair-blue.png',
   '/og-image.png',
   '/apple-touch-icon.png',

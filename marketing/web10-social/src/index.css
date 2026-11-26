@@ -32,8 +32,10 @@
   /* Match the Hub/marketing header without changing the reading surfaces. */
   --color-social-header: #b5d4dc;
   --color-social-header-ink: #090c22;
+  --color-social-header-accent: #064eae;
   --color-social-header-tint: #d6e8ed;
   --color-social-header-tint-hover: #e3edf8;
+  --color-social-sidebar-dark: #1b2026;
 
   /* text-tile palette — text-only posts on the 9:16 wall (design.md §13).
      Deep, saturated, dark backgrounds (each reads as a color but stays in the
@@ -298,6 +300,10 @@
   .chrome-dock-bed, .chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed, .chrome-player-glass:has(.chrome-dock-rim) .chrome-dock-bed {
     clip-path: none; background: Canvas; -webkit-backdrop-filter: none; backdrop-filter: none;
   }
+}
+
+@media not (forced-colors: active) {
+  :root[data-theme="dark"] .social-sidebar { background-color: var(--color-social-sidebar-dark); }
 }
 
 /* Local dark islands: film controls/immersive captions must not turn into

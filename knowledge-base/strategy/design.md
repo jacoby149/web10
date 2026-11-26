@@ -497,10 +497,9 @@ floating New post shortcut as the complementary scrolled-down entry.
 
 ### Social navigation glass — first pass (11.11.2026)
 
-Social uses the two-person conversation artwork on solid blue next to
-`web10 social` in desktop and mobile chrome, with the square image clipped
-to rounded corners. Use the same artwork in both themes and on Join. Preserve
-the separate catalog and install exports.
+Social puts the transparent two-person conversation PNG directly on the
+ice-blue top bar next to `web10 social` in both themes. Join retains the
+rounded blue-backed artwork, as do the separate catalog and install exports.
 
 Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
 mute choice across Posts/Video/Shorts and shared video renderers. Never persist
@@ -535,8 +534,9 @@ Social's top bar is the same solid ice blue as Hub and marketing in both
 themes, with no divider along its edge. The desktop wordmark strip meets the
 bar without a seam; use dark ink and
 pale control fills for search and account controls. Open menus and search results
-retain their selected Light or Dark surface. The floating mobile dock, sidebar
-below the wordmark, and navigation menus keep their frosted chrome. Content, forms
+retain their selected Light or Dark surface. The desktop sidebar below the
+wordmark uses marketing's `#1b2026` charcoal in Dark mode only. The light
+sidebar, floating mobile dock, and navigation menus keep their existing chrome. Content, forms
 and media keep their existing reading surfaces. This is a bounded visual trial,
 not a platform-wide redesign or an optical-refraction claim. Use shared
 `--chrome-*` material tokens derived from the current palette: surface tint,
@@ -824,7 +824,9 @@ white action labels; hover and pressed gradients stay within the fill steps.
 
 The fixed Social top-bar tokens match Hub: `--color-social-header: #b5d4dc`,
 `--color-social-header-ink: #090c22`, `--color-social-header-tint: #d6e8ed`,
-and `--color-social-header-tint-hover: #e3edf8`. These are not feed or menu tokens.
+and `--color-social-header-tint-hover: #e3edf8`. The `10` in the wordmark uses
+`--color-social-header-accent: #064eae` for contrast on ice blue. These are not
+feed or menu tokens.
 
 ### Classic landing surface (D125, 25.11.2026)
 
@@ -928,7 +930,7 @@ only; interior reading surfaces use flat colors. Shared marketing prose and
 controls use Jost; code keeps its mono face. Social's listing and canonical
 detail use the pink-and-blue pair on a solid blue tile in both themes. The
 tile crops through both figures below the waist, before the woman's legs
-show. Social chrome uses the same crop with rounded corners. Hub keeps the original
+show. Social's top bar uses the transparent crop directly on ice blue. Hub keeps the original
 `/brand/icon-192.png`: white keys on near-black (`#09090b`), not cobalt.
 Other apps retain their artwork. App icons and the social, authenticator, and
 standalone demo interfaces do not inherit the marketing palette.

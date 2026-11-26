@@ -6,9 +6,9 @@ export function ThemeMark({ className }: { className: string }) {
   </span>;
 }
 
-/** The blue-backed conversation pair; the adjacent wordmark names the app. */
-export function SocialMark({ className }: { className: string }) {
-  return <img src="/social-conversation-pair-blue.png" alt="" className={`${className} shrink-0 rounded-sm object-contain`} data-testid="social-header-mark" />;
+/** The ice-blue toolbar supplies its own background; Join uses the blue tile. */
+export function SocialMark({ className, transparent = false }: { className: string; transparent?: boolean }) {
+  return <img src={transparent ? '/social-conversation-pair.png' : '/social-conversation-pair-blue.png'} alt="" className={`${className} shrink-0 ${transparent ? '' : 'rounded-sm'} object-contain`} data-testid="social-header-mark" />;
 }
 
 /** The same bundled icon used by the manifest, for the in-app install prompt. */

@@ -1,3 +1,6 @@
+6.32.24 || 26.11.2026
+style(social): use marketing charcoal for the desktop sidebar in Dark mode, place the transparent conversation PNG directly on the ice-blue bar, and color the wordmark’s “10” blue. Keep Join and install artwork, Light mode's sidebar, and the mobile dock unchanged.
+
 6.32.23 || 26.11.2026
 style(social): match Hub and marketing with a divider-free, solid ice-blue top bar and dark controls in both themes. Keep the feed, menus, and mobile dock on their existing surfaces.
 
