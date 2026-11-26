@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Clapperboard, Flame, KeyRound, Music, Palette, Users, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeMark } from '@/components/shared/ThemeMark';
+import { SocialAppMark } from '@/components/shared/SocialAppMark';
 
 const destinations = [
   { label: 'Posts', description: 'Start a conversation.', path: '/feed', icon: Flame },
@@ -18,7 +19,7 @@ export default function JoinScreen({ onLogin }: { onLogin: () => void }) {
       <div className="mx-auto max-w-6xl px-6 sm:px-8">
         <header className="flex min-h-24 items-center justify-between gap-4 border-b border-border/60">
           <Link to="/join" aria-label="web10 social home" className="flex min-h-11 items-center gap-3 rounded-sm">
-            <ThemeMark className="h-10 w-10" />
+            <SocialAppMark className="h-10 w-10" />
             <span className="font-display text-lg font-medium tracking-tight">web10 social</span>
           </Link>
           <nav aria-label="Account" className="flex items-center gap-2">

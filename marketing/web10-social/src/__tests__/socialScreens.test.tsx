@@ -1356,7 +1356,7 @@ describe('Layout', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 
-  it('renders web10 branding', async () => {
+  it('renders the Social guitarist and name inside the mobile header', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1365,8 +1365,9 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
+    const header = within(screen.getByTestId('topbar-mobile'));
+    expect(header.getByTestId('social-wordmark')).toHaveTextContent('web10 social');
+    expect(header.getByTestId('social-app-mark').querySelector('[data-brand-variant="light"]')).toHaveAttribute('src', '/social-guitar-mark-light.png');
   });
 
   it('notifications bell is in the desktop top bar (not the sidebar)', async () => {
@@ -1386,7 +1387,7 @@ describe('Layout', () => {
     expect(topbar.contains(bell)).toBe(true);
   });
 
-  it('the desktop sidebar shows the full web10 wordmark (keys mark + text)', async () => {
+  it('the desktop sidebar shows the full Social wordmark with its decorative guitarist', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1395,13 +1396,11 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // The 29.09.2026 pass restored the wordmark to the sidebar (the
-    // mark-only Facebook-style variant was retired with the sidebar search).
-    // The full lockup: "web" + "10" (the "10" in brand violet) next to the
-    // keys mark. The mark-only variant is gone.
-    expect(screen.queryByTestId('wordmark-mark')).not.toBeInTheDocument();
-    expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
+    const sidebar = within(screen.getByRole('complementary'));
+    expect(sidebar.getByTestId('social-wordmark')).toHaveTextContent('web10 social');
+    const mark = sidebar.getByTestId('social-app-mark');
+    expect(mark.querySelector('[data-brand-variant="dark"]')).toHaveAttribute('src', '/social-guitar-mark.png');
+    expect(mark).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('the desktop search field is in the top bar, not the sidebar', async () => {
@@ -1565,19 +1564,20 @@ describe('Anon shell (signed-out visitor)', () => {
     expect(screen.queryByText('Log in or create your account')).not.toBeInTheDocument();
   });
 
-  it('renders branding', async () => {
+  it('renders both Social wordmarks for signed-out visitors', async () => {
     const { default: App } = await import('@/App');
     render(
       <MemoryRouter initialEntries={['/feed']}>
         <App />
       </MemoryRouter>
     );
-    // The full web10 lockup (keys mark + "web" + "10") renders in BOTH the
-    // desktop sidebar and the mobile header (in jsdom both are in the DOM),
-    // so assert on the count, not a unique match.
     await waitFor(() => {
-      expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
+      const wordmarks = screen.getAllByTestId('social-wordmark');
+      expect(wordmarks).toHaveLength(2);
+      for (const wordmark of wordmarks) {
+        expect(wordmark).toHaveTextContent('web10 social');
+        expect(within(wordmark).getByTestId('social-app-mark')).toBeInTheDocument();
+      }
     });
   });
 });

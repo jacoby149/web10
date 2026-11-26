@@ -5,7 +5,7 @@ import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins'
 import { AppCard } from '@/components/AppCard'
 import InteriorIntro from '@/components/InteriorIntro'
 
-import { SOCIAL_CATALOG_ICON } from '../lib/catalogBrand'
+import { HUB_CATALOG_ICON, SOCIAL_CATALOG_ICON } from '../lib/catalogBrand'
 const PAGE_SIZE = 20
 
 function nodeApi(): string {
@@ -279,7 +279,7 @@ function AppStore() {
         name: 'web10 hub',
         description: 'Login, consent, contracts, and the Studio — the operator surface every node runs.',
         href: AUTH_ORIGIN,
-        iconSrc: SOCIAL_CATALOG_ICON,
+        iconSrc: HUB_CATALOG_ICON,
         users_30d: consoleMetric?.users_30d ?? 0,
         visits: consoleMetric?.visits ?? 0,
         appId: consoleMetric?.appId,

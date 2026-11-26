@@ -75,7 +75,8 @@ try {
       await page.evaluate(() => document.fonts.ready);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.equal(await page.locator('html').getAttribute('data-theme'), mode);
-      const mark = page.getByTestId('theme-key-mark').first().locator(`[data-brand-variant="${mode === 'dark' ? 'white' : 'dark'}"]`);
+      const mark = page.getByRole('link', { name: 'web10 social home' }).getByTestId('social-app-mark').locator('img:visible');
+      assert.equal(await mark.getAttribute('src'), mode === 'light' ? '/social-guitar-mark-light.png' : '/social-guitar-mark.png');
       assert.equal(await mark.evaluate(el => el.complete && el.naturalWidth > 0), true);
       for (const id of ['join-button', 'join-sign-in', 'join-explore']) {
         const bounds = await page.getByTestId(id).boundingBox();

@@ -61,14 +61,27 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base, { waitUntil: 'networkidle' });
     const dock = page.getByTestId('mobile-nav');
-    await dock.waitFor({ state: width < 768 ? 'visible' : 'hidden' });
+    await dock.waitFor();
+    await page.getByTestId('auth-dock-refraction').waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    assert.equal(await page.getByTestId('sidebar').count(), 0);
+    assert.equal(await page.getByText('What is web10', { exact: true }).count(), 0);
+    const header = page.getByTestId('hub-header');
+    assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(181, 212, 220)');
+    const account = header.getByTestId('topbar-account');
+    await account.click();
+    await header.getByTestId('account-logout').waitFor();
+    await page.keyboard.press('Escape');
+    assert.equal(await account.getAttribute('aria-expanded'), 'false');
+    assert.equal(await dock.getByRole('button').count(), 6);
     if (width >= 768) {
-      assert.equal(await page.getByTestId('auth-dock-refraction').count(), 0, 'no hidden desktop allocation');
-      assert.equal(await page.getByTestId('console-content').evaluate(el => getComputedStyle(el).paddingBottom), '0px');
+      assert.ok(await page.getByTestId('console-content').evaluate(el => parseFloat(getComputedStyle(el).paddingBottom) > 72));
+      const groups = dock.getByRole('button', { name: 'Group permissions' });
+      await groups.click();
+      assert.equal(await groups.getAttribute('aria-current'), 'page');
+      await dock.getByRole('button', { name: 'App permissions' }).click();
       if (width === 1440) await capture(page, 'auth-desktop');
     } else {
-      await page.getByTestId('auth-dock-refraction').waitFor();
       const box = await dock.boundingBox();
       assert.ok(box.x >= 12 && box.x + box.width <= width - 12);
       assert.ok(box.y + box.height <= 800);
@@ -189,7 +202,7 @@ try {
       }
     }
   });
-  assert.equal(await page.locator('.auth-dock-bed').evaluate(el => getComputedStyle(el).backgroundColor), mode === 'light' ? 'rgb(255, 255, 255)' : 'rgb(17, 17, 19)');
+  assert.equal(await page.locator('.auth-dock-bed').evaluate(el => getComputedStyle(el).backgroundColor), mode === 'light' ? 'rgb(255, 255, 255)' : 'rgb(51, 54, 59)');
   await writeFile(path.join(output, 'receipt.json'), JSON.stringify({
     evidence: 'Real Chromium UI/CSS, existing mock data, synthetic optical backdrop/safe-area. Not live auth, Safari, physical-phone or production proof.',
     widths: [375, 768, 1280, 1440], receipts, unverifiedEngineFallback: true, noFilterFallback: true,

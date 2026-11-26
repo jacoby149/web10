@@ -1,5 +1,9 @@
 # web10 v3 Plan
 
+- [✓ 6.33.1 local] **Social in-app wordmark** — use the folk guitarist beside `web10 social` in the desktop sidebar, compact mobile header and Join header. Keep the App Store art, install icons, Hub branding, profile avatars and navigation behavior unchanged.
+
+- [✓ 6.33.0 local] **Hub dock, blue chrome and cross-app avatar** — one glass dock replaces the sidebar at every width. Use transparent dark keys on the ice-blue header; the Store shows white keys on black for Hub and the original folk guitarist for Social. The Hub account chip reuses the same-node public Social photo through existing owner media reads, or keeps the account icon. No login, consent, grant, API or installed-app icon changes. Live-node and device acceptance remain separate.
+
 - [✓ 6.32.2 local; production data repair open] **SOCIAL-PROFILE-LOOKUP-WRITES** — remove placeholder profile writes from sign-in while preserving followers-group setup and the account-username directory fallback. Only an explicit save with a successful empty lookup can create a profile. Do not substitute older data on reads or repair duplicates automatically.
 
 - [✓ 6.28.9 model and plan only] **RD4-HYBRID-K20-PREFLIGHT** — bank the no-engine ordered K20 and fault fixture; separate modeled scans, native logical bytes and R630 physical disk allowance. [Findings and gates](../../research/experiments/costfn/HYBRID-K20-PREFLIGHT.md).

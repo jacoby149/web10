@@ -98,11 +98,24 @@ try {
       assert.equal(colors.native, mode);
       assert.equal(colors.chrome, colors.background);
       assert.equal(colors.overflow, false);
-      const mark = page.locator('[data-testid="theme-key-mark"]:visible').first();
-      const activeMark = mark.locator(`[data-brand-variant="${mode === 'light' ? 'dark' : 'white'}"]`);
-      assert.equal(await activeMark.isVisible(), true);
-      assert.equal(await mark.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
-      assert.equal(await activeMark.evaluate(el => el.complete && el.naturalWidth > 0 && getComputedStyle(el).filter === 'none'), true);
+      const wordmark = page.getByTestId('social-wordmark').filter({ visible: true });
+      const mark = wordmark.getByTestId('social-app-mark').locator('img:visible');
+      assert.equal((await wordmark.textContent()).trim(), 'web10 social');
+      assert.equal(await mark.getAttribute('src'), mode === 'light' ? '/social-guitar-mark-light.png' : '/social-guitar-mark.png');
+      assert.equal(await mark.evaluate(el => el.complete && el.naturalWidth === 128 && getComputedStyle(el).filter === 'none'), true);
+      const ink = await mark.evaluate(img => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const alpha = [...Array(4)].map((_, i) => ctx.getImageData(i % 2 ? canvas.width - 1 : 0, i >= 2 ? canvas.height - 1 : 0, 1, 1).data[3]);
+        const solid = pixels.findIndex((value, index) => index % 4 === 3 && value === 255);
+        return { alpha, red: pixels[solid - 3] };
+      });
+      assert.deepEqual(ink.alpha, [0, 0, 0, 0], 'no baked-in light or dark tile');
+      assert.ok(mode === 'light' ? ink.red < 20 : ink.red > 235, 'the artwork uses the correct theme ink');
       if (mode === 'light') {
         const ratios = await page.evaluate(() => {
           const css = getComputedStyle(document.documentElement);
@@ -138,6 +151,27 @@ try {
       if (screen === 'watch-hls') {
         await page.getByTestId('hls-video-player').waitFor();
         assert.equal(await page.getByTestId('hls-video-player').evaluate(el => getComputedStyle(el).getPropertyValue('--color-foreground').trim()), '#fafafa');
+      }
+      if (screen === 'posts-following' && width === 375) {
+        // Exercise the signed-in header with the longest account name, at two
+        // phone widths. The account and all three actions stay reachable.
+        const header = page.getByTestId('topbar-mobile');
+        const name = header.getByTestId('acting-identity-trigger').locator('span.truncate');
+        const originalName = await name.textContent();
+        await name.evaluate(el => { el.textContent = 'A very long posting identity name'; });
+        for (const phoneWidth of [320, 375]) {
+          await page.setViewportSize({ width: phoneWidth, height: 900 });
+          const controls = await header.locator('[data-testid="social-wordmark"], button').evaluateAll(elements =>
+            elements.filter(el => el.getClientRects().length > 0).map(el => {
+              const { left, right, width } = el.getBoundingClientRect();
+              return { left, right, width };
+            }));
+          assert.equal(controls.length, 5);
+          assert.ok(controls.every((rect, index) => rect.left >= (controls[index - 1]?.right ?? 0) && rect.right <= phoneWidth));
+          assert.ok(controls.slice(1).every(rect => rect.width >= 44));
+          assert.ok(await name.evaluate(el => el.scrollWidth > el.clientWidth), 'long name truncates inside the trigger');
+        }
+        await name.evaluate((el, value) => { el.textContent = value; }, originalName);
       }
       await capture(page, `${screen}-light-${label}`);
       if (screen === 'shorts') {

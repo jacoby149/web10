@@ -98,11 +98,11 @@ a wrong logo is worse than no logo.
 | **Share-card images (D109)** | `marketing/web10-social/public/og-image.png` (1200×1200, keys mark on `#09090b` + subtle violet glow), `marketing/marketing-ui/public/brand/og-image.png` (1200×630, lockup on `#09090b` + subtle glow; the shared copy is `.context/brand-assets/og-image.png`) | Opaque `og:image` assets for link previews | Share surfaces only (the app-root static tags + the social crawler card's brand fallback). Opaque ON PURPOSE: the receiving app composites `og:image` onto its own (white) card frame, so the image bakes in its own dark background — a transparent white mark is invisible there. Never use them in-app (in chrome, the transparent marks + the page's background are correct). |
 
 **Correction (D13, 19.07.2026):** this table used to point the square mark
-at `marketing/web10-social/public/alternative.png` (842×854). That file
-does **not** contain the keys mark — it's an unrelated white-line
-illustration of a person playing guitar (white on transparent, so it
-renders as a blank square on a white background, which is how the wrong
-asset went unnoticed). Never use `alternative.png` as a logo. The
+at the historical `alternative.png`. The original 842×854 illustration
+survives at `marketing/web10-social/alternative.png`; it is a folk guitarist,
+not the keys mark. Social uses the full guitarist as App Store artwork and a
+tighter crop for its on-screen headers, dark ink in Light and white ink in
+Dark, both on fully transparent backgrounds. The
 corrected square mark above was derived by cropping the keys glyph out of
 the full lockup, trimming to its bounding box, and padding to a square —
 "from existing files," not a redrawn approximation. `web10-social`'s
@@ -388,8 +388,8 @@ Creators will open this on a phone in the middle of a pitch.
   `xl` 1280). Design mobile-first; add complexity upward.
 - App shells: desktop = fixed left sidebar (`w-64`, `border-r`,
   `bg-surface`); mobile = top header + bottom tab bar (the pattern
-  already in `web10-social/src/components/Social/Layout.tsx` — it's
-  correct; adopt it in `ui/` too).
+  already in `web10-social/src/components/Social/Layout.tsx`). The Hub
+  is the exception: use its floating bottom dock at every width.
 - Touch targets ≥ 44×44px on mobile. Hover-only affordances get a
   visible mobile equivalent.
 - Tables that matter on mobile become card lists; tables that don't
@@ -590,6 +590,17 @@ layers, not into their backdrop input. Keep the approved lens strength and
 inset; on a uniform backdrop, displacement must add no lines.
 
 ### Authenticator mobile navigation glass (11.11.2026)
+
+**Hub refresh (26.11.2026):** The Hub uses the existing social-style
+glass dock at all widths instead of a sidebar. Keep the six admin and
+four personal destinations; drop the sidebar's ecosystem promos. The Hub
+and credential screens use the marketing ice-blue header (`#b5d4dc`),
+near-black ink and the canonical dark keys on a transparent background.
+Use marketing-style blue accents and paper/charcoal in System, Light and
+Dark. Consent keeps its compact layout. The account chip reads the current
+account's public `profile` from its own node, then resolves the exact photo
+ref through the existing owner media path. No writes, new grants, or shared
+login state; unreadable profiles or images keep the account icon.
 
 Operator-approved extension of the social dock to `ui/`'s authenticated mobile
 navigation only: floating capsule, frosted bed, narrow refractive rim and a
@@ -882,11 +893,15 @@ canvas (`#2b2f32`), archive slate cards (`#33363b`), raised slate (`#424950`),
 light gray secondary text (`#cbcbcb`), and the hero's sky accent (`#87ceeb`).
 The startup browser tint matches the resolved canvas. Keep the fractal on `/`
 only; interior reading surfaces use flat colors. Shared marketing prose and
-controls use Jost; code keeps its mono face. The web10
-social and web10 hub listings and canonical app details reuse the original
-`/brand/icon-192.png`: white keys on near-black (`#09090b`), not cobalt.
-Other apps retain their artwork. Installed icons and the social, authenticator,
-and standalone demo interfaces do not inherit the marketing palette.
+controls use Jost; code keeps its mono face. In the listings and canonical app
+details, web10 hub keeps `/brand/icon-192.png`: white keys on near-black
+(`#09090b`), not cobalt. web10 social uses its archived folk guitarist on the
+same near-black tile (`/brand/social-guitar-192.png`). Social's app shell and
+public Join header use the compact `web10 social` wordmark and a separate crop
+of the guitarist. Keep small-screen controls reachable; the brand name can
+stack or become screen-reader-only on narrow phones. Do not replace profile
+avatars, the mobile dock, or installed icons. The Hub keeps its blue header
+and web10 keys; standalone demos do not inherit the palette.
 
 Use one continuous canvas per screen, with a neighboring tone for grouped
 content and a stronger accent only for actions and focus. Type and spacing

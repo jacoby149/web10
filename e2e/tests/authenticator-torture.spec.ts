@@ -519,7 +519,7 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
     await page.locator('[data-testid="login-submit"]').click();
     await expect(page.locator('[data-testid="topbar-username"]')).toHaveText(username, { timeout: 20000 });
     // regular user — the adminOnly item is filtered out
-    await expect(page.locator('[data-testid="sidebar-nav-config"]')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Console navigation' }).getByRole('button', { name: 'Config', exact: true })).toHaveCount(0);
 
     // switch to the node admin (global-setup's admin) — the item appears
     await page.locator('[data-testid="topbar-account"]').click();
@@ -530,7 +530,7 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
     await page.locator('#password').fill('admin123');
     await page.locator('[data-testid="login-submit"]').click();
     await expect(page.locator('[data-testid="topbar-username"]')).toHaveText('admin', { timeout: 20000 });
-    await expect(page.locator('[data-testid="sidebar-nav-config"]')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('navigation', { name: 'Console navigation' }).getByRole('button', { name: 'Config', exact: true })).toBeVisible({ timeout: 20000 });
   });
 });
 

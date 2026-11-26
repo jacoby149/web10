@@ -17,7 +17,7 @@ import { NewPostFab } from '@/components/Feed/NewPostFab';
 import ActingIdentitySwitcher from './ActingIdentitySwitcher';
 import { useActingAuthor } from '@/data/actingIdentity';
 import { PersonalProfileContext } from '@/context/PersonalProfileContext';
-import { ThemeMark } from '@/components/shared/ThemeMark';
+import { SocialAppMark } from '@/components/shared/SocialAppMark';
 import DockGlass from './DockGlass';
 import { SignInPrompt } from '@/components/shared/SignInPrompt';
 
@@ -84,16 +84,13 @@ const comingSoonItems = [
   { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
-function Wordmark({ className }: { className?: string }) {
-  // The full lockup: the keys mark + "web10" (the "10" in brand violet).
-  // The sidebar top row (desktop) and the mobile header both carry it — the
-  // 29.09.2026 pass restored the wordmark to the sidebar (the mark-only
-  // Facebook-style variant was retired with the sidebar search).
+function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
-    <span className={cn('flex items-center gap-2', className)}>
-      <ThemeMark className="h-6 w-6" />
-      <span className="wordmark-label font-display text-lg font-bold tracking-tight text-foreground">
-        web<span className="text-brand">10</span>
+    <span className={cn('flex shrink-0 items-center', compact ? 'gap-1' : 'gap-2')} data-testid="social-wordmark">
+      <SocialAppMark className={compact ? 'size-8' : 'size-9'} />
+      <span className={cn('whitespace-nowrap font-display font-semibold tracking-tight text-foreground',
+        compact ? 'text-xs leading-none max-[359px]:sr-only' : 'text-lg')}>
+        web10 <span className={compact ? 'block' : undefined}>social</span>
       </span>
     </span>
   );
@@ -420,10 +417,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
-        <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-4 h-14 border-b sticky top-0 z-20 gap-2">
-          <Wordmark className="shrink-0 [&_.wordmark-label]:hidden" />
+        <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-3 h-14 border-b sticky top-0 z-20 gap-1">
+          <Wordmark compact />
           {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} onCreateGroup={() => go('/groups')} />}
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
               onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-elevated hover:text-foreground">
               <Palette className="h-5 w-5" strokeWidth={1.75} />

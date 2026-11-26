@@ -1,187 +1,104 @@
-import * as React from 'react';
-import { Search as SearchIcon, Settings as GearIcon, LogOut, UserRound, ChevronDown } from 'lucide-react';
-import Branding from './Branding';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, LogOut, Search, Settings, UserRound } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { readSocialAvatar } from '@/lib/socialAvatar';
+import Branding from './Branding';
 
-interface TopBarProps {
-  I: Record<string, any>;
-}
+const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hub-ink';
+const row = 'flex min-h-11 w-full items-center gap-3 rounded px-3 text-left text-sm hover:bg-elevated focus-visible:outline-2 focus-visible:outline-ring';
 
-// Account chip → a small menu (Settings / Log out). Previously the chip was an
-// inert div that lit up on hover but did nothing — a dead affordance.
-function AccountMenu({ I, username }: { I: Record<string, any>; username: string }) {
-  const [open, setOpen] = React.useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
+function AccountMenu({ I, username, provider }: { I: Record<string, any>; username: string; provider?: string }) {
+  const [open, setOpen] = useState(false);
+  const [avatar, setAvatar] = useState<string>();
+  const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const current = useRef(I);
+  current.current = I;
+  const token = I.v3?.state?.token;
 
-  React.useEffect(() => {
+  useEffect(() => {
+    setAvatar(undefined);
+    const { v3, ownAccountRead } = current.current;
+    if (!token || !v3.state?.apiOrigin || !v3.listMedia || !ownAccountRead) return;
+    const abort = new AbortController();
+    const ownsRead = ownAccountRead('socialAvatar');
+    const owns = () => !abort.signal.aborted && ownsRead();
+    readSocialAvatar(v3, username, provider, owns, abort.signal).then(url => {
+      if (owns()) setAvatar(url);
+    }).catch(() => {
+      if (owns()) console.log('[auth-ui] avatar unavailable; keeping account icon');
+    });
+    return () => abort.abort();
+  }, [username, provider, token]);
+
+  useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const closeOutside = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      trigger.current?.focus();
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', escape);
+    };
   }, [open]);
 
-  const item =
-    'flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-
   return (
-    <div className="relative hidden md:block" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        data-testid="topbar-account"
-        className="flex items-center gap-2 rounded-full border border-border bg-elevated py-1 pl-1 pr-2.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-muted">
-          <UserRound className="h-3.5 w-3.5 text-brand-300" strokeWidth={2} />
+    <div className="relative min-w-0" ref={ref} onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    }}>
+      <button ref={trigger} type="button" aria-expanded={open} aria-controls={open ? 'hub-account-actions' : undefined}
+        onClick={() => setOpen(value => !value)} data-testid="topbar-account"
+        className={`flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-full border border-hub-ink/20 bg-hub-tint py-1 pl-1 pr-3 text-hub-ink hover:bg-hub-tint-hover ${focus}`}>
+        <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-hub-header">
+          {avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" className="size-full object-cover"
+            onError={() => setAvatar(currentUrl => currentUrl === avatar ? undefined : currentUrl)} data-testid="topbar-avatar" />
+            : <UserRound aria-hidden="true" className="size-4" />}
         </span>
-        <span className="max-w-[10rem] truncate text-sm font-medium text-foreground" data-testid="topbar-username">
-          {username}
-        </span>
-        <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} strokeWidth={1.5} />
+        <span className="max-w-40 truncate text-sm font-medium" data-testid="topbar-username">{username}</span>
+        <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
       </button>
       {open && (
-        <div
-          role="menu"
-          className="absolute right-0 z-50 mt-2 w-48 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0_0_0/0.35)]"
-        >
-          <div className="border-b border-border px-2.5 py-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Signed in as</p>
-            <p className="truncate text-sm font-medium text-foreground">{username}</p>
-          </div>
-          <div className="pt-1">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setOpen(false); I.setMode('settings'); }}
-              className={cn(item, 'text-foreground hover:bg-elevated')}
-              data-testid="account-settings"
-            >
-              <GearIcon className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-              Settings
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setOpen(false); I.logout(); }}
-              className={cn(item, 'text-muted-foreground hover:bg-danger-muted hover:text-danger')}
-              data-testid="account-logout"
-            >
-              <LogOut className="h-4 w-4" strokeWidth={1.5} />
-              Log out
-            </button>
-          </div>
+        <div id="hub-account-actions" className="absolute right-0 z-50 mt-2 w-48 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg">
+          <button type="button" onClick={() => { setOpen(false); I.setMode('settings'); }} className={row} data-testid="account-settings">
+            <Settings aria-hidden="true" className="size-4" /> Settings
+          </button>
+          <button type="button" onClick={() => { setOpen(false); I.logout(); }} className={row} data-testid="account-logout">
+            <LogOut aria-hidden="true" className="size-4" /> Log out
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-const TITLES: Record<string, string> = {
-  contracts: 'App permissions',
-  groups: 'Group permissions',
-  requests: 'Requests',
-  config: 'Node Config',
-  settings: 'Settings',
-};
-
-// search applies to the list views only
-const SEARCHABLE = new Set(['contracts', 'requests']);
-
-function IconButton({
-  onClick,
-  label,
-  active,
-  testid,
-  children,
-}: {
-  onClick: () => void;
-  label: string;
-  active?: boolean;
-  testid?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      data-testid={testid}
-      className={cn(
-        'inline-flex h-9 w-9 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        active ? 'bg-brand-muted text-brand' : 'text-muted-foreground hover:bg-elevated hover:text-foreground',
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function TopBar({ I }: TopBarProps) {
+export default function TopBar({ I }: { I: Record<string, any> }) {
   const authed = I.isAuthenticated?.();
-  const username = I.v3?.readToken?.()?.username as string | undefined;
-  const showSearch = authed && SEARCHABLE.has(I.mode);
-
+  const account = I.v3?.readToken?.();
+  const searchLabel = I.mode === 'contracts' ? 'Search app permissions' : 'Search requests';
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-surface px-4">
-      {/* LEFT — brand on mobile, page title on desktop */}
-      <div className="flex shrink-0 items-center">
-        <div className="md:hidden">
-          <Branding I={I} size="sm" tagline={false} />
-        </div>
-        {authed && (
-          <h1 className="hidden font-display text-base font-semibold text-foreground md:block">
-            {TITLES[I.mode] ?? 'web10'}
-          </h1>
-        )}
+    <header className="hub-header grid h-14 shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-4 px-4 sm:grid-cols-[minmax(max-content,1fr)_minmax(0,28rem)_minmax(max-content,1fr)] sm:px-6" data-testid="hub-header">
+      <button type="button" className={`justify-self-start rounded ${focus}`} onClick={() => I.setMode(authed ? 'contracts' : 'login')} aria-label="web10 Hub home">
+        <Branding I={I} size="sm" tagline={false} hubHeader />
+      </button>
+      <div className="relative hidden min-w-0 sm:block">
+        {authed && (I.mode === 'contracts' || I.mode === 'requests') && <>
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+          <Input className="h-9 border-hub-ink/20 bg-hub-tint pl-9 text-hub-ink placeholder:text-hub-ink/75 focus-visible:ring-hub-ink" placeholder={`${searchLabel}…`}
+            aria-label={searchLabel} value={I.search ?? ''} onChange={event => I.runSearch(event.target.value)} data-testid="topbar-search" />
+        </>}
       </div>
-
-      {/* CENTER — search, centered in the available space */}
-      <div className="flex flex-1 justify-center">
-        {showSearch && (
-          <div className="relative hidden w-full max-w-md sm:block">
-            <SearchIcon
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              strokeWidth={1.5}
-            />
-            <Input
-              className="h-9 pl-9"
-              placeholder={`Search ${I.mode === 'contracts' ? 'app permissions' : 'requests'}…`}
-              aria-label={`Search ${I.mode === 'contracts' ? 'app permissions' : 'requests'}`}
-              value={I.search ?? ''}
-              onChange={(e) => I.runSearch(e.target.value)}
-              data-testid="topbar-search"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* RIGHT — account menu (desktop) / settings + logout (mobile) */}
-      <div className="flex shrink-0 items-center gap-2">
-        {authed && username && <AccountMenu I={I} username={username} />}
-        {authed && (
-          <div className="flex items-center gap-1 md:hidden">
-            <IconButton
-              onClick={() => I.setMode('settings')}
-              label="Settings"
-              active={I.mode === 'settings'}
-              testid="topbar-settings"
-            >
-              <GearIcon className="h-[18px] w-[18px]" strokeWidth={1.5} />
-            </IconButton>
-            <IconButton onClick={() => I.logout()} label="Log out" testid="topbar-logout">
-              <LogOut className="h-[18px] w-[18px]" strokeWidth={1.5} />
-            </IconButton>
-          </div>
-        )}
+      <div className="min-w-0 justify-self-end">
+        {authed && account?.username && <AccountMenu
+          key={JSON.stringify([I.v3.state?.apiOrigin, account.provider, account.username, I.accountReadGeneration])}
+          I={I} username={account.username} provider={account.provider} />}
       </div>
     </header>
   );
 }
-
-export default TopBar;
