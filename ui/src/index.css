@@ -97,7 +97,9 @@ body {
     backdrop-filter: blur(12px) saturate(140%);
   }
 }
-.auth-dock-clearance { padding-bottom: var(--auth-dock-clearance); }
+@media (width < 48rem) {
+  .auth-dock-clearance { padding-bottom: var(--auth-dock-clearance); }
+}
 
 .hub-header {
   color-scheme: light;
