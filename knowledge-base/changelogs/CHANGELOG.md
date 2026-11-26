@@ -1,3 +1,15 @@
+6.30.9 || 26.11.2026
+fix(marketing): give Freedom, Docs Overview, and Appearance the App Store's compact centered introduction in Light and Dark. Remove Freedom's old hero glow and dividers. Keep the Docs reading layout with a quicker way to browse articles on phones, and leave saved theme preferences unchanged.
+
+6.30.8 || 26.11.2026
+research: the full-store hybrid runner now loads the gates' expected references from the persisted billboard-applied receipts when the read-setup step is reused on task-mode resume (the in-memory profiles only exist when that step actually ran). One new control. No engine, host or admission change.
+
+6.30.7 || 25.11.2026
+research: the full-store hybrid runner now normalizes a malformed `aggregate_seed_day_buckets` admission value (an int where the banked seed planner owns a {day: buckets} dict) to the banked default — one slice per owned day, with the all-time backfill's bounded batches internal — and records the repair in the task receipt's admission copy. Two new controls. No engine, host or admission-document change.
+
+6.30.6 || 25.11.2026
+research: the one-shot K20 count setup now re-enters a completed build on task-mode resume: a finished result.json (operator-approved kind, SPOTS_PASS outcome, unchanged canonical generation) is the authority and skips the rebuild; a mid-build or unrecognized output is still refused, and a fresh root still builds exactly once. Three new controls in engagement_prepared.test.py. No engine, host or admission change.
+
 6.30.5 || 25.11.2026
 fix(marketing): use the App Store's paper Light and ink-and-navy Dark palettes on Freedom, Docs, and Appearance. Keep System and saved overrides. Pin the homepage's Mandelbrot and stats artwork behind the scrolling sections on desktop and phones, regardless of the device motion setting.
 

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Shield, Lock, KeyRound, ArrowUpRight, Users, Server } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
+import InteriorIntro from '../components/InteriorIntro'
 
 function Freedom() {
   useEffect(() => {
@@ -10,30 +11,15 @@ function Freedom() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border bg-background px-4 pt-24 pb-20 sm:px-6 sm:pt-32 sm:pb-28">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-16 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-brand opacity-20 blur-[120px]"
-        />
-        <div className="relative mx-auto flex max-w-3xl flex-col items-start text-left">
-          <p className="reveal text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
-            The internet freedom page
-          </p>
-          <h1 className="reveal font-display text-4xl font-semibold leading-[1.1] tracking-tight [animation-delay:80ms] sm:text-5xl lg:text-[3.5rem]">
-            The internet has a power problem.
-          </h1>
-          <p className="reveal mt-6 max-w-xl text-lg leading-[1.6] text-muted-foreground [animation-delay:160ms]">
-            Not a content moderation problem. Not an algorithm problem. A
-            power problem. On every platform, one company holds all the
-            keys to your data, your audience, and your identity. You have
-            a login and a terms of service. That's it.
-          </p>
-        </div>
-      </section>
+      <InteriorIntro label="The internet freedom page" title="The internet has a power problem.">
+        Not a content moderation problem. Not an algorithm problem. A
+        power problem. On every platform, one company holds all the
+        keys to your data, your audience, and your identity. You have
+        a login and a terms of service. That's it.
+      </InteriorIntro>
 
       {/* How it works now */}
-      <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
+      <section className="px-5 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-3xl">
           <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
             How the internet works now
@@ -88,7 +74,7 @@ function Freedom() {
       </section>
 
       {/* The missing layer */}
-      <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
+      <section className="px-5 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-3xl">
           <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
             The missing layer
@@ -125,7 +111,7 @@ function Freedom() {
       </section>
 
       {/* The honest truth */}
-      <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
+      <section className="px-5 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-3xl">
           <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
             The honest truth
@@ -179,7 +165,7 @@ function Freedom() {
       </section>
 
       {/* What changes */}
-      <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
+      <section className="px-5 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-3xl">
           <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
             What changes
@@ -210,7 +196,7 @@ function Freedom() {
       </section>
 
       {/* Why it matters */}
-      <section className="border-b border-border bg-background px-4 py-24 sm:px-6 sm:py-32">
+      <section className="px-5 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-3xl">
           <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
             Why it matters
@@ -235,12 +221,12 @@ function Freedom() {
       </section>
 
       {/* CTA */}
-      <section className="bg-background px-4 py-24 sm:px-6 sm:py-32">
+      <section className="px-5 py-10 sm:px-6 sm:py-12">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="reveal font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
             The keys are yours.
           </h2>
-          <p className="reveal mt-4 max-w-xl text-lg leading-[1.6] text-muted-foreground [animation-delay:80ms]">
+          <p className="reveal mx-auto mt-4 max-w-xl text-lg leading-[1.6] text-muted-foreground [animation-delay:80ms]">
             This isn't a product pitch. It's an architecture. And it's
             open.
           </p>
@@ -264,7 +250,7 @@ function Freedom() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-background px-4 py-12 sm:px-6">
+      <footer className="px-5 py-8 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
           <span>&copy; {new Date().getFullYear()} web10</span>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-4">

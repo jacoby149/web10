@@ -141,7 +141,8 @@ class FinishTests(unittest.TestCase):
                 actual_readable_by_kind={name: {} for name in ('main', 'reactions', 'comments')})
             (root / 'profile-ordinary.json').write_text(json.dumps(profile))
             session = SimpleNamespace(operation={'initial_k20_count_build_admitted': True})
-            with patch.object(prepared.infra, 'common', return_value={}), \
+            with patch.object(prepared.infra, 'common',
+                    return_value={'canonical_generation': 'generation'}), \
                     patch.object(prepared.counts, 'RECIPES', []), \
                     patch.object(prepared.typed, 'scope_key', return_value='scope'), \
                     patch.object(prepared.batching, 'build_scope', return_value={}) as build, \
@@ -149,8 +150,12 @@ class FinishTests(unittest.TestCase):
                     patch.object(prepared.engagement_setup, 'presence'):
                 prepared.initial_k20(root, session, 'generation')
                 self.assertEqual(build.call_count, 3)
-                with self.assertRaises(FileExistsError):
-                    prepared.initial_k20(root, session, 'generation')
+                # A completed one-shot setup re-enters on task-mode resume without rebuilding.
+                prepared.initial_k20(root, session, 'generation')
+                self.assertEqual(build.call_count, 3)
+                # Generation drift after completion refuses the re-entry.
+                with self.assertRaisesRegex(ValueError, 'generation changed'):
+                    prepared.initial_k20(root, session, 'generation-2')
                 self.assertEqual(build.call_count, 3)
 
     def test_programme_refuses_existing_failure_output_before_any_stage_or_write(self):

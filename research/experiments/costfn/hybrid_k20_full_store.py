@@ -88,6 +88,18 @@ def steady_state(root):
 
 
 class Actions(hybrid_task.Actions):
+    def __init__(self, root, task):
+        super().__init__(root, task)
+        value = self.approval.get('aggregate_seed_day_buckets')
+        if type(value) is int:
+            # The banked seed planner owns a {day: buckets} dict (one slice per
+            # owned day by default) and the all-time backfill its own bounded
+            # batches; an int is a malformed value, not a workload. Normalize to
+            # the banked default and record the repair in the admission copy the
+            # task receipt carries — the admitted document itself is unchanged.
+            self.approval['aggregate_seed_day_buckets_repaired_from'] = value
+            self.approval['aggregate_seed_day_buckets'] = None
+
     def base_infrastructure(self):
         # The banked full-store adoption path: settle canonical, stop merges,
         # the initial K20 count setup, adopt the prepared snapshot receipts,
@@ -109,6 +121,16 @@ def validate_furniture(stored, root):
         "('content_events_aggregated','content_events_aggregated_all_time')")
     if int(aggregates[0]['n']) != 2:
         raise ValueError('both aggregate grains required after furniture reuse')
+
+
+def load_expected(root, actions):
+    """The gates verify against the billboard-applied references. When the
+    read-setup step is reused, its in-memory profiles never ran in this
+    attempt, so the persisted receipts are the authority."""
+    if not actions.expected:
+        actions.expected = {name: read(root / ('reference-' + name) / 'expected-billboards.json')
+            for name in ('ordinary', 'fixture')}
+    return actions.expected
 
 
 def gate_stage(actions, name, progress):
@@ -167,6 +189,7 @@ def run(root, *, note=None):
 
             task.step('furniture', furniture_work,
                 validate=lambda stored: validate_furniture(stored, root))
+            load_expected(root, actions)
             progress = {}
             for name in contract.GATES:
                 value = task.step('gate:' + name,

@@ -148,6 +148,46 @@ class ChunkedSatelliteBuild(unittest.TestCase):
         self.assertEqual(proof['copy_chunks'], 1)
 
 
+class SeedDayBucketsRepair(unittest.TestCase):
+    def test_int_admission_value_normalizes_to_the_banked_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps(dict(aggregate_seed_day_buckets=4096)))
+            with patch.object(runner.modern, 'admitted'), \
+                    patch.object(runner.modern.arm_t, 'digitalocean_id', return_value=1):
+                actions = runner.Actions(root, Mock())
+            self.assertIsNone(actions.approval['aggregate_seed_day_buckets'])
+            self.assertEqual(actions.approval['aggregate_seed_day_buckets_repaired_from'], 4096)
+
+    def test_dict_admission_value_passes_through_untouched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps(
+                dict(aggregate_seed_day_buckets={'2026-01-01': 4})))
+            with patch.object(runner.modern, 'admitted'), \
+                    patch.object(runner.modern.arm_t, 'digitalocean_id', return_value=1):
+                actions = runner.Actions(root, Mock())
+            self.assertEqual(actions.approval['aggregate_seed_day_buckets'], {'2026-01-01': 4})
+            self.assertNotIn('aggregate_seed_day_buckets_repaired_from', actions.approval)
+
+
+class ExpectedLoading(unittest.TestCase):
+    def test_gate_expectations_come_from_the_persisted_billboard_references(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ('ordinary', 'fixture'):
+                (root / ('reference-' + name)).mkdir()
+                (root / ('reference-' + name) / 'expected-billboards.json').write_text(
+                    json.dumps(dict(ids=['d1'], billboard_setup=dict(node_ratio=.25))))
+            actions = Mock()
+            actions.expected = {}
+            got = runner.load_expected(root, actions)
+            self.assertEqual(got['ordinary']['ids'], ['d1'])
+            self.assertEqual(got['fixture']['billboard_setup'], dict(node_ratio=.25))
+            actions.expected = dict(ordinary=dict(ids=['live']))
+            self.assertIs(runner.load_expected(root, actions)['ordinary'], actions.expected['ordinary'])
+
+
 class Driver(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())

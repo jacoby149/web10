@@ -18,6 +18,18 @@ def initial_k20(root, session, generation):
     if session.operation.get('initial_k20_count_build_admitted') is not True:
         raise ValueError('Jacob18 November initial K20 setup exception required')
     output = Path(root) / 'initial-k20-count-setup'
+    result_path = output / 'result.json'
+    if result_path.is_file():
+        stored = json.loads(result_path.read_bytes())
+        if (stored.get('kind') != 'INITIAL_K20_ONLY_OPERATOR_APPROVED'
+                or stored.get('outcome') != 'INFRASTRUCTURE_BUILT_SPOTS_PASS'):
+            raise ValueError('one-shot K20 count setup is mid-build or unrecognized; the Seed '
+                'receipts in its resume folder are the repair path, not a silent reentry')
+        if stored.get('canonical_generation') != generation:
+            raise ValueError('canonical generation changed after the completed K20 count setup')
+        # Task-mode re-entry on a completed one-shot setup: the Seed receipts and the
+        # root-level counts/presence files are the authority; no silent rebuild.
+        return
     output.mkdir(mode=0o700, exist_ok=False)  # One setup, never a silent reentry.
     profile = json.loads((Path(root) / 'profile-ordinary.json').read_bytes())
     result = dict(**infra.common(session, generation), kind='INITIAL_K20_ONLY_OPERATOR_APPROVED',
