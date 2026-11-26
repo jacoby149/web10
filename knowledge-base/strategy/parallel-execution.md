@@ -278,6 +278,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.23 local] **Social ice-blue top bar** — match the shared ice blue in Light and Dark; verify the desktop strip and phone header while retaining the dock and themed panels.
+
 - [✓ 6.32.22 local] **Compact Social identity entry** — place desktop Change identity below Signed in as, remove the sidebar duplicate, and use the active avatar with one label on both layouts. Preserve the confirmed chooser and focus return.
 
 - [✓ 6.32.21 local] **Mobile Social header and identity entry** — remove Acting as from the phone bar; More leads with personal profile, then a separate Change identity action and current posting identity. Preserve desktop, dock, and the chooser's preview/confirmation behavior.

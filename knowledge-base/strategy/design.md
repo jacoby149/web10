@@ -531,8 +531,11 @@ Below the profile card, More's action order is People, Messages, Appearance,
 Settings, Monetization, then admin-only Node Settings. Keep the card premier;
 People is the first ordinary navigation row.
 
-The social shell may use Apple-inspired frosted chrome: a floating mobile dock,
-smoked dark / milky light headers, sidebar and navigation menus. Content, forms
+Social's top bar is the same solid ice blue as Hub and marketing in both
+themes. The desktop wordmark strip aligns with the bar; use dark ink and
+pale control fills for search and account controls. Open menus and search results
+retain their selected Light or Dark surface. The floating mobile dock, sidebar
+below the wordmark, and navigation menus keep their frosted chrome. Content, forms
 and media keep their existing reading surfaces. This is a bounded visual trial,
 not a platform-wide redesign or an optical-refraction claim. Use shared
 `--chrome-*` material tokens derived from the current palette: surface tint,
@@ -817,6 +820,10 @@ Media islands retain dark background and text steps even in Light mode.
 
 Derive ambient glows from the blue fill. Do not use the text steps behind
 white action labels; hover and pressed gradients stay within the fill steps.
+
+The fixed Social top-bar tokens match Hub: `--color-social-header: #b5d4dc`,
+`--color-social-header-ink: #090c22`, `--color-social-header-tint: #d6e8ed`,
+and `--color-social-header-tint-hover: #e3edf8`. These are not feed or menu tokens.
 
 ### Classic landing surface (D125, 25.11.2026)
 

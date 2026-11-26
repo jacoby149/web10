@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.23 local] **Social ice-blue top bar** — align Social’s desktop and phone headers with Hub and marketing; preserve app branding, account behavior, and surrounding surfaces.
+
 - [✓ 6.32.22 local] **Compact Social identity entry** — desktop uses the account menu instead of a second sidebar profile; desktop and mobile use the active avatar and a single Change identity label.
 
 - [✓ 6.32.21 local] **Mobile Social header and identity entry** — use a single-line wordmark, and move Change identity into the personal card in More. Preserve desktop and confirmation behavior.

@@ -1,3 +1,6 @@
+6.32.23 || 26.11.2026
+style(social): match Hub and marketing with a solid ice-blue top bar and dark controls in both themes. Keep the feed, menus, and mobile dock on their existing surfaces.
+
 6.32.22 || 26.11.2026
 style(social): move desktop Change identity below Signed in as in the account menu, leaving one profile row in the sidebar. Both desktop and mobile show the active identity avatar beside the single action label and keep the existing confirmation step.
 

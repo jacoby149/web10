@@ -38,7 +38,15 @@ try {
       assert.deepEqual(await dockItems(), expectedDock);
       const header = page.getByTestId(mobile ? 'topbar-mobile' : 'topbar-desktop');
       assert.equal(await header.isVisible(), true);
-      assert.equal(await header.evaluate(el => getComputedStyle(el).backdropFilter.includes('blur')), true);
+      assert.deepEqual(await header.evaluate(el => {
+        const css = getComputedStyle(el);
+        return [css.backgroundColor, css.backdropFilter];
+      }), ['rgb(181, 212, 220)', 'none'], 'Social shares Hub’s solid ice-blue top bar');
+      if (!mobile) {
+        const strip = page.getByTestId('sidebar-brand-strip');
+        assert.equal(await strip.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(181, 212, 220)');
+        assert.equal((await strip.boundingBox()).height, (await header.boundingBox()).height);
+      }
       assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'no painted frost gradient');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       const primary = page.getByTestId(mobile ? 'nav-feed-mobile' : 'nav-feed');

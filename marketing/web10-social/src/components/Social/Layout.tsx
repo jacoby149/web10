@@ -85,15 +85,15 @@ const comingSoonItems = [
 ];
 
 function Wordmark({ className }: { className?: string }) {
-  // The Social mark and wordmark, with "10" in the accent text color.
+  // The Social mark and wordmark on the ice-blue header.
   // The sidebar top row (desktop) and the mobile header both carry it — the
   // 29.09.2026 pass restored the wordmark to the sidebar (the mark-only
   // Facebook-style variant was retired with the sidebar search).
   return (
-    <span className={cn('flex items-center gap-2', className)}>
+    <span className={cn('flex items-center gap-2 text-social-header-ink', className)}>
       <SocialMark className="size-8" />
-      <span className="wordmark-label whitespace-nowrap font-display text-lg font-bold tracking-tight text-foreground">
-        web<span className="text-brand-400">10</span> <span>social</span>
+      <span className="wordmark-label whitespace-nowrap font-display text-lg font-bold tracking-tight">
+        web<span>10</span> <span>social</span>
       </span>
     </span>
   );
@@ -287,7 +287,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
           <div className="absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
         </div>
-        <div className="relative p-4">
+        <div className="relative flex h-14 items-center border-b border-social-header-ink/20 bg-social-header px-4" data-testid="sidebar-brand-strip">
           <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
@@ -423,11 +423,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
-        <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-3 h-14 border-b sticky top-0 z-20 gap-1">
+        <header data-testid="topbar-mobile" className="md:hidden flex shrink-0 items-center justify-between px-3 h-14 border-b border-social-header-ink/20 bg-social-header sticky top-0 z-20 gap-1">
           <Wordmark className={cn('shrink-0 [&_.wordmark-label]:text-base', isAnon && 'max-[359px]:[&_.wordmark-label]:sr-only')} />
           <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
-              onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-elevated hover:text-foreground">
+              onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-social-header-ink hover:bg-social-header-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-social-header-ink">
               <Palette className="h-5 w-5" strokeWidth={1.75} />
             </button>}
             <GlobalSearch variant="mobile" />
@@ -447,12 +447,13 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 <NotificationBell
                   open={notificationsOpen}
                   onToggle={() => setNotificationsOpen((o) => !o)}
+                  className="text-social-header-ink hover:text-social-header-ink hover:bg-social-header-tint focus-visible:ring-social-header-ink aria-expanded:bg-social-header-tint"
                 />
                 <Button
                   variant="ghost"
                   size="icon"
                   data-testid="logout-button-mobile"
-                  className="h-11 w-11 text-muted-foreground hover:text-foreground"
+                  className="h-11 w-11 text-social-header-ink hover:text-social-header-ink hover:bg-social-header-tint focus-visible:ring-social-header-ink"
                   aria-label="Log out"
                   onClick={onLogout}
                 >
@@ -472,7 +473,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         {!isShorts && (
           <header
             data-testid="topbar-desktop"
-            className="chrome-glass hidden md:flex shrink-0 items-center justify-between gap-4 border-b z-20 px-4 h-14"
+            className="hidden md:flex shrink-0 items-center justify-between gap-4 border-b border-social-header-ink/20 bg-social-header z-20 px-4 h-14"
           >
             {/* The desktop search: a fixed-width field on the left (the
                 YouTube/Instagram top-bar shape). The results dropdown
@@ -511,8 +512,8 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               onClick={() => setNotificationsOpen((o) => !o)}
               className={cn(
                 'relative flex items-center justify-center h-9 w-9 rounded-lg transition-colors duration-150',
-                'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-                notificationsOpen ? 'bg-elevated/80 text-foreground' : 'text-muted-foreground',
+                'text-social-header-ink hover:bg-social-header-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-social-header-ink',
+                notificationsOpen && 'bg-social-header-tint',
               )}
             >
               <Bell className="w-5 h-5" strokeWidth={notificationsOpen || unread > 0 ? 2 : 1.75} />
@@ -536,9 +537,9 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 aria-expanded={userMenuOpen}
                 onClick={() => setUserMenuOpen((o) => !o)}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-lg pl-1.5 pr-2 py-1.5 transition-colors duration-150',
-                  'hover:bg-elevated/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-                  userMenuOpen && 'bg-elevated/80',
+                  'flex items-center gap-2.5 rounded-full border border-social-header-ink/20 bg-social-header-tint pl-1.5 pr-2 py-1 text-social-header-ink transition-colors duration-150',
+                  'hover:bg-social-header-tint-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-social-header-ink',
+                  userMenuOpen && 'bg-social-header-tint-hover',
                 )}
               >
                 <Avatar className="h-8 w-8">
@@ -551,11 +552,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   )}
                 </Avatar>
                 <div className="hidden lg:block text-left min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate leading-tight">{displayName || username}</p>
-                  <p className="text-xs text-muted-foreground truncate leading-tight">@{username}</p>
+                  <p className="text-sm font-medium truncate leading-tight">{displayName || username}</p>
+                  <p className="text-xs text-social-header-ink/80 truncate leading-tight">@{username}</p>
                 </div>
                 <ChevronDown
-                  className={cn('w-4 h-4 shrink-0 text-muted-foreground transition-transform duration-150', userMenuOpen && 'rotate-180')}
+                  className={cn('w-4 h-4 shrink-0 transition-transform duration-150', userMenuOpen && 'rotate-180')}
                   strokeWidth={1.75}
                 />
               </button>

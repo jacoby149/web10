@@ -29,6 +29,12 @@
   --color-brand-muted: #102c54;
   --color-brand-foreground: #fafafa;
 
+  /* Match the Hub/marketing header without changing the reading surfaces. */
+  --color-social-header: #b5d4dc;
+  --color-social-header-ink: #090c22;
+  --color-social-header-tint: #d6e8ed;
+  --color-social-header-tint-hover: #e3edf8;
+
   /* text-tile palette — text-only posts on the 9:16 wall (design.md §13).
      Deep, saturated, dark backgrounds (each reads as a color but stays in the
      dark-first UI) + a bright foreground. A text-only post picks one
