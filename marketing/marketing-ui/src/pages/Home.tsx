@@ -1,6 +1,6 @@
 import { ReliableImage } from '@web10/discover/image'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { KeyRound, Network, Unlock, Users, Layers, HardDrive } from 'lucide-react'
+import { KeyRound, Network, Unlock, Users, Layers, HardDrive, Activity } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
@@ -26,9 +26,7 @@ function formatBytes(bytes: number): { value: number; unit: string } {
   return { value: Math.round(bytes / Math.pow(1024, i)), unit: units[i] }
 }
 
-function formatNumber(n: number): string {
-  return n.toLocaleString()
-}
+const compactStat = new Intl.NumberFormat('en', { notation: 'compact', maximumSignificantDigits: 2 })
 
 /* --- Count-up numeral (respects prefers-reduced-motion) --- */
 function CountUp({ value, duration = 1200 }: { value: number; duration?: number }) {
@@ -57,13 +55,14 @@ function CountUp({ value, duration = 1200 }: { value: number; duration?: number 
     return () => cancelAnimationFrame(rafRef.current)
   }, [value, animate, reduced])
 
-  return <>{formatNumber(display)}</>
+  return <span title={value >= 1000 ? value.toLocaleString('en') : undefined}>{display < 1000 ? display : compactStat.format(display)}</span>
 }
 
-/* --- Live node stats band (users / apps in the store / data liberated) --- */
+/* --- Live node stats band --- */
 interface HomeStats {
   users: number
   app_count: number
+  app_visits?: number
   storage: number
 }
 
@@ -84,6 +83,7 @@ function StatsBand() {
         setStats({
           users: data.users ?? 0,
           app_count: data.app_count ?? 0,
+          app_visits: Number.isSafeInteger(data.app_visits) && data.app_visits >= 0 ? data.app_visits : undefined,
           storage: data.storage ?? 0,
         })
       })
@@ -102,20 +102,21 @@ function StatsBand() {
   const items: Array<{ value: number; unit?: string; label: string; icon: typeof Users }> = [
     { value: stats.users, label: 'users', icon: Users },
     { value: stats.app_count, label: 'apps in the store', icon: Layers },
+    ...(stats.app_visits === undefined ? [] : [{ value: stats.app_visits, label: 'total app visits', icon: Activity }]),
     { value: storage.value, unit: storage.unit, label: 'data liberated', icon: HardDrive },
   ]
 
   // The archive's second artwork is a full-width backdrop, not a boxed card.
   return (
-    <section aria-label="Network statistics" className="classic-stats px-6 py-8 sm:py-12">
-      <div className="mx-auto grid max-w-6xl grid-cols-3 gap-3 md:gap-8">
+    <section aria-label="Network statistics" className="classic-stats px-6 py-14 sm:py-20 lg:py-24">
+      <div className={`mx-auto grid max-w-6xl gap-x-3 gap-y-6 md:gap-x-8 ${items.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
         {items.map((item) => {
           const Icon = item.icon
           return (
-            <div key={item.label} className="flex min-w-0 flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
-              <Icon className="size-5 shrink-0 text-brand-300 sm:size-6" strokeWidth={1.5} aria-hidden="true" />
-              <div className="min-w-0 text-center sm:text-left">
-                <span className="block font-classic-display text-2xl leading-none text-foreground tabular-nums sm:text-4xl">
+            <div key={item.label} className="flex min-w-0 flex-col items-center gap-2 text-center">
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                <Icon className="size-5 shrink-0 text-brand-300 sm:size-6" strokeWidth={1.5} aria-hidden="true" />
+                <span className="block font-sans text-2xl font-light leading-none text-foreground tabular-nums sm:text-4xl">
                   <CountUp value={item.value} />
                   {item.unit && (
                     <span className="ml-1 text-[0.6em] font-medium text-muted-foreground">
@@ -123,8 +124,8 @@ function StatsBand() {
                     </span>
                   )}
                 </span>
-                <span className="mt-1 block text-xs font-medium text-muted-foreground sm:text-sm">{item.label}</span>
               </div>
+              <span className="text-xs font-medium text-muted-foreground sm:text-sm">{item.label}</span>
             </div>
           )
         })}

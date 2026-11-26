@@ -11,7 +11,7 @@ const choices = [
 export default function Appearance() {
   const { preference, resolved, persistent, setPreference } = useTheme()
   return <main className="pb-10 sm:pb-12" data-testid="appearance-screen">
-    <InteriorIntro label="Color theme" title="Appearance" descriptionId="appearance-description">
+    <InteriorIntro artwork="appearance" label="Color theme" title="Appearance" descriptionId="appearance-description">
       Follow your device, or choose your own look. This choice stays in this browser.
     </InteriorIntro>
     <div className="mx-auto w-[calc(100%-2.5rem)] max-w-xl space-y-4 rounded-lg border border-border bg-card p-4 sm:p-6">
