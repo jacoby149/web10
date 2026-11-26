@@ -45,7 +45,7 @@ Three-receipt map, no substitution between them:
 
 | Receipt | Machine | Line it upgrades |
 |---|---|---|
-| **This test** — sustained contract rate, mixed load, clog criterion | a DigitalOcean host sized to the budget (≥64 threads / ≥128 GB / NVMe, §10), frozen store | clogging / steady state / CPU / memory at the contract rate — the software lines; the disk *demand* line stands as derived arithmetic, met or not by a given production array |
+| **This test** — sustained contract rate, mixed load, clog criterion | a DigitalOcean host at the derived budget requirement (16 cores / 32 threads / 32 GB RAM, §10), frozen store | clogging / steady state / CPU / memory at the contract rate — the software lines; the disk *demand* line stands as derived arithmetic, met or not by a given production array |
 | R630 on-array run (seventh-draft README, pending hardware) | assembled R630 | production disk-supply check — an ops matter, not part of the paper's claim structure |
 | Full-store hybrid run (separate admission) | admitted host, frozen store + built satellite | hybrid band (0.54 GB/s ratio-transfer → measured) |
 
@@ -56,22 +56,30 @@ Three-receipt map, no substitution between them:
   banked costfn run. Before reuse, check the existing slice manifest,
   canonical generation fingerprint and native receipts (24 November
   scheduling directive); repair or rebuild only invalid work.
-- **Host class — a DigitalOcean host sized to the budget.** The test runs
-  on DigitalOcean by design: a committed runner, a frozen workload and a
-  re-runnable droplet — reproducible in the sense the paper's evidence
-  needs. The host is sized so that no hardware line binds by arithmetic,
-  because a clog on such a host is a statement about the software, not the
-  box. The budget, derived from the banked single-read costs, asks at the
+- **Host class — a DigitalOcean host at the derived budget requirement.**
+  The test runs on DigitalOcean by design: a committed runner, a frozen
+  workload and a re-runnable droplet — reproducible in the sense the paper's
+  evidence needs. The host is a machine class a reader can rent or own
+  without translation, stated against which the claim stands: at the derived
+  requirement no hardware line binds by arithmetic (32 thread-seconds
+  available against ~17–20 demanded; 32 GB RAM held every full-store
+  experiment), so a clog on such a host is a statement about the software,
+  not the box. The budget, derived from the banked single-read costs, asks at
+  the
   contract peak for ~17–20 thread-seconds of engine work per second
   (~1.1–1.3 s summed native duration per read × 15 reads/s) plus the
   application-side share of the ~7 s per-read wall time, with ~105 reads in
-  flight — so the class floor is **≥64 threads / ≥128 GB RAM, NVMe-backed**
-  (DO dedicated-CPU or storage-optimized class or equivalent; region
-  verified at admission). NVMe plus calibration-measured headroom against
-  the ~1.85 GB/s peak read demand removes disk as a candidate binding line
-  (§8 step 4). The actual provisioned SKU, price, region and shape are
-  verified at admission and into the receipt, never assumed from the
-  catalogue label.
+  flight — and no programme measurement made RAM the binding quantity
+  (every full-store experiment ran inside a 32 GB envelope; the largest
+  measured read statement peaked near 110 MB) — so the derived requirement
+  is **16 cores / 32 threads, 32 GB RAM, a DigitalOcean dedicated-CPU class
+  (or the closest class the provider offers at those resources), with local
+  storage as the class provides it** (region verified at admission; any
+  closest-class substitution is stated in the admission note). Class storage
+  plus calibration-measured headroom against the ~1.85 GB/s peak read demand
+  removes disk as a candidate binding line (§8 step 4). The actual provisioned
+  SKU, price, region and shape are verified at admission and into the receipt,
+  never assumed from the catalogue label.
   The banked 8-vCPU droplet is **not** a test host: at 15 reads/s it clogs
   by arithmetic (~17–20 thread-seconds demanded against 8 available), and
   its breaking point would be the droplet's, not the design's. An optional
@@ -266,7 +274,8 @@ break" into "where it actually broke."
 **Established, if the gates pass with a clean G1 outcome:** the software
 sustains the realism contract's peak offered rate (15 complete uniform K20
 reads/s) and its daily-average rate (2.9 reads/s) against the frozen
-one-million-author store, under mixed load, on a host sized to the budget:
+one-million-author store, under mixed load, on a host at the derived budget
+requirement (16 cores / 32 threads / 32 GB RAM class, §2):
 at the contract peak, every quantity that could turn into debt was flat or
 shrinking (start/end/slope banked in the calibration and both windows), and
 when the load stops the backlog drains to baseline — with measured headroom
@@ -329,9 +338,14 @@ line for the contract load is retired on the software side.
    post-restore baseline and which resource lines (disk, memory, CPU,
    connections) have headroom at the contract peak. Banked as calibration,
    explicitly not a result. The sustained window is admitted **only if
-   storage is provably non-binding** (NVMe-backed, headroom measured against
-   the ~1.85 GB/s peak demand). No other line is excluded by design — the
-   clog gate's job is to find and name whichever binds first.
+   storage is provably non-binding** (class-provided local storage, headroom
+   measured against the ~1.85 GB/s peak demand). No other line is excluded
+   by design — the clog gate's job is to find and name whichever binds
+   first. **Host-class fence:** if calibration establishes that this host
+   class cannot hold the restored store at the declared steady state — a
+   sizing fact about the restore, not a load result — that finding is itself
+   the result, banked with the binding resource named; a larger host is not
+   silently substituted (26 November task block).
 5. **Sustained run:** phase W → A → B → D per §3, under the task-mode
    admission, agent supervision at ~300 s intervals and the provider
    backstop (24 November directive: the poweroff timer is a failsafe, not a
@@ -344,12 +358,12 @@ line for the contract load is retired on the software side.
 
 | Parameter | Value |
 |---|---|
-| Host | DigitalOcean droplet, ≥64 threads / ≥128 GB, NVMe-backed (dedicated-CPU or storage-optimized class or equivalent); SKU/price verified at admission, provisioned shape verified into the receipt |
+| Host | DigitalOcean droplet at the derived requirement: 16 cores / 32 threads, 32 GB RAM, dedicated-CPU class (or the closest class the provider offers at those resources, stated in the admission note), local storage as the class provides it; SKU/price verified at admission, provisioned shape verified into the receipt |
 | Storage headroom | calibration-measured before the sustained window; must exceed the contract-peak read demand (~1.85 GB/s logical aggregate, planning arithmetic from the banked single-read cost) |
 | Engine / envelope | ClickHouse 26.10.4.207; memory envelope declared at admission, recorded in the receipt |
 | Store | snapshot `255003176`, generation fingerprint and receipts checked before reuse |
 | Provider backstop | 12 h poweroff failsafe |
-| Compute ceiling | **$25.00** total task (64-thread class rate verified at admission; storage/egress separate, reported separately; not an invoice); the ceiling binds |
+| Compute ceiling | **$25.00** total task (class rate verified at admission; storage/egress separate, reported separately; not an invoice); the ceiling binds |
 | Admission mode | task-mode (`costfn_run_rules` + `costfn_task_id`); one admission covers the task; routine repairs re-admit nothing but each repair is bound to its executing source |
 | Workload | §3 exactly as frozen; any rate change is a new admission, not a parameter tweak |
 | Stops | §6 as pre-declared; the operator's cancellation always wins |
@@ -358,7 +372,7 @@ Issuance requires: step 1 merged, step 2 green, and an explicit operator
 admission of this packet. This document, and any merge of it, grants none of
 those three.
 
-## 10. Design note: sized to the budget, run on DigitalOcean
+## 10. Design note: sized to the derived requirement, run on DigitalOcean
 
 The paper's claim is not about any specific server model. It is the derived
 budget — what one million accounts need, from the measured per-read cost —
@@ -368,7 +382,8 @@ the serving node), and it is out of scope here by design. The test runs on
 DigitalOcean because that is the reproducible, re-runnable test bed: a
 committed runner, a frozen workload, and a droplet anyone can re-run.
 
-The host is sized to the budget, and the sizing is the point. The budget
+The host runs at the derived requirement, and the sizing is the point. The
+budget
 derives demand from the banked single-read costs: at the contract peak
 (15 reads/s), ~1.1–1.3 s summed native duration per read asks for ~17–20
 thread-seconds of engine work per second, plus the application-side share of
@@ -376,8 +391,16 @@ the ~7 s per-read wall time (auth, compile, prepare, assembly, delivery
 work), with ~105 reads in flight. A host smaller than that clogs by
 arithmetic, and its breaking point would be the host's, not the design's —
 the banked 8-vCPU SKU is exactly that case (8 thread-seconds available
-against ~17–20 demanded). The ≥64-thread / ≥128 GB floor is the inverse:
-large enough that no hardware line binds trivially.
+against ~17–20 demanded). The 16-core / 32-thread / 32 GB class is the
+derived requirement, not a machine's configuration: 32 thread-seconds
+available against ~17–20 demanded leaves headroom for the application side,
+the writer stream, and merges; no programme measurement made RAM the binding
+quantity (the full-store experiments ran inside a 32 GB envelope, largest
+measured read near 110 MB). The claim is stated against that host — a
+machine class a reader can rent or own without translation. If calibration
+establishes the class cannot hold the restored store at the declared steady
+state, that finding is the result, banked with the binding resource named; a
+larger host is not silently substituted.
 
 Storage is NVMe and calibration-measured non-binding against the ~1.85 GB/s
 peak read demand. The asymmetry:
