@@ -496,8 +496,8 @@ floating New post shortcut as the complementary scrolled-down entry.
 
 ### Social navigation glass — first pass (11.11.2026)
 
-Social uses the transparent three-person conversation mark (yellow, pink,
-and blue accents, one version for both themes) and spells out `web10 social` in
+Social uses the transparent pink-and-blue conversation pair (one version
+for both themes) and spells out `web10 social` in
 desktop and mobile chrome. On very narrow phones, the label is available to
 screen readers while the mark stays visible. The public Join header uses the
 same mark. Installed app icons remain unchanged.
@@ -896,7 +896,9 @@ light gray secondary text (`#cbcbcb`), and the hero's sky accent (`#87ceeb`).
 The startup browser tint matches the resolved canvas. Keep the fractal on `/`
 only; interior reading surfaces use flat colors. Shared marketing prose and
 controls use Jost; code keeps its mono face. Social's listing and canonical
-detail put the conversation mark on a solid white tile in both themes. Hub keeps the original
+detail use the pink-and-blue pair on a solid white tile in both themes. The
+tile crops through both figures below the waist, before the woman's legs
+show. Social uses that same crop with a transparent background in the app. Hub keeps the original
 `/brand/icon-192.png`: white keys on near-black (`#09090b`), not cobalt.
 Other apps retain their artwork. Installed icons and the social, authenticator,
 and standalone demo interfaces do not inherit the marketing palette.

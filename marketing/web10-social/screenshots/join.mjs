@@ -76,7 +76,7 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.equal(await page.locator('html').getAttribute('data-theme'), mode);
       const mark = page.getByRole('link', { name: 'web10 social home' }).getByTestId('social-conversation-mark');
-      assert.equal(await mark.getAttribute('src'), '/social-conversation.png');
+      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair.png');
       assert.equal(await mark.evaluate(el => el.complete && el.naturalWidth > 0), true);
       for (const id of ['join-button', 'join-sign-in', 'join-explore']) {
         const bounds = await page.getByTestId(id).boundingBox();

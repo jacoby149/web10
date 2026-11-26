@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.11 local] **Social conversation pair** — use the lower pink-and-blue crop in app and Join chrome (transparent) and App Store listing and detail (white). Preserve installed icons.
+
 - [✓ 6.32.10 local] **Hub in App Store Browse** — list Hub once in Browse without the Core badge; keep Social featured and preserve available Hub registration metrics.
 
 - [✓ 6.32.9 local] **Social conversation mark** — use the same mark in Social and Join (transparent) and the App Store (white); preserve Hub and installed icons.

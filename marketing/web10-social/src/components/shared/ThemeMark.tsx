@@ -8,5 +8,5 @@ export function ThemeMark({ className }: { className: string }) {
 
 /** The Social conversation mark uses the same transparent artwork in both themes. */
 export function SocialMark({ className }: { className: string }) {
-  return <img src="/social-conversation.png" alt="" className={`${className} shrink-0 object-contain`} data-testid="social-conversation-mark" />;
+  return <img src="/social-conversation-pair.png" alt="" className={`${className} shrink-0 object-contain`} data-testid="social-conversation-mark" />;
 }

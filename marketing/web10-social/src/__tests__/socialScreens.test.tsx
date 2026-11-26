@@ -1367,7 +1367,7 @@ describe('Layout', () => {
     );
     const marks = screen.getAllByTestId('social-conversation-mark');
     expect(marks).toHaveLength(2);
-    for (const mark of marks) expect(mark).toHaveAttribute('src', '/social-conversation.png');
+    for (const mark of marks) expect(mark).toHaveAttribute('src', '/social-conversation-pair.png');
     expect(screen.getAllByText('social')).toHaveLength(2);
   });
 
