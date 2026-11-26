@@ -26,8 +26,8 @@ a sky-blue heading accent and a simple solid sky-blue CTA. Restore Georgia
 and use self-hosted OFL Jost for the geometric body face; the archived
 Brown Pro binaries have no verified redistribution license. Keep the current
 copy, destination and content, but carry the navy treatment into the homepage
-header and use distinct, borderless section bands. The fractal stays visible
-on phones without fixed attachment.
+header and use distinct, borderless section bands. The fractal and stats photo
+stay fixed behind their sections on desktop and phones regardless of the device motion setting.
 
 The bundled founder portrait uses the shared `ReliableImage` renderer.
 It lazy-loads at its original square size, and a retry requests only the
