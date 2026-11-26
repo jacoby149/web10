@@ -1,3 +1,6 @@
+6.32.1 || 26.11.2026
+fix(social): sign-in no longer creates a placeholder profile document. It still sets up the followers group; the directory can show the account username without a custom profile. An explicit save only creates a profile after a successful lookup finds none, so a failed read cannot create a duplicate that hides the existing avatar and bio. Existing duplicate records are unchanged by this patch.
+
 6.32.0 || 26.11.2026
 feat(social): add optional Works at and Studied at fields with downloadable employer and school suggestions. Posts can carry an editable place label, with city autocomplete and explicit device-location fill-in. Suggestions run locally, free text still works, and only the label is stored with the post, including queued video. No node schema or permission changes.
 

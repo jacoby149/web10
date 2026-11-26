@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { setProfilePublic, ensureProfile } from '../../data/profile';
+import { setProfilePublic, ensureProfileDirectoryGroup, saveProfile } from '../../data/profile';
+import { ensureFollowers } from '../../data/groups';
 
-// ensureProfile ensures the followers group (the home group) before writing —
-// mock it so the test doesn't fan out to group CRUD.
+// Mock followers-group setup so the tests can separate it from profile CRUD.
 vi.mock('../../data/groups', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
@@ -110,44 +110,53 @@ describe('profile v3 data layer', () => {
     });
   });
 
-  describe('ensureProfile (seed a public face on sign-in, D0 precondition)', () => {
-    const FG = 'web10.app/groups/users/alice/followers';
-
-    it('seeds a default face (display_name = username) when none exists', async () => {
-      // No profile doc yet → read returns empty → create is called.
+  describe('sign-in directory setup', () => {
+    it('ensures the followers group without reading or writing a profile document', async () => {
       mock.read.mockResolvedValue([]);
-      mock.create.mockResolvedValue({ doc_id: 'prof1', body: { display_name: 'alice' } });
-      await ensureProfile();
-      expect(mock.create).toHaveBeenCalledWith(
-        'profile',
-        { display_name: 'alice' },
-        { groups: [FG] },
-      );
-    });
-
-    it('is a no-op when a face already exists (never clobbers user edits)', async () => {
-      mock.read.mockResolvedValue([{ doc_id: 'prof1', body: { display_name: 'Alice Q' } }]);
-      await ensureProfile();
+      await ensureProfileDirectoryGroup();
+      expect(ensureFollowers).toHaveBeenCalledWith('alice', 'web10.app');
+      expect(mock.read).not.toHaveBeenCalled();
       expect(mock.create).not.toHaveBeenCalled();
       expect(mock.update).not.toHaveBeenCalled();
     });
 
-    it('seeds when the face read fails (no readable face yet)', async () => {
-      mock.read.mockRejectedValue(new Error('403'));
-      mock.create.mockResolvedValue({ doc_id: 'prof1', body: { display_name: 'alice' } });
-      await ensureProfile();
-      expect(mock.create).toHaveBeenCalledWith(
-        'profile',
-        { display_name: 'alice' },
-        { groups: [FG] },
-      );
-    });
-
     it('is a no-op when not signed in', async () => {
       mock.readToken.mockReturnValue(null);
-      await ensureProfile();
+      vi.mocked(ensureFollowers).mockClear();
+      await ensureProfileDirectoryGroup();
+      expect(ensureFollowers).not.toHaveBeenCalled();
       expect(mock.read).not.toHaveBeenCalled();
       expect(mock.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('saveProfile document selection', () => {
+    it.each([403, 503])('surfaces a failed lookup (%i) instead of creating a second profile', async (status) => {
+      const error = new Error(String(status));
+      mock.read.mockRejectedValue(error);
+      await expect(saveProfile({ bio: 'Updated bio' })).rejects.toBe(error);
+      expect(mock.create).not.toHaveBeenCalled();
+      expect(mock.update).not.toHaveBeenCalled();
+    });
+
+    it('changes the display name in place without changing the account, document, or avatar', async () => {
+      mock.read.mockResolvedValue([{ doc_id: 'prof1', body: { display_name: 'Old Name', avatar_ref: 'avatar1' } }]);
+      mock.update.mockResolvedValue({ doc_id: 'prof1', body: { display_name: 'New Name', avatar_ref: 'avatar1' } });
+      const saved = await saveProfile({ display_name: 'New Name' });
+      expect(mock.read).toHaveBeenCalledWith('profile', { groups: ['web10.app/groups/users/alice/followers'] });
+      expect(mock.update).toHaveBeenCalledWith('prof1', expect.objectContaining({ display_name: 'New Name' }));
+      expect(JSON.parse(JSON.stringify(mock.update.mock.calls[0][1]))).not.toHaveProperty('avatar_ref');
+      expect(saved.avatar_ref).toBe('avatar1');
+      expect(mock.create).not.toHaveBeenCalled();
+    });
+
+    it('still creates a first profile after a successful empty read', async () => {
+      mock.read.mockResolvedValue([]);
+      mock.create.mockResolvedValue({ doc_id: 'prof1', body: { display_name: 'Alice' } });
+      await saveProfile({ display_name: 'Alice' });
+      expect(mock.create).toHaveBeenCalledWith('profile', expect.objectContaining({ display_name: 'Alice' }), {
+        groups: ['web10.app/groups/users/alice/followers'],
+      });
     });
   });
 });

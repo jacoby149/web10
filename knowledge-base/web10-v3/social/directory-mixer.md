@@ -45,9 +45,15 @@ redirect following, foreign response-selected destination or new permission gran
 Reuse bounded SDK transport and shared source-sequence concurrency.
 
 Directory requests extend the existing generic listings with `sort` and canonical
-`created_at`: users retain the current readable-profile gate; groups retain
+`created_at`: users retain the current followers-group `profile` read gate; groups retain
 discoverable/latest-before-filter semantics and count current membership before
 pagination. No app-specific database columns or new social API concepts.
+
+When the followers group is readable but has no custom profile document, the
+directory shows the account username without persisting a placeholder. Social
+sign-in sets up the group, not the profile. An explicit profile save may create
+a document only after a successful empty lookup; display-name edits update the
+existing document without changing the account handle.
 
 Cards carry a trusted requested `source_origin` plus source-qualified key; equal
 usernames/group IDs on different nodes are different results. Resolve faces only
