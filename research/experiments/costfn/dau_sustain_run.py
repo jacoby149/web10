@@ -134,6 +134,16 @@ def restore_parquet(root, approval):
     value['restore_source'] = 'ARCHIVED_PARQUET_TRANSFERRED_FROM_SNAPSHOT_HOST'
     value['verified_input'] = 'banked verified_input manifest + per-file sha256 + validation receipt'
     save(root / 'dau-restore.json', value)
+    if not (root / 'modern-restore.json').is_file():
+        # The banked read-setup path reads this receipt; the Parquet flow has
+        # no snapshot fixture to adopt, so fixture=None selects the banked
+        # parity-fixture fallback computed from this store.
+        save(root / 'modern-restore.json', dict(
+            source='ARCHIVED_PARQUET_TRANSFERRED_FROM_SNAPSHOT_HOST',
+            restore_source='PARQUET_VERIFIED_INPUT', snapshot_id='255003176',
+            engine=modern.ENGINE, fixture=None,
+            envelope=dict(container_bytes=approval['dau_envelope']['container_bytes'],
+                server_bytes=approval['dau_envelope']['server_bytes'])))
     return value
 
 
