@@ -27,7 +27,11 @@ async function isolate(context) {
     const url = new URL(route.request().url());
     if (url.origin === origin) return route.continue();
     let body = {};
-    if (url.pathname === '/v3/stats') body = { users: 0, app_count: 0, storage: 0, active_users: activeUsers };
+    if (url.pathname === '/v3/stats') body = { users: 598, app_count: 9, app_visits: 2345, storage: 54 * 1024 ** 3, active_users: activeUsers };
+    else if (url.pathname === '/v3/apps/list') body = { total: 5, apps: ['sharing', 'feed', 'groups', 'hello', 'media'].map(slug => ({
+      url: `https://www.web10.app/docs/${slug}/`, name: slug[0].toUpperCase() + slug.slice(1),
+      icon_url: `/docs/${slug}/icon-192.png`, users_30d: 0, visits: 0,
+    })) };
     else if (url.pathname === '/v3/apps/detail') body = {
       url: appUrl, name: 'web10 social', description: 'The web10 social app.', screenshots: [],
       review_state: 'approved', registered_at: '2026-11-25T00:00:00Z',
@@ -43,6 +47,51 @@ async function isolate(context) {
 async function capture(page, name) {
   await page.mouse.move(0, 0);
   await page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' });
+}
+async function verifyNavbarOptics(page) {
+  await page.getByTestId('marketing-nav-refraction').waitFor();
+  const nav = page.getByRole('navigation', { name: 'main navigation', exact: true });
+  const lens = nav.locator('feDisplacementMap');
+  assert.equal(await lens.getAttribute('scale'), '18');
+  const box = await nav.boundingBox();
+  const settle = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const measure = async background => {
+    const fixture = await page.addStyleTag({ content: `body::after { content:""; position:fixed; inset:0; z-index:39; pointer-events:none; background:${background}; }` });
+    try {
+      await settle();
+      const on = await page.screenshot({ clip: box });
+      await lens.evaluate(el => el.setAttribute('scale', '0'));
+      await settle();
+      const off = await page.screenshot({ clip: box });
+      return await page.evaluate(async frames => {
+        const extract = async frame => {
+          const image = new Image(); image.src = `data:image/png;base64,${frame}`; await image.decode();
+          const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+          const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
+          return ctx.getImageData(0, 0, canvas.width, canvas.height);
+        };
+        const [a, b] = await Promise.all(frames.map(extract));
+        let rim = 0, center = 0;
+        for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) {
+          const i = (y * a.width + x) * 4;
+          const delta = Math.abs(a.data[i] - b.data[i]) + Math.abs(a.data[i + 1] - b.data[i + 1]) + Math.abs(a.data[i + 2] - b.data[i + 2]);
+          if (delta <= 15) continue;
+          if (x > 40 && x < a.width - 40 && y > 12 && y < a.height - 12) center++;
+          else rim++;
+        }
+        return { rim, center };
+      }, [on, off].map(frame => frame.toString('base64')));
+    } finally {
+      await lens.evaluate(el => el.setAttribute('scale', '18'));
+      await fixture.evaluate(el => el.remove());
+    }
+  };
+  const flat = await measure('#1b2026');
+  assert.deepEqual(flat, { rim: 0, center: 0 }, 'uniform backdrop must not refract the bar itself');
+  const patterned = await measure('repeating-linear-gradient(28deg,#f8fafc 0 6px,#23334e 6px 12px,#5188b0 12px 18px)');
+  assert.ok(patterned.rim > 150, `the lens must visibly displace backdrop pixels: ${JSON.stringify(patterned)}`);
+  assert.equal(patterned.center, 0, 'the bar center and controls must not displace');
+  return { flat, patterned };
 }
 async function verifyPinnedArt(page, name, selector) {
   const section = page.locator(selector);
@@ -91,10 +140,11 @@ async function verifyPinnedArt(page, name, selector) {
   }
   assert.equal(changedChannels, 0, `${name} artwork stays at the same viewport pixels`);
 }
-async function verifyLogo(page) {
+async function verifyLogo(page, variant = 'white') {
   const logo = page.getByTestId('brand-logo').first();
-  const active = logo.locator('[data-brand-variant="white"]');
+  const active = logo.locator(`[data-brand-variant="${variant}"]`);
   assert.equal(await active.isVisible(), true);
+  assert.equal(await logo.locator(`[data-brand-variant]:not([data-brand-variant="${variant}"])`).isVisible(), false);
   assert.equal(await active.evaluate(el => getComputedStyle(el).filter), 'none');
   assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
   assert.equal(await active.evaluate(el => el.complete && el.naturalWidth > 0), true);
@@ -116,18 +166,24 @@ async function readInteriorPalette(page) {
 }
 async function readInteriorIntro(page) {
   return page.getByRole('heading', { level: 1 }).first().evaluate(heading => {
-    const header = heading.closest('header');
-    if (!header) throw new Error('Expected a compact interior header');
-    return [header, ...Array.from(header.children).slice(0, 3)].map(el => {
-      const css = getComputedStyle(el);
-      return [css.textAlign, css.paddingTop, css.paddingBottom, css.fontFamily, css.fontSize,
-        css.fontWeight, css.lineHeight, css.backgroundColor, css.backgroundImage, css.borderBottomWidth];
-    });
+    const intro = heading.closest('.interior-intro');
+    const art = intro.querySelector('svg');
+    const artBox = art.getBoundingClientRect();
+    const copy = heading.parentElement.getBoundingClientRect();
+    return {
+      kind: art.dataset.artwork,
+      decorative: art.getAttribute('aria-hidden') === 'true' && art.getAttribute('focusable') === 'false',
+      stroke: getComputedStyle(art).stroke,
+      font: getComputedStyle(heading).fontFamily,
+      rightOfCopy: artBox.left >= copy.right,
+      belowCopy: artBox.top >= copy.bottom,
+      visible: artBox.width > 0 && artBox.height > 0,
+    };
   });
 }
-async function verifyLightContrast(page) {
-  const results = await page.evaluate(() => {
-    const css = getComputedStyle(document.documentElement);
+async function verifyInteriorContrast(page) {
+  const results = await page.getByTestId('appearance-screen').evaluate(el => {
+    const css = getComputedStyle(el);
     const luminance = name => {
       let hex = css.getPropertyValue(`--color-${name}`).trim();
       if (hex.length === 4) hex = '#' + [...hex.slice(1)].map(char => char + char).join('');
@@ -137,7 +193,7 @@ async function verifyLightContrast(page) {
     };
     const pairs = ['foreground', 'muted-foreground', 'brand-300', 'brand-400', 'success', 'warning', 'danger']
       .flatMap(fg => ['background', 'surface', 'elevated'].map(bg => [fg, bg]));
-    pairs.push(['brand-300', 'brand-muted'], ['danger', 'danger-muted']);
+    pairs.push(['brand-300', 'brand-muted'], ['danger', 'danger-muted'], ['brand-foreground', 'brand']);
     return pairs.map(([fg, bg]) => {
       const [a, b] = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
       return { fg, bg, ratio: (a + 0.05) / (b + 0.05) };
@@ -173,7 +229,7 @@ try {
     await page.goto(origin, { waitUntil: 'networkidle' });
     await page.getByTestId('classic-enter-cta').waitFor();
     await waitTheme(page, 'light');
-    await verifyLogo(page);
+    await verifyLogo(page, 'dark');
     await capture(page, `home-light-${label}`);
     if (width < 1024) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
     const socialEntry = page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true });
@@ -184,7 +240,7 @@ try {
     assert.equal(new URL(page.url()).pathname, '/appearance');
     await page.emulateMedia({ colorScheme: 'dark' });
     await waitTheme(page, 'dark');
-    await waitAppearanceCanvas(page, 'rgb(9, 12, 34)');
+    await waitAppearanceCanvas(page, 'rgb(27, 32, 38)');
     await page.getByRole('radio', { name: 'System', exact: true }).focus();
     await page.keyboard.press('ArrowRight');
     await waitTheme(page, 'light');
@@ -205,15 +261,15 @@ try {
     await tab.close();
     for (const mode of ['light', 'dark']) {
       await page.getByRole('radio', { name: mode === 'light' ? 'Light' : 'Dark', exact: true }).check();
-      let storePalette, storeIntro;
+      let interiorPalette;
       for (const [route, name] of [
-        ['/', 'home'], ['/app-store', 'app-store'], [`/app-store/app/${encodeURIComponent(appUrl)}`, 'app-detail'], ['/freedom', 'freedom'],
+        ['/', 'home'], ['/app-store', 'app-store'], ['/freedom', 'freedom'], [`/app-store/app/${encodeURIComponent(appUrl)}`, 'app-detail'],
         ['/docs', 'docs'], ['/docs/terms', 'docs-article'], ['/appearance', 'appearance'],
       ]) {
         await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
         await page.getByRole('heading', { level: 1 }).first().waitFor();
         await waitTheme(page, mode);
-        await verifyLogo(page);
+        await verifyLogo(page, 'dark');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${name} at ${width}`);
         const chrome = await page.evaluate(() => ({ background: getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim(), native: getComputedStyle(document.documentElement).colorScheme, chrome: document.querySelector('meta[name="theme-color"]').content }));
         assert.equal(chrome.background, mode === 'light' ? '#fafafa' : '#2b2f32');
@@ -221,21 +277,54 @@ try {
         assert.equal(chrome.chrome, chrome.background);
         if (name === 'appearance') assert.equal(
           await page.locator('input[name="appearance"]:checked + span').evaluate(el => getComputedStyle(el).borderColor),
-          mode === 'light' ? 'rgb(23, 74, 118)' : 'rgb(135, 206, 235)',
+          mode === 'light' ? 'rgb(23, 74, 118)' : 'rgb(136, 174, 224)',
           'selected radio keeps the brand border rather than the global default',
         );
-        if (mode === 'light' && name === 'appearance') await verifyLightContrast(page);
-        if (name === 'app-store') {
-          storePalette = await readInteriorPalette(page);
-          storeIntro = await readInteriorIntro(page);
-          assert.equal(storePalette.canvas, mode === 'light' ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)');
-          assert.equal(storePalette.tokens.card, mode === 'light' ? '#ffffff' : '#101648');
-          assert.equal(storePalette.native, mode);
-        } else if (name !== 'home') {
-          assert.deepEqual(await readInteriorPalette(page), storePalette, `${name} must match the App Store in ${mode}`);
+        if (name === 'appearance') await verifyInteriorContrast(page);
+        const nav = await page.getByRole('navigation', { name: 'main navigation', exact: true }).evaluate(el => {
+          const css = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          const bed = getComputedStyle(el.querySelector('.marketing-nav-bed'));
+          return { color: css.backgroundColor, token: css.getPropertyValue('--color-background').trim(),
+            ink: css.color, radius: parseFloat(css.borderTopLeftRadius), frost: bed.backdropFilter, bedColor: bed.backgroundColor, bedDisplay: bed.display,
+            inset: rect.left > 0 && rect.right < innerWidth && rect.top >= 12,
+            supportsFrost: CSS.supports('backdrop-filter', 'blur(1px)') && matchMedia('(prefers-reduced-transparency: no-preference)').matches };
+        });
+        assert.equal(nav.ink, 'rgb(24, 35, 44)');
+        if (width < 1024) {
+          assert.equal(nav.token, '#b5d4dc');
+          assert.ok(nav.inset && nav.radius >= 32, 'the closed navbar floats as a capsule');
+          assert.equal(nav.color, 'rgba(0, 0, 0, 0)', 'the outer bar must not become its own backdrop');
+          assert.equal(nav.frost, nav.supportsFrost ? 'blur(12px) saturate(1.4)' : 'none');
+          if (!nav.supportsFrost) assert.equal(nav.bedColor, 'rgb(181, 212, 220)');
+        } else {
+          assert.equal(nav.color, 'rgb(181, 212, 220)');
+          assert.equal(nav.radius, 0);
+          assert.equal(nav.inset, false);
+          assert.equal(nav.bedDisplay, 'none');
+          assert.equal(await page.getByTestId('marketing-nav-refraction').count(), 0);
         }
-        if (['freedom', 'docs', 'appearance'].includes(name)) {
-          assert.deepEqual(await readInteriorIntro(page), storeIntro, `${name} intro must match the App Store in ${mode}`);
+        if (name === 'app-store') {
+          await page.getByTestId('browse-card-0').waitFor();
+          await page.getByTestId('plug-slot-1').waitFor();
+          const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
+            const css = getComputedStyle(el);
+            return [css.backgroundColor, css.backgroundImage, css.boxShadow];
+          });
+          assert.deepEqual(calmCard, [mode === 'light' ? 'rgb(255, 255, 255)' : 'rgb(34, 41, 48)', 'none', 'none']);
+          interiorPalette = await readInteriorPalette(page);
+          assert.equal(interiorPalette.canvas, mode === 'light' ? 'rgb(250, 250, 250)' : 'rgb(27, 32, 38)');
+          assert.equal(interiorPalette.native, mode);
+        } else if (name !== 'home') {
+          assert.deepEqual(await readInteriorPalette(page), interiorPalette, `${name} must match the shared interior in ${mode}`);
+        }
+        if (['app-store', 'freedom', 'docs', 'appearance'].includes(name)) {
+          const art = await readInteriorIntro(page);
+          assert.equal(art.kind, name === 'app-store' ? 'store' : name);
+          assert.ok(art.decorative && art.visible, `${name} has visible decorative artwork`);
+          assert.equal(art.stroke, mode === 'dark' ? 'rgb(131, 184, 216)' : 'rgb(49, 94, 124)');
+          assert.match(art.font, /^Georgia\b/);
+          assert.ok(width >= 768 ? art.rightOfCopy : art.belowCopy, `${name} artwork must not overlap text`);
         }
         if (name === 'freedom') {
           await page.getByRole('heading', { name: 'How the internet works now' }).waitFor();
@@ -247,11 +336,37 @@ try {
           await cta.waitFor();
           assert.equal(await cta.getAttribute('href'), process.env.VITE_SOCIAL_URL || 'https://social.web10.app');
         }
+        if (name === 'home') {
+          assert.equal((await readInteriorPalette(page)).canvas, 'rgb(16, 22, 72)', 'Home keeps its fixed navy hero canvas');
+        }
         if (name === 'docs') {
           await page.getByRole('article', { name: 'Overview' }).getByRole('heading', { name: 'web10', exact: true }).waitFor();
           assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
         }
         await capture(page, `${name}-${mode}-${label}`);
+        if (name === 'freedom' || name === 'home') {
+          if (width < 1024) {
+            receipts.push({ width, mode, page: name, closedNavbarOptics: await verifyNavbarOptics(page) });
+            const closedMap = await page.locator('.marketing-navbar feImage').getAttribute('href');
+            await page.evaluate(() => window.scrollTo(0, 120));
+            await capture(page, `${name}-glass-scroll-${mode}-${label}`);
+            await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+            await page.waitForFunction(original => {
+              const nav = document.querySelector('.marketing-navbar[data-menu-open="true"]');
+              const map = nav?.querySelector('feImage')?.getAttribute('href');
+              return nav && getComputedStyle(nav).borderTopLeftRadius === '16px' && map && map !== original;
+            }, closedMap);
+            receipts.push({ width, mode, page: name, expandedNavbarOptics: await verifyNavbarOptics(page) });
+          }
+          const current = page.getByRole('link', { name: name === 'home' ? 'Home' : 'Freedom', exact: true }).filter({ visible: true }).first();
+          assert.equal(await current.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(225, 242, 246)');
+          const social = page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true });
+          assert.equal(await social.evaluate(el => getComputedStyle(el).backgroundColor), name === 'home' ? 'rgba(0, 0, 0, 0)' : 'rgb(194, 223, 237)');
+          if (width < 1024) {
+            await capture(page, `${name}-navigation-${mode}-${label}`);
+            await page.getByRole('button', { name: 'Close menu', exact: true }).click();
+          }
+        }
         if (width < 768 && name === 'docs' && mode === 'dark') {
           await page.getByRole('link', { name: 'Browse documentation' }).click();
           assert.equal(new URL(page.url()).hash, '#docs-navigation');
@@ -265,7 +380,7 @@ try {
       }
     }
     assert.deepEqual(errors, []);
-    receipts.push({ width, realNavigation: true, keyboardRadios: true, liveDevice: true, overrideReload: true, crossTab: true, paletteAndChrome: true, lightTextAA: true, transparentThemeLogo: true, errors });
+    receipts.push({ width, realNavigation: true, keyboardRadios: true, liveDevice: true, overrideReload: true, crossTab: true, paletteAndChrome: true, interiorTextAA: true, transparentThemeLogo: true, errors });
     await context.close();
 
     const scrollPage = await browser.newPage({
@@ -275,6 +390,28 @@ try {
     await scrollPage.goto(origin, { waitUntil: 'networkidle' });
     await verifyPinnedArt(scrollPage, 'Mandelbrot', '.classic-hero');
     await verifyPinnedArt(scrollPage, 'stats', '.classic-stats');
+    const stats = scrollPage.getByRole('region', { name: 'Network statistics' });
+    const statsPadding = await stats.evaluate(el => {
+      const css = getComputedStyle(el);
+      return [css.paddingTop, css.paddingBottom];
+    });
+    assert.deepEqual(statsPadding, width === 375 ? ['56px', '56px'] : ['96px', '96px']);
+    const statNumerals = await stats.locator('.tabular-nums').evaluateAll(elements => elements.map(el => {
+      const css = getComputedStyle(el);
+      const value = el.getBoundingClientRect();
+      const icon = el.previousElementSibling.getBoundingClientRect();
+      const label = el.parentElement.nextElementSibling.getBoundingClientRect();
+      return { family: css.fontFamily, weight: css.fontWeight,
+        iconBesideValue: icon.right <= value.left && Math.abs((icon.top + icon.bottom) - (value.top + value.bottom)) < 2,
+        labelBelowBoth: label.top >= Math.max(icon.bottom, value.bottom) };
+    }));
+    assert.equal(statNumerals.length, 4);
+    for (const numeral of statNumerals) {
+      assert.match(numeral.family, /^"?Jost\b/);
+      assert.equal(numeral.weight, '300');
+      assert.equal(numeral.iconBesideValue, true);
+      assert.equal(numeral.labelBelowBoth, true);
+    }
     await capture(scrollPage, `home-pinned-stats-${label}`);
     await scrollPage.evaluate(() => window.scrollTo(0, 0));
     await capture(scrollPage, `home-pinned-hero-${label}`);
@@ -285,6 +422,10 @@ try {
     });
     await isolate(reducedPage.context());
     await reducedPage.goto(origin, { waitUntil: 'networkidle' });
+    const visitStat = reducedPage.getByRole('region', { name: 'Network statistics' }).getByText('total app visits', { exact: true });
+    await visitStat.waitFor();
+    assert.equal(await visitStat.evaluate(el => el.previousElementSibling.textContent), '2.3K');
+    assert.equal(await visitStat.evaluate(el => getComputedStyle(el.closest('.grid')).gridTemplateColumns.split(' ').length), width === 375 ? 2 : 4);
     await verifyPinnedArt(reducedPage, 'Mandelbrot with device Reduced Motion', '.classic-hero');
     await verifyPinnedArt(reducedPage, 'stats with device Reduced Motion', '.classic-stats');
     receipts.push({ width, fixedArtPixels: ['hero', 'stats'], independentOfDeviceMotionPreference: true });
@@ -309,6 +450,16 @@ try {
     receipts.push({ width, responsive: true });
     await context.close();
   }
+  // Engine hint gates only the rim. The frosted capsule is still present.
+  const fallback = await browser.newPage({ viewport: { width: 375, height: 900 }, colorScheme: 'dark', userAgent: 'Mozilla/5.0 Version/19.0 Safari/605.1.15' });
+  await isolate(fallback.context());
+  await fallback.goto(`${origin}/freedom`, { waitUntil: 'networkidle' });
+  assert.equal(await fallback.locator('.marketing-nav-bed').isVisible(), true);
+  assert.equal(await fallback.getByTestId('marketing-nav-refraction').count(), 0);
+  await fallback.emulateMedia({ forcedColors: 'active' });
+  await fallback.waitForFunction(() => matchMedia('(forced-colors: active)').matches &&
+    getComputedStyle(document.querySelector('.marketing-nav-bed')).backdropFilter === 'none');
+  await fallback.close();
   // Verify both output PNGs after encoding: exact original alpha/size, no tile.
   const pixelPage = await browser.newPage();
   for (const [whitePath, darkPath] of [

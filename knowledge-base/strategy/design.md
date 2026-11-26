@@ -789,8 +789,16 @@ The classic "web10 Revolution" landing — the pre-D13 own-your-data page
 revived as the primary marketing surface (`homepage-classic-revival.md`)
 — uses a **fixed editorial palette** regardless of the visitor's D108 choice:
 a dark hero, paper content, and a charcoal footer. The rest of marketing uses the same visual
-language in its selected System/Light/Dark appearance. The shared marketing
-navbar is always ink navy, with the white logo and sky accents, in either mode.
+language in its selected System/Light/Dark appearance. Home and the shared
+interior pages use the same ice-blue navbar in Light and Dark (`#b5d4dc` as the
+solid fill),
+near-black type, and the dark logo. Desktop uses a plain full-width bar. On
+mobile, use the social dock's glass layer order: live backdrop refraction on
+the rim, a frosted center, then the edge and undistorted controls. The closed
+capsule and expanded rounded menu both use the 18-unit displacement and 8px
+bed inset in tested Chromium. Other engines skip the optical rim. Unsupported
+filters, reduced transparency, and forced colors stay opaque. The lens map
+contains only rounded-rectangle normals, never page pixels.
 The scope is a `classic-surface` class, which
 remaps the standard utility namespaces onto the classic values (so
 `bg-background`, `text-muted-foreground`, `bg-brand`, … all resolve
@@ -835,8 +843,16 @@ separated sections by background blocks (navy band between lighter
 sections, navy footer) — no 1px divider lines anywhere. On the classic
 surface the sky-accented fractal sits under a dark scrim. Features and team
 use paper (`#fafafa`) with charcoal type, gray supporting text, and a readable
-blue accent. The flat, horizontal stats row restores the original `back3.jpg`
-image under a 65% black scrim, with no box. The pledge uses the
+blue accent. The four stats run in one row on desktop and a two-by-two grid
+on phones; older nodes that do not return app visits keep three counters.
+Center each icon and value together on one line with its label below both.
+The stats band is a full-width section with generous
+vertical breathing room, using the original `back3.jpg` under a 65% black
+scrim, with no box. Use Jost Light for the large counter values, a stand-in for
+the Brown Pro Light the 2022 counters inherited, not the Georgia heading face.
+Show counter values below 1,000 in full and use compact notation with up to two
+significant digits from 1,000 onward (`2.3K`, `2.3M`, `2.3B`, `2.3T`).
+Labels keep their existing weight. The pledge uses the
 archived `sky.jpg` from `f3d695394:home/layouts/images/sky.jpg` under the same
 scrim, correcting the old relative path. The sky layers over charcoal to
 retain the look of the archive's rendered fallback. After the Team section,
@@ -863,8 +879,8 @@ rings (`#174a76`, hover `#0e365b`). Dark uses the home footer's charcoal
 canvas (`#2b2f32`), archive slate cards (`#33363b`), raised slate (`#424950`),
 light gray secondary text (`#cbcbcb`), and the hero's sky accent (`#87ceeb`).
 The startup browser tint matches the resolved canvas. Keep the fractal on `/`
-only; interior pages use flat surfaces and mixed-case Jost headings. Shared
-marketing prose and controls use Jost; code keeps its mono face. The web10
+only; interior reading surfaces use flat colors. Shared marketing prose and
+controls use Jost; code keeps its mono face. The web10
 social and web10 hub listings and canonical app details share one marketing-only
 tile: the unredrawn white keys on saturated cobalt (`#1656d9`). Reserve that
 stronger blue for artwork, not page chrome.
@@ -877,20 +893,27 @@ should separate sections before color does. The homepage is cinematic; the
 App Store uses this hierarchy as a catalog, not as a second landing page.
 
 The App Store, app details, Freedom, Docs (including articles), and Appearance
-share one interior theme: ink canvas and deep navy cards in Dark; paper canvas,
-white cards, and blue accents in Light. System follows the device across these
-pages; the fixed homepage and shared ink navbar stay as they are. In the App
-Store, keep the centered introduction compact, align featured rows, search, and
+share one interior theme: in Dark, a cool charcoal canvas (`#1b2026`), slate
+cards (`#222930`), raised slate (`#2b353f`), soft off-white type (`#e5e9ee`),
+and muted blue for links, actions, and selection rather than broad fills.
+Light keeps the paper canvas, white cards, and blue accents. System follows
+the device across these pages; the fixed homepage stays as it is. In the App
+Store, keep the introduction compact, align featured rows, search, and
 browse grid to the same centered 64rem content width, and give the app icons the
 strongest colors. Use the existing App Store components; don't put the homepage
 images behind the catalog. Browse stays icon-led: two columns on phones and five where space
 allows. On phones the featured description gets the full card width.
 
-Freedom uses the App Store's compact centered introduction: the same label
-pill, heading scale, prose treatment, and spacing on a flat canvas. Below it,
-keep the reading rail narrower than the catalog and use headings, spacing, and
-cards rather than full-width dividers. Keep the existing copy and links.
-Docs Overview and Appearance use that same introduction and solid cards.
+Translate Home's composition rather than its artwork: App Store, Freedom,
+Docs Overview, and Appearance each open with a distinct line illustration and
+a mixed-case Georgia title inside one compact blue panel. Use a pale field in
+Light and deep blue in Dark. Keep the illustration beside copy on desktop and
+below it on phones. The catalog, prose, and settings underneath keep the quiet
+interior palette; don't frame every card or repeat the homepage fractal.
+Freedom's illustration shows endpoints connected through one locked central
+gate: the picture is about who controls the network, not data transfer.
+Freedom keeps a narrower reading rail than the catalog and uses headings,
+spacing, and cards rather than full-width dividers. Keep the copy and links.
 Docs articles retain their own title and reading measure, with a bounded
 navigation panel on desktop and a visible jump to that panel on phones.
 Appearance keeps its existing System, Light, and Dark choices and behavior.

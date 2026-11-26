@@ -37,12 +37,12 @@ describe('social entry copy', () => {
     expect(screen.queryByRole('button', { name: 'Sign In', exact: true })).not.toBeInTheDocument()
   })
 
-  it.each(['/', '/app-store', '/audience'])('uses the classic navbar at %s', async (path) => {
+  it.each(['/', '/app-store', '/audience'])('supplies both navbar logo variants at %s', async (path) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stargazers_count: 0 }) }))
     await act(async () => { render(<MemoryRouter initialEntries={[path]}><Navbar /></MemoryRouter>) })
     const nav = screen.getByRole('navigation', { name: 'main navigation' })
-    const themeAwareLogo = nav.querySelector('[data-brand-variant="dark"]')
     expect(nav).toHaveClass('classic-surface')
-    expect(themeAwareLogo).not.toBeInTheDocument()
+    expect(nav.querySelector('[data-brand-variant="white"]')).toHaveAttribute('src', '/brand/logo-lockup.png')
+    expect(nav.querySelector('[data-brand-variant="dark"]')).toHaveAttribute('src', '/brand/logo-lockup-dark.png')
   })
 })

@@ -11,7 +11,7 @@ function Freedom() {
 
   return (
     <div className="min-h-screen bg-background">
-      <InteriorIntro label="The internet freedom page" title="The internet has a power problem.">
+      <InteriorIntro artwork="freedom" label="The internet freedom page" title="The internet has a power problem.">
         Not a content moderation problem. Not an algorithm problem. A
         power problem. On every platform, one company holds all the
         keys to your data, your audience, and your identity. You have

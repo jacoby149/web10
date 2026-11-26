@@ -1747,9 +1747,8 @@ class TestBlockInGroup:
 
 
 class TestNodeStats:
-    def test_stats(self, client, token):
-        """D49 shape: user/doc/group counts, storage, app_count, and the
-        node-wide active-user set (the store's metric, macro). No per-app
+    def test_stats(self, client):
+        """Public D49 shape: counts, storage, app visits and active users. No per-app
         array — that moved to /v3/apps/list (paginated)."""
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.side_effect = [
@@ -1758,16 +1757,17 @@ class TestNodeStats:
                 MagicMock(result_rows=[(5,)]),  # groups
                 MagicMock(result_rows=[(3,)]),  # app_count
                 MagicMock(result_rows=[(1024,)]),  # storage
-                MagicMock(result_rows=[(7, 40, 90, 120)]),  # active_users 1d/30d/90d/1y
+                MagicMock(result_rows=[(256, 7, 40, 90, 120)]),  # visits, active users 1d/30d/90d/1y
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=512):
-                resp = client.post("/v3/stats", json={"token": token})
+                resp = client.post("/v3/stats", json={})
         assert resp.status_code == 200
         data = resp.json()
         assert data["users"] == 42
         assert data["documents"] == 100
         assert data["groups"] == 5
         assert data["app_count"] == 3
+        assert data["app_visits"] == 256
         assert data["active_users"] == {"users_1d": 7, "users_30d": 40, "users_90d": 90, "users_1y": 120}
         assert data["storage"] == 1536  # 1024 clickhouse + 512 s3
         assert "apps" not in data  # per-app list moved to /v3/apps/list
@@ -1786,6 +1786,7 @@ class TestNodeStats:
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=0):
                 resp = client.post("/v3/stats", json={"token": token})
         assert resp.status_code == 200
+        assert resp.json()["app_visits"] == 0
         assert resp.json()["active_users"] == {"users_1d": 0, "users_30d": 0, "users_90d": 0, "users_1y": 0}
 
     def test_stats_survives_object_store_outage(self, client, token):
@@ -1799,7 +1800,7 @@ class TestNodeStats:
                 MagicMock(result_rows=[(5,)]),  # groups
                 MagicMock(result_rows=[(3,)]),  # app_count
                 MagicMock(result_rows=[(1024,)]),  # storage
-                MagicMock(result_rows=[(0, 0, 0, 0)]),  # active_users
+                MagicMock(result_rows=[(0, 0, 0, 0, 0)]),  # visits and active users
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", side_effect=ConnectionError("minio down")):
                 resp = client.post("/v3/stats", json={"token": token})

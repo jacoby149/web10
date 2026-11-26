@@ -338,10 +338,10 @@ function AppStore() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <InteriorIntro label="The web10 App Store" title="Apps that run on data you own." details={
+      <InteriorIntro artwork="store" label="The web10 App Store" title="Apps that run on data you own." details={
           <div className="mt-3 min-h-5 text-sm text-muted-foreground">
             {stats ? (
-              <dl aria-label="App Store statistics" className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+              <dl aria-label="App Store statistics" className="flex flex-wrap justify-center gap-x-4 gap-y-1 md:justify-start">
                 {metrics.map(({ value, label }) => (
                   <div key={label} className="inline-flex flex-row-reverse gap-1 whitespace-nowrap">
                     <dt>{label}</dt>

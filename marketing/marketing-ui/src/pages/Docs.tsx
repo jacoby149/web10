@@ -304,7 +304,7 @@ function Docs() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       {isLanding && (
-        <InteriorIntro label="web10 Docs" title="Documentation">
+        <InteriorIntro artwork="docs" label="web10 Docs" title="Documentation">
           Guides for users, developers, node operators, and creators.
         </InteriorIntro>
       )}

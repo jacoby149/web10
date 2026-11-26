@@ -62,7 +62,7 @@ system router).
 | `POST /v3/apps/admin` | admin | the node console | every app with approval state + rating aggregate |
 | `POST /v3/apps/approve` | admin | the node console | approve / reject |
 | `GET /pwa_listing?url=` | anonymous | the store grid, the product page | PWA manifest proxy |
-| `POST /v3/stats` | anonymous | the store page, the homepage | the node macro: users, documents, groups, app_count, active_users, storage |
+| `POST /v3/stats` | anonymous | the store page, the homepage | the node macro: users, documents, groups, app_count, app_visits, active_users, storage |
 
 The auth split is the store's posture: **reads are public, writes are
 signed or admin.** The store is a public surface (D41 — the node is
@@ -196,7 +196,12 @@ plug-slot filter, the manifest proxy, the metric). The division of labor:
   metric set, sorted by `users_30d` desc with a `visits` tiebreak. The
   grid pages 20 at a time with a load-more instead of rendering every app.
 - **`/v3/stats`** is the node macro — `users`, `documents`, `groups`,
-  `app_count`, `active_users`, `storage`. The per-app array moved to
+  `app_count`, `app_visits`, `active_users`, `storage`. `app_visits` counts
+  retained rows across all apps on this node in the same query as `active_users`.
+  This is one counted signed-in visit per app and user per three-hour window,
+  not page views, anonymous hits, or a lifetime count (the log has a two-year TTL).
+  The homepage labels the aggregate “total app visits” when present and keeps its existing three
+  counters on older nodes. The per-app array moved to
   `/v3/apps/list` (pagination); the macro is the same metric query minus
   the `GROUP BY app_url`, so the App Store header's "N web10 users · 30d"
   and the per-app numbers are consistent by construction. The homepage
