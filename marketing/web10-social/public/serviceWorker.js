@@ -14,7 +14,7 @@
 // Bump VERSION on a deploy that changes the shell — the versioned cache names
 // make the old shell get garbage-collected on activate.
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 const STATIC_CACHE = `web10-social-static-${VERSION}`;
 const RUNTIME_CACHE = `web10-social-runtime-${VERSION}`;
 
@@ -31,7 +31,7 @@ const PRECACHE_URLS = [
   '/favicon.ico',
   '/keys-mark.png',
   '/keys-mark-dark.png',
-  '/social-conversation.png',
+  '/social-conversation-pair.png',
   '/og-image.png',
   '/apple-touch-icon.png',
   '/hls.min.js',
