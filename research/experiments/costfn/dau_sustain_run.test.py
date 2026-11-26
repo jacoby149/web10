@@ -192,7 +192,8 @@ class RestoreReentry(unittest.TestCase):
                     patch.object(run, 'store_counts', return_value=counts), \
                     patch.object(run, 'verify_envelope',
                                  return_value=dict(engine='26.10.4.207', container_bytes=100,
-                                     server_bytes=80)):
+                                     server_bytes=80)), \
+                    patch('restore_dataset.wait_for'):
                 value = run.restore_parquet(root, json.loads((root / 'admission.json').read_text()))
             banked.assert_not_called()
             self.assertEqual(value['restore_source'],

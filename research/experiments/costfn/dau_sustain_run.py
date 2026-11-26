@@ -115,10 +115,21 @@ def restore_parquet(root, approval):
             arm_t.VALIDATION, project, 6098, root / 'restore.json', engine=modern.ENGINE)
     if not (root / 'dau-restore.json').is_file():
         apply_envelope_overlay(root, approval)
-        # Re-raise the stack under the declared envelope.
+        # Re-raise the stack under the declared envelope; the engine must be
+        # ready (not merely up) before the envelope is verified live.
         session = modern.Session(root)
         restore.command(session.compose, session.env, 'stop', timeout=120)
         restore.command(session.compose, session.env, 'up', '-d', 'clickhouse', 'minio', timeout=300)
+    import restore_dataset
+    for _ in range(3):
+        try:
+            restore_dataset.wait_for(lambda: restore.server_ready(
+                modern.Session(root).compose, modern.Session(root).env),
+                'sized-host engine under the declared envelope')
+            break
+        except RuntimeError:
+            if _ == 2:
+                raise
     value = verify_envelope(root)
     value['restore_source'] = 'ARCHIVED_PARQUET_TRANSFERRED_FROM_SNAPSHOT_HOST'
     value['verified_input'] = 'banked verified_input manifest + per-file sha256 + validation receipt'
