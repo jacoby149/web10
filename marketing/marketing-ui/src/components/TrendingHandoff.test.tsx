@@ -9,7 +9,7 @@ import { SOCIAL_ORIGIN } from '../lib/origins'
 vi.mock('../lib/analytics', () => ({ trackFunnel: vi.fn() }))
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-it('flattens the nav on desktop and mobile without removing social search', async () => {
+it('flattens the nav on desktop and mobile without a search icon', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stargazers_count: 0 }) }))
   await act(async () => { render(<MemoryRouter><Navbar /></MemoryRouter>) })
   fireEvent.click(screen.getByRole('button', { name: 'Open menu', exact: true }))
@@ -20,7 +20,7 @@ it('flattens the nav on desktop and mobile without removing social search', asyn
   for (const name of ['Home', 'App Store', 'Freedom', 'Docs', 'Appearance']) {
     expect(screen.getAllByRole('link', { name, exact: true })).toHaveLength(2)
   }
-  expect(screen.getByRole('link', { name: 'Search', exact: true })).toHaveAttribute('href', `${SOCIAL_ORIGIN.replace(/\/$/, '')}/search`)
+  expect(screen.queryByRole('link', { name: 'Search', exact: true })).not.toBeInTheDocument()
 })
 
 it('links the Join footer directly to the same public social feed', () => {
