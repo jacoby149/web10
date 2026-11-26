@@ -171,6 +171,23 @@ class SeedDayBucketsRepair(unittest.TestCase):
             self.assertNotIn('aggregate_seed_day_buckets_repaired_from', actions.approval)
 
 
+class ExpectedLoading(unittest.TestCase):
+    def test_gate_expectations_come_from_the_persisted_billboard_references(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ('ordinary', 'fixture'):
+                (root / ('reference-' + name)).mkdir()
+                (root / ('reference-' + name) / 'expected-billboards.json').write_text(
+                    json.dumps(dict(ids=['d1'], billboard_setup=dict(node_ratio=.25))))
+            actions = Mock()
+            actions.expected = {}
+            got = runner.load_expected(root, actions)
+            self.assertEqual(got['ordinary']['ids'], ['d1'])
+            self.assertEqual(got['fixture']['billboard_setup'], dict(node_ratio=.25))
+            actions.expected = dict(ordinary=dict(ids=['live']))
+            self.assertIs(runner.load_expected(root, actions)['ordinary'], actions.expected['ordinary'])
+
+
 class Driver(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())

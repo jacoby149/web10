@@ -123,6 +123,16 @@ def validate_furniture(stored, root):
         raise ValueError('both aggregate grains required after furniture reuse')
 
 
+def load_expected(root, actions):
+    """The gates verify against the billboard-applied references. When the
+    read-setup step is reused, its in-memory profiles never ran in this
+    attempt, so the persisted receipts are the authority."""
+    if not actions.expected:
+        actions.expected = {name: read(root / ('reference-' + name) / 'expected-billboards.json')
+            for name in ('ordinary', 'fixture')}
+    return actions.expected
+
+
 def gate_stage(actions, name, progress):
     value = actions.stage('verify-' + name, progress)
     contract.gate(name, value)
@@ -179,6 +189,7 @@ def run(root, *, note=None):
 
             task.step('furniture', furniture_work,
                 validate=lambda stored: validate_furniture(stored, root))
+            load_expected(root, actions)
             progress = {}
             for name in contract.GATES:
                 value = task.step('gate:' + name,
