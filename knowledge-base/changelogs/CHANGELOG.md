@@ -1,3 +1,6 @@
+6.30.2 || 25.11.2026
+test(marketing): update the App Store browser gate for the grouped stats layout and verify the displayed 30-day count against the live node response.
+
 6.30.1 || 25.11.2026
 fix(marketing): restore all-caps Georgia for the Revolution hero and its three feature titles. Keep the pledge, Team heading, App Store, and supporting copy in mixed case.
 
