@@ -1,3 +1,6 @@
+6.30.1 || 25.11.2026
+fix(marketing): restore all-caps Georgia for the Revolution hero and its three feature titles. Keep the pledge, Team heading, App Store, and supporting copy in mixed case.
+
 6.30.0 || 25.11.2026
 feat(marketing): build a family of paper, charcoal, and blue tones from the 2022 homepage. Pair paper features with the restored archive artwork behind the horizontal stats and a deep-ink pledge; use the shared Light and Dark palettes in the tighter App Store catalog and throughout marketing. Keep mixed-case Georgia on Home, use Jost inside, and give the social and hub catalog listings matching white keys on cobalt. Flatten the header to Home, App Store, Freedom, Docs and Appearance; keep old Trending and Join routes and redirect the retired Everything App pitch home. Restore the pre-D13 homepage copy — “it's on your domain on your terms” and “Get a domain name to start owning your photos, music, and data on the internet.” — over the vault-key rewordings; the operator prefers the original lines' voice. No social or authenticator styling changes.
 

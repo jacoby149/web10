@@ -814,8 +814,9 @@ primary foreground for prose over the scrim, and deep ink text on sky fill.
 In the `@theme` copy, `brand` and `ring` map to `sky`, the CTA hover
 maps to `sky-bright`, and its text maps to `ink`. On `/`, use
 `--font-classic-display` (Georgia, Times New Roman, Times, serif) at regular
-weight. Use mixed-case hero and section headings for readability, and italics
-for the pledge year. Use `--font-sans` (Jost, system-ui,
+weight. Reserve all caps for the hero and three feature titles; other headings
+and body copy stay mixed case. Use italics for the pledge year and
+`--font-sans` (Jost, system-ui,
 sans-serif) for prose and navigation. The 2022 source (`f3d695394:home/`)
 used Georgia and Lineto Brown Pro; Jost is the self-hosted OFL stand-in,
 not a claim that the original used Jost. No third-party font requests.
