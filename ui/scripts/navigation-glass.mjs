@@ -83,6 +83,8 @@ try {
     assert.equal(await page.getByRole('navigation', { name: 'Console navigation' }).count(), 1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.equal(await page.getByTestId('sidebar').count(), 0);
+    // The old sidebar's ecosystem destinations live in the More menu now —
+    // closed by default, so their labels are not in the DOM until opened.
     assert.equal(await page.getByText('What is web10', { exact: true }).count(), 0);
     const header = page.getByTestId('hub-header');
     assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(181, 212, 220)');
@@ -99,6 +101,22 @@ try {
       await header.click({ position: { x: 4, y: 4 } });
       assert.equal(await account.getAttribute('aria-expanded'), 'false');
       assert.equal(await page.getByTestId('console-content').evaluate(el => getComputedStyle(el).paddingBottom), '0px');
+      // The More menu carries the sidebar's ecosystem links, new-tab only.
+      const more = header.getByTestId('topbar-more');
+      await more.click();
+      const moreMenu = header.getByTestId('topbar-more-menu');
+      await moreMenu.waitFor();
+      for (const [name, href] of [
+        ['What is web10', 'https://web10.app'],
+        ['App Store', 'https://web10.app/app-store'],
+        ['Docs', 'https://web10.app/docs'],
+      ]) {
+        const link = moreMenu.getByRole('menuitem', { name, exact: true });
+        assert.equal(await link.getAttribute('href'), href);
+        assert.equal(await link.getAttribute('target'), '_blank');
+      }
+      await header.click({ position: { x: 4, y: 4 } });
+      assert.equal(await moreMenu.count(), 0);
       const groups = topNav.getByRole('button', { name: 'Group permissions' });
       await groups.focus();
       await page.keyboard.press('Tab');

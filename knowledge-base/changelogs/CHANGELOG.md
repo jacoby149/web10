@@ -1,3 +1,6 @@
+6.32.25 || 26.11.2026
+style(hub): bring the removed sidebar's ecosystem destinations back as a “More” menu on the ice-blue header — What is web10, App Store and Docs open in new tabs, in the top bar beside the account chip and in the sign-in header, desktop only like the old sidebar, closed by default. The sidebar's footer credit sits in the menu footer. Phone dock, role-based tabs and account controls are unchanged.
+
 6.32.24 || 26.11.2026
 style(social): use marketing charcoal for the desktop sidebar in Dark mode, place the transparent conversation PNG directly on the ice-blue bar, and color the wordmark’s “10” blue. Keep Join and install artwork, Light mode's sidebar, and the mobile dock unchanged.
 

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Settings as GearIcon, LogOut, UserRound, ChevronDown } from 'lucide-react';
 import Branding from './Branding';
 import MobileNav from './MobileNav';
+import MoreMenu from './MoreMenu';
 import { cn } from '@/lib/utils';
 
 interface TopBarProps {
@@ -124,8 +125,10 @@ function TopBar({ I }: TopBarProps) {
 
       <MobileNav I={I} placement="header" />
 
-      {/* RIGHT — account menu (desktop) / settings + logout (mobile) */}
+      {/* RIGHT — More (the old sidebar's ecosystem links) + account menu
+          (desktop) / settings + logout (mobile) */}
       <div className="flex shrink-0 items-center gap-2">
+        <MoreMenu />
         {authed && username && <AccountMenu I={I} username={username} />}
         {authed && (
           <div className="flex items-center gap-1 md:hidden">
