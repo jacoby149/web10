@@ -97,8 +97,12 @@ body {
     backdrop-filter: blur(12px) saturate(140%);
   }
 }
-@media (max-width: 767px) {
-  .auth-dock-clearance { padding-bottom: var(--auth-dock-clearance); }
+.auth-dock-clearance { padding-bottom: var(--auth-dock-clearance); }
+
+.hub-header {
+  color-scheme: light;
+  background: var(--color-hub-header);
+  color: var(--color-hub-ink);
 }
 @media (prefers-reduced-transparency: reduce) {
   .auth-dock-rim { display: none; }

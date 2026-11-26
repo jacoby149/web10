@@ -99,6 +99,7 @@ try {
       assert.equal(colors.chrome, colors.background);
       assert.equal(colors.overflow, false);
       const mark = page.locator('[data-testid="theme-key-mark"]:visible').first();
+      assert.equal((await mark.locator('..').textContent()).trim(), 'web10 social');
       const activeMark = mark.locator(`[data-brand-variant="${mode === 'light' ? 'dark' : 'white'}"]`);
       assert.equal(await activeMark.isVisible(), true);
       assert.equal(await mark.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');

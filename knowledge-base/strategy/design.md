@@ -389,7 +389,8 @@ Creators will open this on a phone in the middle of a pitch.
 - App shells: desktop = fixed left sidebar (`w-64`, `border-r`,
   `bg-surface`); mobile = top header + bottom tab bar (the pattern
   already in `web10-social/src/components/Social/Layout.tsx` — it's
-  correct; adopt it in `ui/` too).
+  correct; adopt it in `ui/` too). Hub uses its floating dock at every width,
+  not a desktop sidebar.
 - Touch targets ≥ 44×44px on mobile. Hover-only affordances get a
   visible mobile equivalent.
 - Tables that matter on mobile become card lists; tables that don't
@@ -495,6 +496,10 @@ floating New post shortcut as the complementary scrolled-down entry.
 
 ### Social navigation glass — first pass (11.11.2026)
 
+Social keeps the theme-aware keys mark and spells out `web10 social` in
+desktop and mobile chrome. On very narrow phones, the label is available to
+screen readers while the mark stays visible. App Store artwork is unchanged.
+
 Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
 mute choice across Posts/Video/Shorts and shared video renderers. Never persist
 it or couple it to Music; reload starts sound-on. Browser-blocked audible
@@ -590,6 +595,12 @@ layers, not into their backdrop input. Keep the approved lens strength and
 inset; on a uniform backdrop, displacement must add no lines.
 
 ### Authenticator mobile navigation glass (11.11.2026)
+
+**Hub refresh (26.11.2026):** Use the glass dock at all widths and remove
+the desktop sidebar and ecosystem promos. Keep all role-appropriate
+destinations. Hub and sign-in share an ice-blue header (`#b5d4dc`) with
+transparent dark keys, plus marketing-inspired paper and charcoal themes.
+Account and consent behavior are unchanged by this shell change.
 
 Operator-approved extension of the social dock to `ui/`'s authenticated mobile
 navigation only: floating capsule, frosted bed, narrow refractive rim and a

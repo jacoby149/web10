@@ -1,3 +1,6 @@
+6.32.4 || 26.11.2026
+style(hub): remove the sidebar, extend the glass dock to desktop and give Hub and sign-in an ice-blue header with transparent dark keys. Preserve account controls, consent behavior and role-based destinations. Social's existing keys wordmark now reads “web10 social”; app artwork is unchanged.
+
 6.32.3 || 26.11.2026
 fix(marketing): remove the search icon from the marketing navbar. The desktop bar keeps only "Open web10 social", the links icon and the GitHub star button; social search stays reachable from web10 social itself. Verified at desktop and 375px.
 

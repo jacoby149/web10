@@ -72,7 +72,7 @@ async function openGroupsPage(page: Page, context: any, token: string): Promise<
   await page.waitForLoadState('networkidle');
   // The token cookie restores the session — the topbar shows the username.
   await expect(page.locator('[data-testid="topbar-username"]')).toBeVisible({ timeout: 20000 });
-  await page.locator('[data-testid="sidebar-nav-groups"]').click();
+  await page.getByRole('navigation', { name: 'Console navigation' }).getByRole('button', { name: 'Group permissions' }).click();
   await expect(page.locator('[data-testid="groups-page"]')).toBeVisible({ timeout: 20000 });
   return full;
 }

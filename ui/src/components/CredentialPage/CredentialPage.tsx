@@ -4,10 +4,7 @@ import ForgotForm from './ForgotForm';
 import SignupForm from './SignupForm';
 import { useCredentialEntry } from '@/lib/useCredentialEntry';
 
-// Auth screens are the narrative surface ("this is your node") — design.md
-// direction for ui/: one column, generous space, zero clutter. No
-// TopBar/SideBar app-shell chrome here; just a centered brand mark and
-// the form. (The console pages keep the full shell; this page doesn't.)
+// Keep credentials in one column without the signed-in account chrome.
 function CredentialForm({ I }: { I: Record<string, any> }) {
   switch (I.mode) {
     case "login": return <LoginForm I={I} />;
@@ -24,9 +21,9 @@ function CredentialPage({ I }: { I: Record<string, any> }) {
       className="flex min-h-dvh flex-col items-center bg-background text-foreground"
       data-testid="credential-page"
     >
-      <div className="flex justify-center px-6 pt-8 sm:pt-12">
-        <Branding I={I} size="sm" tagline={false} />
-      </div>
+      <header className="hub-header flex h-14 w-full shrink-0 items-center px-4 sm:px-6">
+        <Branding I={I} size="sm" tagline={false} hubHeader />
+      </header>
       <div className="flex w-full flex-1 items-center justify-center px-5 py-8 sm:py-10">
         <CredentialForm I={entry} />
       </div>
