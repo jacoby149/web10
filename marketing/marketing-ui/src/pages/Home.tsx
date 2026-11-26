@@ -155,7 +155,7 @@ function Hero() {
   return (
     <section className="classic-hero flex min-h-[30rem] items-center bg-background px-6 py-20 sm:min-h-[36rem] sm:py-28 lg:min-h-[min(40rem,76svh)]">
       <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
-        <h1 className="font-classic-display text-[clamp(2.25rem,5.5vw,5rem)] font-normal leading-[1.08] tracking-[-0.025em]">
+        <h1 className="font-classic-display text-[clamp(2.25rem,5.5vw,5rem)] font-normal uppercase leading-[1.08] tracking-[-0.025em]">
           The web10 <span className="block text-brand-300 md:inline">Revolution</span>
         </h1>
         <p className="mt-6 max-w-[36rem] text-balance text-lg leading-relaxed text-foreground sm:text-2xl">
@@ -184,7 +184,7 @@ function Features() {
         {FEATURES.map((feature) => (
           <div key={feature.title} className="flex flex-col items-center gap-3 text-center">
             <feature.icon className="size-8 text-brand-300" strokeWidth={1.5} />
-            <h2 className="font-classic-display text-xl text-foreground sm:text-2xl">
+            <h2 className="font-classic-display text-lg uppercase tracking-wide text-foreground sm:text-2xl">
               {feature.title}
             </h2>
             <p className="max-w-[31ch] text-pretty text-lg leading-relaxed text-muted-foreground">
