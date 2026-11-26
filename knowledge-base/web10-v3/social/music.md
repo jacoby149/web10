@@ -68,8 +68,15 @@ depth):
    unresolved attachments are excluded. Missing metadata must not disguise a
    second playable attachment. A video explicitly marked as music is a track.
 
-The D86 surface label is `'music'` — the read logs a delivery impression per
-returned track (the on-surface "N plays" is the reach over these deliveries).
+The legacy read labels D86 deliveries `'music'`; the tuned reader retains the
+shared mix's `'feed'` label. Anonymous reads do not log delivery impressions.
+
+Signed-in Explore uses the shared tuned Discover reader with the `music` tag.
+It renders playable rows as soon as the next ordered part of the page is ready,
+without reshuffling rows as slower sources arrive. The page cursor and Load more
+still wait for the completed mix. Prepare media and artist attribution, but not
+attached ads or follow-up feed totals: those aren't displayed in Explore.
+Ranking inputs and the player's own reaction/comment reads remain unchanged.
 
 ## The surface
 

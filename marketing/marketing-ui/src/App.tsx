@@ -4,6 +4,7 @@ import { StarsProvider } from './components/GitHubStarsContext'
 import DeployStatus from './components/DeployStatus'
 import SocialRedirect from './pages/SocialRedirect'
 import Home from './pages/Home'
+import Audience from './pages/Audience'
 import Join from './pages/Join'
 import Docs from './pages/Docs'
 import AppStore from './pages/AppStore'
@@ -20,10 +21,10 @@ function App() {
     <StarsProvider>
       <Navbar />
       <Routes>
-        {/* The pitch (the SELL) — the dedicated landing page. The business case:
-            manifesto + reach gap + stats + CTA. (design.md §10: a creator's
-            manager believes this is a company in 30 seconds.) Front and center. */}
+        {/* The classic own-your-data landing is primary. The archived
+            creator pitch remains available at /audience. */}
         <Route path="/" element={<Home />} />
+        <Route path="/audience" element={<Audience />} />
         <Route path="/appearance" element={<Appearance />} />
         <Route path="/trending/*" element={<SocialRedirect />} />
         <Route path="/links" element={<Links />} />

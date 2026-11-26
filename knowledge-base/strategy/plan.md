@@ -210,6 +210,25 @@ no failed fixture retry.203 no-engine controls/Ruff pass, not native acceptance.
 
 - [✓ 6.4.0 local] **MARKETING-HANDOFF — retire the Trending replica** — Trending is an ordinary same-tab link to the configured social `/feed` (production `https://social.web10.app/feed`); legacy Trending URLs replace-navigate to supported social destinations/filters. Removed marketing-only feed/directory/mixer/ranking/media code, obsolete tests/fixtures and vendored HLS; social/shared consumers and unrelated pages remain. Two old-link regressions reproduce before repair; all 197 remaining marketing tests/build/typecheck and renderer inventory pass. Eight both-theme four-width Chromium cases verify mouse/keyboard/mobile/footer, same-tab/Back, ten legacy shapes and zero discovery reads; desktop/375px captures inspected in `.context/marketing-handoff/`. Browser evidence uses an isolated social destination, not live social acceptance. Updated connected handoff/moderation E2E discovers eight tests; actual stack/CI/review/rollout remain OPEN. No API/auth/deployment change; marketing no longer owes discovery parity.
 
+## Marketing: Classic homepage revival (A/B)
+
+Contract: `homepage-classic-revival.md`. The pre-D13 “web10 Revolution”
+own-your-data landing (deep navy `#1a1a2e`, electric-fractal hero,
+“Enter web10” signup CTA — recoverable at `e01e4b6c3^`) comes back at
+`/revolution` on modern bones, then competes for `/` in a pre-declared
+PostHog experiment. D41 thesis fit: the current hero sells the archived
+summer creator pitch; the classic page sells the data-policy platform.
+Client-side only (D60); D94 import cut and D103 PostHog-only stand; no
+deployment by implication.
+
+- [ ] **MK-CLASSIC-00 — record the baseline (Phase 0)** — operator PostHog numbers for `/`, `/freedom`, `/everything`, `/join` (views, CTA clicks, signups, 4–8 weeks) + www ingestion confirmation into the contract's Baseline table; docs-only. They size the A/B via the sample-size table (~1,100–4,000 visitors/arm by baseline/lift) or declare the observational fallback.
+- [✓ 6.29.4 local] **MK-CLASSIC-01 — classic tokens + hero asset (Phase 1)** — scoped navy and sky palette, 2022 all-caps Georgia headings and OFL Jost body, restored `back2.jpg` with a layered scrim and no fixed attachment on narrow, touch or reduced-motion viewports.
+- [✓ 6.29.4 local] **MK-CLASSIC-02 — the classic page directly at `/` (Phase 2, superseded route and CTA)** — one “Enter web10 social” hero action, the three ownership features, live stats, 2022 pledge and founder photo; `/audience` retains the prior landing. Desktop + 375 px reviewed locally; marketing tests and build pass. No rollout.
+- [✓ 6.29.7 local] **MK-CLASSIC-RENDERER — founder portrait** — use the shared image renderer for the bundled portrait without changing its layout or adding an inventory exception. The renderer guard and the same-asset retry regression pass.
+- [ ] **MK-CLASSIC-03 — observation window (Phase 3)** — 2–4 weeks no-flag funnel comparison `/revolution` vs `/` against the Phase 0 baseline; first trigger wins (parity-or-better → Phase 4; worse → one iteration; thin → extend once, then observational-only stated plainly).
+- [ ] **MK-CLASSIC-04 — the A/B on `/` (Phase 4)** — PostHog `home_classic` 50/50 on the landing route; client-side evaluation, variant on pageview/funnel events, signup attribution via existing campaign handoff + account-row context; pre-declared decision rule (primary = completed signups; window = max(N days, M visits/arm); minimum lift; no peeking) operator-approved BEFORE the first visit.
+- [ ] **MK-CLASSIC-05 — decision + ship (Phase 5)** — single end-of-window read; winner renders at `/` (flag retired, code simplified); loser kept at `/revolution` or retired; outcome + D-number in `decisions.md`. Optional follow-up only if classic wins: pitch-vs-ask split (classic hero, Explore-only CTA).
+
 ## Hierarchy of Reliance
 
 Every layer depends on the one above it. An LLM implementing any layer
@@ -869,6 +888,8 @@ retired in 3.0.61 and never rewritten. "Done" = the app signs in
 through the real D42 popup, every screen works against the v3 API,
 video plays through the HLS pipeline, and a browser e2e gauntlet
 proves it.
+
+- [✓ 6.29.8 local] **SOCIAL-CLAMP-LAYOUT-LOOP** — measure natural post height with clamp styles cleared to prevent React #185; keep the toggle and cover signed-in card rendering and resize across the threshold.
 
 - [✓ 6.29.0] **Long post bodies clamp with a per-post "See more" / "See less" toggle — an essay stops dominating the feed or a video description (D125)** (`src/components/Feed/ExpandablePostBody.tsx` new, wired into `FeedScreen.tsx` `PostCard` + `PostDetail.tsx` + `WatchScreen.tsx`'s caption) — operator (25.11.2026, the wall-of-text post screenshot): "posts and videos can have text that goes on forever, like over 20 lines … there should be a See More button that expands it if interested, like a toggle to expand contract per post, and the video descriptions … that shouldn't happen." One component wraps the ONE `<PostBody>` (the density passed through — the clamp never forks the renderer). **The essay gate is a height, not a character count**: the body's natural rendered height (measured from real layout, a `useLayoutEffect` before paint, re-measured on resize / text / budget change) must exceed 20 body lines ≈ 455px (`text-sm leading-relaxed`) — the operator's "over 20 lines" line, in the height (the invariant that dominates a feed; characters wrap differently at every width). A fitting body renders EXACTLY as before (no clamp style, no toggle, zero drift — the embed-heavy D99 unfurl cards are never cut). **The clamp budgets**: 6 lines on the feed card (the teaser's height budget, the `line-clamp-6` idiom — the Following feed, Discover, profile feed, group feed, hashtag board), 12 lines on the detail surfaces (the lightbox + the permalink via the shared `PostDetail`; the watch page's video description fades into the page `background`, not the card). The clamp cuts at a line boundary with a fading scrim (the surface's own background token) + the "See more" / "See less" toggle (the link voice, `brand-300`, `aria-expanded`/`aria-controls`). **The toggle state is interaction state, not screen state** (the comment-thread open/close precedent — a local per-post `useState`, not a URL param; the deep-link rule governs screens; the shorts lens's `?description=1` is the exception — a SHEET with its own route, not an inline clamp). All client-side, zero node surface (D60). `expandablePostBody.test.tsx` (13) + `postDetail.test.tsx` re-pinned; full `bun run check` + build green; seeded essay fixture (`?essay-post=1`, `/watch/dp-essay`, `post-detail-essay`) at desktop + 375px, collapsed + expanded, inspected. KB: `post-render.md` ("The long-body expand rule" + the density rows + the "read more" seam) + `rich-text.md` + D125. Lane: `social-v3` in `parallel-execution.md`.
 
@@ -1718,6 +1739,8 @@ render). Spec'd in `knowledge-base/web10-v3/social/shorts.md`.
  - [✓ 3.97.0] **v1.5** — the server-side `has(tags, 'short')` filter on `read` (the generic `tags` param — a platform primitive, not a social concept; the idiom the node-ad read already uses, `clickhouse.py:2419`) so the Shorts feed pulls only shorts. The two-layer model is now explicit: the tag is the server-side inclusion rule, the render-time 9:16 gate stays the backstop that drops fakes. (The optional ffmpeg-stamped dimension verification in the transcode worker remains the open "truly bulletproof" follow-up.)
 
 ## Music: The Audio Track Feed — web10-social
+
+- [✓ 6.29.6 local] **Music Explore first paint** — publish playable tracks from the stable prefix of the signed-in Discover mix, without waiting for unused feed totals or ads. Preserve ranking, source order, and settled-page cursors. Live timing is not measured after the change.
 
 A music track is a `posts` doc on the discover group whose single media is a
 **real audio file** (`audio/*`) — no new collection, no new group (the Music

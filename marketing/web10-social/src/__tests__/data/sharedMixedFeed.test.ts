@@ -135,4 +135,27 @@ describe('shared/public home read ownership', () => {
     expect(ambient).toHaveBeenCalledOnce();
     reader.dispose();
   });
+
+  it('never publishes a position that would change if an unfinished source is empty', async () => {
+    const fast = 'https://fast.example';
+    const slow = 'https://slow.example';
+    let finishSlow!: (response: Response) => void;
+    const rows = Array.from({ length: 6 }, (_, i) => ({ doc_id: `b${i}`, author_key: 'bob', created_at: timestamp, score: 0, body: {} }));
+    vi.stubGlobal('fetch', vi.fn((url: string) => url.startsWith(slow)
+      ? new Promise<Response>(resolve => { finishSlow = resolve; })
+      : Promise.resolve(new Response(JSON.stringify({ rows })))));
+    const reader = createSharedMixedFeedReader({ ...options,
+      sources: [{ origin: home, weight: 10 }, { origin: fast, weight: 40 }, { origin: slow, weight: 10 }],
+      homeRead: async () => ({ posts: ['a0', 'a1', 'a2'].map(_id => ({ _id, author_key: 'alice', created_at: timestamp })), has_more: false }),
+    });
+    let ready!: () => void;
+    const first = new Promise<void>(resolve => { ready = resolve; });
+    const published: (string | undefined)[][] = [];
+    const page = reader.next(prefix => { published.push(prefix.map(row => row._id)); ready(); });
+    await first;
+    expect(published).toEqual([['b0']]);
+    finishSlow(new Response(JSON.stringify({ rows: [] })));
+    expect((await page).posts.slice(0, 3).map(row => row._id)).toEqual(['b0', 'b1', 'a0']);
+    reader.dispose();
+  });
 });

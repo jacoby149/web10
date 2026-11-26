@@ -148,6 +148,8 @@ if (screen === 'post-detail' || screen === 'group-post-detail' || screen === 'po
   createRoot(document.getElementById('root')!).render(<PostDetailHarness group={screen === 'group-post-detail'} essay={screen === 'post-detail-essay'} />);
 } else if (screen === 'post-detail-audio') {
   createRoot(document.getElementById('root')!).render(<PostDetailHarness audio />);
+} else if (screen === 'post-detail-portrait') {
+  createRoot(document.getElementById('root')!).render(<PostDetailHarness portrait />);
 } else if (screen === 'product-detail') {
   createRoot(document.getElementById('root')!).render(<ProductDetailHarness />);
 } else {

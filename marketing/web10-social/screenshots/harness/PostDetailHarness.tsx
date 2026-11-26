@@ -5,9 +5,38 @@
 // space. The post is the owner's (isOwner=true) so the ⋯ owner menu shows.
 import { MemoryRouter } from 'react-router-dom';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
-import type { PostRecord } from '@/data/types';
+import type { MediaRecord, PostRecord } from '@/data/types';
 import { MUSIC_TRACKS } from './mock-music';
 import { ESSAY_TEXT } from './mock-data';
+
+// A portrait (9:16) photo creative — the lightbox's "photobox" cap evidence
+// (60vh desktop frame + the black side bars, the grainy-feed PR).
+const PORTRAIT_PHOTO_SVG =
+  `<svg xmlns='http://www.w3.org/2000/svg' width='720' height='1280'>` +
+  `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
+  `<stop offset='0' stop-color='#f59e0b'/><stop offset='1' stop-color='#78350f'/>` +
+  `</linearGradient></defs>` +
+  `<rect width='720' height='1280' fill='url(#g)'/>` +
+  `<text x='40' y='640' font-family='sans-serif' font-size='160' font-weight='700' fill='white'>TALL SHOT</text>` +
+  `</svg>`;
+const PORTRAIT_PHOTO: MediaRecord = {
+  _id: 'pd-photo',
+  url: `data:image/svg+xml;utf8,${encodeURIComponent(PORTRAIT_PHOTO_SVG)}`,
+  created_at: new Date(Date.now() - 6 * 3600_000).toISOString(),
+  mime_type: 'image/png',
+  width: 720,
+  height: 1280,
+};
+const PORTRAIT_POST: PostRecord = {
+  _id: 'pd-portrait',
+  title: 'Staaabucks',
+  text: 'Waking up at 5AM, going to staaabucks, waking up early to do work younowaimsayin!!!!!!!!',
+  created_at: new Date(Date.now() - 6 * 3600_000).toISOString(),
+  visibility: 'public',
+  author_username: 'nova',
+  author_provider: 'web10',
+  media_refs: ['pd-photo'],
+};
 
 const POST: PostRecord = {
   _id: 'pd-1',
@@ -43,7 +72,25 @@ const ESSAY_POST: PostRecord = {
   text: ESSAY_TEXT,
 };
 
-export function PostDetailHarness({ group = false, audio = false, essay = false }: { group?: boolean; audio?: boolean; essay?: boolean }) {
+export function PostDetailHarness({ group = false, audio = false, portrait = false, essay = false }: { group?: boolean; audio?: boolean; portrait?: boolean; essay?: boolean }) {
+  // The portrait variant: a tall photo post — the lightbox's "photobox" cap
+  // (60vh desktop frame + the black side bars) capture.
+  if (portrait) {
+    return (
+      <MemoryRouter>
+        <div className="flex min-h-screen items-center justify-center bg-background" data-testid="post-detail-harness">
+          <PostLightbox
+            post={PORTRAIT_POST}
+            mediaMap={{ 'pd-photo': PORTRAIT_PHOTO }}
+            onClose={() => {}}
+            postAuthor="nova"
+            postService="public_posts"
+            isOwner={true}
+          />
+        </div>
+      </MemoryRouter>
+    );
+  }
   // The audio variant: a seeded music post (the `music` tag + one wav) — the
   // lightbox's music-track slide (the shared AudioPlayer + the album art),
   // the "profile mp3 posts don't play" capture.

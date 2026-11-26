@@ -64,7 +64,12 @@ export function useTunedSurface(tag: 'short' | 'music') {
     setState(previous => ({ ...previous, loading: true }));
     console.info('[tuned-surface] page started', { tag });
     try {
-      const page = await active.next();
+      const page = await active.next(tag === 'music' ? prefix => {
+        if (live.current !== captured || reader.current !== active) return;
+        setState(previous => ({ ...previous,
+          posts: [...new Map([...previous.posts, ...prefix].map(post => [surfaceKey(post), post])).values()] }));
+        console.info('[tuned-surface] ordered rows ready', { tag, count: prefix.length });
+      } : undefined);
       if (live.current !== captured || reader.current !== active) return;
       cursor.current = active.snapshot();
       if (pages.current++ > 0 && page.page_cursor) {
@@ -98,8 +103,9 @@ export function useTunedSurface(tag: 'short' | 'music') {
     const options = { sources: JSON.parse(destinations), homeOrigin: control.home,
       credential: control.credential, knobState: knobs, actingAuthor: acting || undefined,
       groupMode: 'discover' as const, tags: [tag],
+      prepareAds: tag !== 'music',
       isCurrent: () => live.current === captured && control.live() && getActingAuthor() === acting,
-      homeRead: (options: Parameters<typeof readFeedPage>[0]) => readFeedPage({ ...options, groups: [getDiscoverGroupId()], tags: [tag] }),
+      homeRead: (options: Parameters<typeof readFeedPage>[0]) => readFeedPage({ ...options, groups: [getDiscoverGroupId()], tags: [tag], trackList: tag === 'music' }),
     };
     let active: ReturnType<typeof createMixedFeedReader>;
     try { active = createMixedFeedReader({ ...options, initialCursor }); }

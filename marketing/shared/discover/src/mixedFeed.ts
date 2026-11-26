@@ -39,6 +39,7 @@ export type MixedFeedOptions = {
   actingAuthor?: string;
   groupMode?: 'following' | 'discover';
   tags?: string[];
+  prepareAds?: boolean;
 };
 type SourceState = {
   origin: string;
@@ -211,7 +212,8 @@ export function createMixedFeedReader(options: MixedFeedOptions) {
     if (!state.ended && missing) {
       const sql = buildFeedQuery(sort, state.fetched, missing, { stable: true, rankingClockMs: clock, tags });
       const result = await state.transport.post('query', {
-        sql, groups: state.groups, surface: 'feed', content_service: 'posts', prepare,
+        sql, groups: state.groups, surface: 'feed', content_service: 'posts',
+        prepare: options.prepareAds === false ? { ...prepare, ads: false } : prepare,
       });
       assertCurrent();
       const rows = (result as { rows?: unknown })?.rows;
@@ -279,7 +281,7 @@ export function createMixedFeedReader(options: MixedFeedOptions) {
     }
   }
 
-  async function readNext(): Promise<MixedFeedPage> {
+  async function readNext(onProgress?: (prefix: SourcedPost[]) => void): Promise<MixedFeedPage> {
     assertCurrent();
     const page_cursor = snapshot();
     const allocations = states.map(state => ({ origin: state.origin, weight: state.error || (state.ended && !state.buffer.length) ? 0 : weights[state.origin], count: 0 }));
@@ -296,7 +298,42 @@ export function createMixedFeedReader(options: MixedFeedOptions) {
       states[winner].credit -= totalWeight;
       allocations[winner].count++;
     }
-    const batches: SourcedPost[][] = states.map(() => []);
+    const batches = allocations.map(({ count }): SourcedPost[] | undefined => count ? undefined : []);
+    // A pending source might be empty. Its weight changes the debit paid by
+    // each winner even before its first turn. Only publish choices that win
+    // both with all pending weights included and with none. Between those
+    // bounds, each ready source's credit is linear in the pending weight.
+    function orderedPrefix() {
+      const posts: SourcedPost[] = [];
+      const credits = states.map(() => 0);
+      const readyCredits = states.map(() => 0);
+      const offsets = states.map(() => 0);
+      while (true) {
+        let winner = -1;
+        let total = 0;
+        let readyWinner = -1;
+        let readyTotal = 0;
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i];
+          if (batch && offsets[i] >= batch.length) continue;
+          const weight = allocations[i].weight;
+          total += weight;
+          credits[i] += weight;
+          if (winner < 0 || credits[i] > credits[winner]) winner = i;
+          if (batch) {
+            readyTotal += weight;
+            readyCredits[i] += weight;
+            if (readyWinner < 0 || readyCredits[i] > readyCredits[readyWinner]) readyWinner = i;
+          }
+        }
+        const batch = batches[winner];
+        if (!batch || winner !== readyWinner) return posts;
+        credits[winner] -= total;
+        readyCredits[winner] -= readyTotal;
+        posts.push(batch[offsets[winner]++]);
+      }
+    }
+    let published = 0;
     let index = 0;
     // Limit actual destination sequences, not just Promise creation, to four.
     await Promise.all(Array.from({ length: Math.min(4, states.length) }, async () => {
@@ -304,24 +341,20 @@ export function createMixedFeedReader(options: MixedFeedOptions) {
         const i = index++;
         try { batches[i] = await withSourceBudget(() => readSource(states[i], allocations[i].count), current, owner.signal); }
         catch { assertCurrent(); states[i].error = 'Source request budget unavailable; retry'; batches[i] = []; }
+        if (onProgress && current() && batches.includes(undefined)) {
+          const prefix = orderedPrefix();
+          if (prefix.length > published) {
+            published = prefix.length;
+            onProgress(prefix);
+          }
+        }
       }
     }));
     assertCurrent();
-    const posts: SourcedPost[] = [];
-    const credits = states.map(() => 0);
-    while (batches.some((batch) => batch.length)) {
-      let winner = -1;
-      let total = 0;
-      for (let i = 0; i < batches.length; i++) {
-        if (!batches[i].length) continue;
-        total += allocations[i].weight;
-        credits[i] += allocations[i].weight;
-        if (winner < 0 || credits[i] > credits[winner]) winner = i;
-      }
-      credits[winner] -= total;
-      const post = batches[winner].shift()!;
-      posts.push(post);
-      states[winner].delivered = feedCursorFromPost(post);
+    const posts = orderedPrefix();
+    for (const [i, batch] of batches.entries()) {
+      const last = batch?.at(-1);
+      if (last) states[i].delivered = feedCursorFromPost(last);
     }
     page++;
     return {
@@ -334,8 +367,8 @@ export function createMixedFeedReader(options: MixedFeedOptions) {
   // Serialize concurrent scroll callbacks; dispose/owner changes fence queued work.
   let tail: Promise<unknown> = Promise.resolve();
   return {
-    next(): Promise<MixedFeedPage> {
-      const result = tail.then(readNext);
+    next(onProgress?: (prefix: SourcedPost[]) => void): Promise<MixedFeedPage> {
+      const result = tail.then(() => readNext(onProgress));
       tail = result.catch(() => undefined);
       return result;
     },

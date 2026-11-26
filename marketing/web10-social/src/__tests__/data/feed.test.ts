@@ -236,6 +236,16 @@ describe('feed v3 data layer', () => {
       ]);
     });
 
+    it('returns prepared Music rows without fetching feed totals or ads', async () => {
+      mock.query.mockResolvedValue({ rows: [feedRow({ tags: ['music'] })] });
+      const page = await readFeedPage({ tags: ['music'], trackList: true });
+      expect(mock.query).toHaveBeenCalledTimes(1);
+      expect(mock.query.mock.calls[0][0]).toContain("has(p.tags, 'music')");
+      expect(mock.query.mock.calls[0][1].prepare).toMatchObject({ media: true, ads: false });
+      expect(mock.contentViews).not.toHaveBeenCalled();
+      expect(page.posts[0]).toMatchObject({ _id: 'p1', likes: 5, comments: 2, score: 0.7 });
+    });
+
     it.each(['2026-01-01T00:00:19.123Z', '2025-12-31T19:00:19.123-05:00'])('uses numeric UTC milliseconds for a Newest cursor (%s)', async (created_at) => {
       mock.query.mockResolvedValue({ rows: [] });
       await readFeedPage({ limit: 20, cursor: { created_at } });
