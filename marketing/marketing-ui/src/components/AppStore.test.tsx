@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
@@ -329,34 +329,26 @@ describe('AppStore page', () => {
         `/app-store/app/${encodeURIComponent('https://social.web10.app')}`
       );
     });
-    // The node console is the second plug slot (the core management app), not a grid item
-    expect(screen.getByTestId('plug-slot-1')).toHaveAttribute('href', 'https://auth.web10.app');
+    expect(screen.queryByTestId('plug-slot-1')).not.toBeInTheDocument();
     expect(within(screen.getByTestId('plug-slot-0')).getByRole('img', { name: 'web10 social' }))
-      .toHaveAttribute('src', '/brand/icon-192.png');
-    expect(within(screen.getByTestId('plug-slot-1')).getByRole('img', { name: 'web10 hub' }))
+      .toHaveAttribute('src', '/brand/social-conversation.png');
+    expect(within(screen.getByTestId('browse-section')).getByRole('img', { name: 'web10 hub' }))
       .toHaveAttribute('src', '/brand/icon-192.png');
   });
 
-  it('shows web10 hub as the core management plug slot (not Most Popular)', async () => {
+  it('lists web10 hub as a normal searchable app, not a featured slot', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     renderWithRouter(<AppStore />);
-    await vi.waitFor(() => {
-      expect(screen.getByTestId('plug-slot-1')).toBeInTheDocument();
-    });
-    const core = screen.getByTestId('plug-slot-1');
-    expect(core).toHaveAttribute('href', 'https://auth.web10.app');
-    expect(core.textContent).toContain('Core');
-    // Renamed from "The node console" — the manifest name the operator prefers.
-    expect(core.textContent).toContain('web10 hub');
-    expect(core.textContent).not.toContain('The node console');
-    // It carries its real user metric (0 here — no registration in this test),
-    // not a metric-less placeholder.
-    expect(core.textContent).toContain('0 users · 30d');
-    // The old "Most Popular" curated slot is gone
-    expect(screen.queryByText('Most Popular')).not.toBeInTheDocument();
+    const browse = within(screen.getByTestId('browse-section'));
+    const card = await browse.findByRole('link', { name: /web10 hub/i });
+    expect(card).toHaveAttribute('href', 'https://auth.web10.app');
+    expect(card).toHaveTextContent('0 users · 30d');
+    expect(screen.queryByTestId('plug-slot-1')).not.toBeInTheDocument();
+    fireEvent.change(browse.getByRole('textbox', { name: 'Search apps' }), { target: { value: 'Hub' } });
+    expect(browse.getAllByRole('link')).toEqual([card]);
   });
 
-  it('web10 hub plug slot shows its real user count, and its registered copy is deduped from the grid', async () => {
+  it('shows one Hub browse card with its real user count and product link', async () => {
     const { default: AppStore } = await import('@/pages/AppStore');
     const fetchMock = vi.fn((input: any) => {
       const url = String(input);
@@ -411,20 +403,11 @@ describe('AppStore page', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
     renderWithRouter(<AppStore />);
-    await vi.waitFor(() => {
-      expect(screen.getByTestId('plug-slot-1')).toBeInTheDocument();
-    });
-    // The curated Core plug slot picks up the real registration's count.
-    const core = screen.getByTestId('plug-slot-1');
-    expect(core.textContent).toContain('web10 hub');
-    expect(core.textContent).toContain('3 users · 30d');
-    // Exactly one "web10 hub" — the plug slot. The registered copy (same
-    // product, the auth host) is deduped out of the grid, so it never renders
-    // a second card.
+    const browse = within(screen.getByTestId('browse-section'));
+    await vi.waitFor(() => expect(browse.getByRole('link', { name: /web10 hub/i })).toHaveTextContent('3 users · 30d'));
+    expect(browse.getByRole('link', { name: /web10 hub/i })).toHaveAttribute('href', `/app-store/app/${encodeURIComponent('https://auth.web10.app/')}`);
     expect(screen.getAllByText('web10 hub').length).toBe(1);
-    // No browse card for the auth host (the grid is empty in this test —
-    // the only registered app is the web10 hub, deduped into the plug slot).
-    expect(screen.queryAllByTestId(/^browse-card-/).length).toBe(0);
+    expect(screen.queryByTestId('plug-slot-1')).not.toBeInTheDocument();
   });
 
   it('does not show a registered copy of the flagship in the grid (no duplicate web10 social)', async () => {

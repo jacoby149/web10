@@ -26,7 +26,9 @@ def approval(**overrides):
         purpose='DAU_SUSTAINED_CONTRACT_RATE',
         dau_host=dict(region='nyc2', size='g-48vcpu-192gb-intel', price_hourly=2.6994,
             storage_gib=720, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=25.0),
-        dau_envelope=dict(container_bytes=107374182400, server_bytes=85899345920),
+        dau_envelope=dict(container_bytes=107374182400, server_bytes=85899345920,
+            api_bytes=34359738368, minio_bytes=1073741824),
+        dau_store_source='PARQUET_TRANSFER',
         hybrid_k20_projected_admitted=False)
     value.update(overrides)
     return value
@@ -44,7 +46,9 @@ class AdmissionGate(unittest.TestCase):
                 dict(dau_host=dict(region='nyc2', size='g-48vcpu-192gb-intel', price_hourly=2.6994,
                     storage_gib=720, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=50.0)),
                 dict(dau_envelope=dict(container_bytes=10, server_bytes=20)),
+                dict(dau_envelope=dict(container_bytes=107374182400, server_bytes=85899345920)),
                 dict(restored_snapshot_id='999999999'),
+                dict(dau_store_source='SNAPSHOT'),
                 dict(hybrid_k20_projected_admitted=True)):
             with self.subTest(overrides=overrides):
                 with patch.object(run, 'full_store') as store:
@@ -130,6 +134,104 @@ class OracleAudit(unittest.TestCase):
         with patch.object(run.ads, 'compare'):
             with self.assertRaises(costfn_task.ParityDivergence):
                 run.audit_response(bad, 'reader-1', self.billboards, self.expected_views)
+
+
+class RestoreReentry(unittest.TestCase):
+    def test_completed_import_reverifies_and_skips_the_reimport(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps(
+                dict(dau_store_source='PARQUET_TRANSFER', droplet_id=1,
+                    dau_envelope=dict(container_bytes=100, server_bytes=80, api_bytes=32,
+                        minio_bytes=1))))
+            (root / 'restore.json').write_text(json.dumps(
+                dict(project='web10-costfn-frozen-x', api_port=6098,
+                    overlay=str(root / 'restore.overlay.json'))))
+            (root / 'restore.overlay.json').write_text(json.dumps(self.overlay_value()))
+            counts = [dict(documents=run.BANKED_DOCUMENT_COUNT,
+                        events=run.BANKED_EVENT_COUNT)]
+            with patch.object(run.arm_run, 'operation'), \
+                    patch.object(run.restore, 'restore') as banked, \
+                    patch.object(run.restore, 'command'), \
+                    patch.object(run.modern, 'Session'), \
+                    patch.object(run, 'store_counts', return_value=counts), \
+                    patch.object(run, 'verify_envelope',
+                                 return_value=dict(engine='26.10.4.207', container_bytes=100,
+                                     server_bytes=80)):
+                value = run.restore_parquet(root, json.loads((root / 'admission.json').read_text()))
+            banked.assert_not_called()
+            self.assertEqual(value['restore_source'],
+                'ARCHIVED_PARQUET_TRANSFERRED_FROM_SNAPSHOT_HOST')
+            self.assertTrue((root / 'dau-restore.json').exists())
+
+    def test_partial_restore_states_refuse(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps(
+                dict(dau_store_source='PARQUET_TRANSFER', droplet_id=1,
+                    dau_envelope=dict(container_bytes=100, server_bytes=80, api_bytes=32,
+                        minio_bytes=1))))
+            approval = json.loads((root / 'admission.json').read_text())
+            with patch.object(run.arm_run, 'operation'), \
+                    patch.object(run.restore, 'restore') as banked:
+                (root / 'restore.overlay.json').write_text(json.dumps('overlay'))
+                with self.assertRaisesRegex(FileExistsError, 'no partial adoption'):
+                    run.restore_parquet(root, approval)
+                (root / 'restore.overlay.json').unlink()
+                (root / 'restore.json').write_text(json.dumps(dict(project='x', api_port=1,
+                    overlay='o')))
+                with self.assertRaisesRegex(ValueError, 'no partial adoption'):
+                    run.restore_parquet(root, approval)
+            banked.assert_not_called()
+
+    @staticmethod
+    def overlay_value():
+        return dict(services={
+            'clickhouse': dict(image='ghcr.io/x/base-clickhouse:26.10.4.207',
+                environment={'CLICKHOUSE_DO_NOT_CHOWN': '1'},
+                volumes=[{'type': 'bind', 'source': '/opt/fanout/input',
+                    'target': '/var/lib/clickhouse/user_files/input', 'read_only': True}]),
+            'api': dict(mem_limit='2g'), 'minio': dict(mem_limit='512m')})
+
+
+class EnvelopeOverlay(unittest.TestCase):
+    @staticmethod
+    def overlay_value():
+        return dict(services={
+            'clickhouse': dict(image='ghcr.io/x/base-clickhouse:26.10.4.207',
+                environment={'CLICKHOUSE_DO_NOT_CHOWN': '1'},
+                volumes=[{'type': 'bind', 'source': '/opt/fanout/input',
+                    'target': '/var/lib/clickhouse/user_files/input', 'read_only': True}]),
+            'api': dict(mem_limit='2g'), 'minio': dict(mem_limit='512m')})
+
+    def test_envelope_rewrites_caps_and_preserves_the_input_bind(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'restore.overlay.json').write_text(json.dumps(self.overlay_value()))
+            approval = dict(dau_envelope=dict(container_bytes=107374182400,
+                server_bytes=85899345920, api_bytes=34359738368, minio_bytes=1073741824))
+            got = run.apply_envelope_overlay(root, approval)
+            clickhouse = got['services']['clickhouse']
+            self.assertEqual(clickhouse['mem_limit'], '107374182400')
+            self.assertEqual(clickhouse['volumes'][0], 'clickhouse-data:/var/lib/clickhouse')
+            self.assertEqual(clickhouse['volumes'][2],
+                {'type': 'bind', 'source': '/opt/fanout/input',
+                 'target': '/var/lib/clickhouse/user_files/input', 'read_only': True})
+            self.assertIn('dau-memory.xml', clickhouse['volumes'][3])
+            self.assertEqual(got['services']['api']['mem_limit'], '34359738368')
+            self.assertEqual(got['services']['minio']['mem_limit'], '1073741824')
+
+    def test_missing_overlay_or_input_bind_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, 'restore overlay required'):
+                run.apply_envelope_overlay(Path(directory), dict(dau_envelope=dict(
+                    container_bytes=1, server_bytes=1, api_bytes=1, minio_bytes=1)))
+            broken = self.overlay_value()
+            broken['services']['clickhouse']['volumes'] = []
+            (Path(directory) / 'restore.overlay.json').write_text(json.dumps(broken))
+            with self.assertRaisesRegex(ValueError, 'input bind missing'):
+                run.apply_envelope_overlay(Path(directory), dict(dau_envelope=dict(
+                    container_bytes=1, server_bytes=1, api_bytes=1, minio_bytes=1)))
 
 
 class CanonicalFingerprint(unittest.TestCase):

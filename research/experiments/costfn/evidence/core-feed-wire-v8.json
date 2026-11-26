@@ -12,11 +12,11 @@
     },
     "posts": {
       "path": "marketing/web10-social/src/data/posts.ts",
-      "sha256": "0a389f84154f00492d2363ee1171eb93b9a34698901feddb5f11378c11b6599e"
+      "sha256": "bbad3d1691363938e3eb419691d3b0bb8bd45e653a2927fc7b35c54f985b54d3"
     },
     "types": {
       "path": "marketing/web10-social/src/data/types.ts",
-      "sha256": "121973ea32cf107a679b4ec9b0b2e508b2af7abef2c4ff02d2fa4942d976627c"
+      "sha256": "3606dab66bbc1c5632444e741efd99433f544a35df558c005bc7212a1ca4fef2"
     }
   },
   "capture_sha256": "28afc62e644d5d81a12278aa604b92a49042591db707dbe51b7c55480782740e",

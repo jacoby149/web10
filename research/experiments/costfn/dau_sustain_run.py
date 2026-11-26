@@ -18,6 +18,7 @@ from arm_f_reads import rowset
 from costfn_task import Task, read, digest, exact, ParityDivergence
 import arm_f_http
 import arm_f_run as arm_run
+import arm_t
 import arm_satellite_sql as sql
 import dau_sustain_workload as wl
 import engagement_billboards as ads
@@ -59,9 +60,12 @@ def admission_gate(approval):
             and host.get('backstop_h') == 12 and host.get('compute_ceiling_usd') == 25.0):
         raise ValueError('budget-sized host class declared at admission required')
     envelope = approval.get('dau_envelope')
-    if not (envelope and type(envelope.get('container_bytes')) is int
-            and type(envelope.get('server_bytes')) is int and envelope['server_bytes'] < envelope['container_bytes']):
+    if not (envelope and all(type(envelope.get(key)) is int and envelope[key] > 0
+            for key in ('container_bytes', 'server_bytes', 'api_bytes', 'minio_bytes'))
+            and envelope['server_bytes'] < envelope['container_bytes']):
         raise ValueError('engine envelope declared at admission required')
+    if approval.get('dau_store_source') != 'PARQUET_TRANSFER':
+        raise ValueError('sized-host store provenance (verified Parquet transfer) required')
     if approval.get('restored_snapshot_id') != '255003176':
         raise ValueError('frozen store of the retained snapshot required')
     if not window.task(approval):
@@ -69,6 +73,71 @@ def admission_gate(approval):
     if approval.get('hybrid_k20_projected_admitted') is not False:
         raise ValueError('sustained-DAU measures the indexed complete path only')
     full_store.source_guard(approval)
+
+
+def restore_parquet(root, approval):
+    """The sized host cannot restore the snapshot (the snapshot lives in
+    nyc3; no >=32-vCPU 400GB+ droplet exists there). Its store is the banked
+    verified-input Parquet rebuild — the snapshot's own frozen files,
+    transferred byte-verified — through the unchanged banked restore path,
+    then the declared DAU envelope overlay replaces the banked 28/22 GiB
+    frame for the sized host."""
+    project = 'web10-costfn-frozen-satellite-dau-' + str(approval['droplet_id'])
+    arm_run.operation(root)  # P-subordinate vehicle the sessions require; idempotent.
+    imported = (root / 'restore.json').is_file()
+    if imported:
+        if not (root / 'restore.overlay.json').is_file():
+            raise ValueError('restore receipt without its overlay; no partial adoption')
+        # The banked import completed on a prior attempt: verify it, then
+        # (re)apply the declared envelope.
+        session = modern.Session(root)
+        counts = store_counts(session)
+        if (int(counts[0]['documents']) != BANKED_DOCUMENT_COUNT
+                or int(counts[0]['events']) != BANKED_EVENT_COUNT):
+            raise ValueError('prior import verification failed; counts differ from the banked store')
+    else:
+        if (root / 'restore.overlay.json').exists():
+            raise FileExistsError('restore overlay without receipt; no partial adoption')
+        restore.restore(root / 'input', root / 'input' / 'validation.json', arm_t.DATASET,
+            arm_t.VALIDATION, project, 6098, root / 'restore.json', engine=modern.ENGINE)
+    if not (root / 'dau-restore.json').is_file():
+        apply_envelope_overlay(root, approval)
+        # Re-raise the stack under the declared envelope.
+        session = modern.Session(root)
+        restore.command(session.compose, session.env, 'stop', timeout=120)
+        restore.command(session.compose, session.env, 'up', '-d', 'clickhouse', 'minio', timeout=300)
+    value = verify_envelope(root)
+    value['restore_source'] = 'ARCHIVED_PARQUET_TRANSFERRED_FROM_SNAPSHOT_HOST'
+    value['verified_input'] = 'banked verified_input manifest + per-file sha256 + validation receipt'
+    save(root / 'dau-restore.json', value)
+    return value
+
+
+def apply_envelope_overlay(root, approval):
+    """Replace the banked 28/22 GiB frame with the admission-declared sized
+    envelope: 100 GiB container, 80 GiB server cap via the committed
+    clickhouse-config/dau-memory.xml, plus declared api/minio caps. The
+    banked input bind and the store volume survive the rewrite verbatim."""
+    envelope = approval['dau_envelope']
+    overlay_path = Path(root) / 'restore.overlay.json'
+    if not overlay_path.is_file():
+        raise ValueError('banked restore overlay required before the envelope rewrite')
+    overlay = json.loads(overlay_path.read_bytes())
+    clickhouse = overlay['services']['clickhouse']
+    input_bind = next((value for value in clickhouse['volumes']
+        if isinstance(value, dict) and value.get('target') == '/var/lib/clickhouse/user_files/input'),
+        None)
+    if input_bind is None:
+        raise ValueError('banked input bind missing from the restore overlay')
+    clickhouse['mem_limit'] = str(envelope['container_bytes'])
+    clickhouse['volumes'] = ['clickhouse-data:/var/lib/clickhouse',
+        '../../../clickhouse-init:/docker-entrypoint-initdb.d:ro',
+        {**input_bind},
+        './clickhouse-config/dau-memory.xml:/etc/clickhouse-server/config.d/costfn-memory.xml:ro']
+    overlay['services']['api']['mem_limit'] = str(envelope['api_bytes'])
+    overlay['services']['minio']['mem_limit'] = str(envelope['minio_bytes'])
+    overlay_path.write_bytes(json.dumps(overlay, indent=1).encode())
+    return overlay
 
 
 def verify_envelope(root):
@@ -111,24 +180,40 @@ def canonical_fingerprint(session):
         base_files=files)
 
 
-def verify_store(root):
-    """Restore-verification hooks (contract §8.3): counts, and the canonical
-    generation fingerprint against the banked pre-steady-state value recorded
-    on the snapshot host."""
-    session = modern.Session(root)
+def store_counts(session):
     counts, _ = session.rows('dau_store_counts', 'SELECT (SELECT count() FROM documents) AS documents,'
         '(SELECT count() FROM content_events) AS events')
+    return counts
+
+
+def verify_store(root):
+    """Restore-verification hooks (contract §8.3): counts, and the canonical
+    generation fingerprint. The snapshot-transfer provenance cross-checks the
+    banked pre-steady-state value; the Parquet-transfer provenance is the
+    verified-input manifest itself, so this step banks the host's own
+    fingerprint as the run baseline (captured pre-steady-state, when the
+    imported parts are the comparison point)."""
+    session = modern.Session(root)
+    counts = store_counts(session)
     if (int(counts[0]['documents']) != BANKED_DOCUMENT_COUNT
             or int(counts[0]['events']) != BANKED_EVENT_COUNT):
         raise ValueError('frozen store counts differ from the banked store')
     fingerprint = canonical_fingerprint(session)
+    value = dict(counts=counts,
+        fingerprint_sha256=digest_bytes(fingerprint),
+        canonical_generation=fingerprint['canonical_generation'])
+    if read(root / 'admission.json')['dau_store_source'] == 'PARQUET_TRANSFER':
+        value['provenance'] = ('verified-input manifest + per-file sha256 + validation receipt, '
+            'banked restore path; host baseline fingerprint captured here')
+        save(root / 'dau-host-baseline-fingerprint.json', fingerprint)
+        value['baseline_fingerprint_sha256'] = digest(root / 'dau-host-baseline-fingerprint.json')
+        return value
     banked = read(root / 'banked-store-fingerprint.json')
     if (fingerprint['canonical_content_sha256'] != banked['canonical_content_sha256']
             or fingerprint['canonical_generation'] != banked['canonical_generation']):
         raise ValueError('canonical content or generation differs from the snapshot store')
-    return dict(counts=counts,
-        fingerprint_sha256=digest_bytes(fingerprint),
-        banked_fingerprint_sha256=digest(root / 'banked-store-fingerprint.json'))
+    value['banked_fingerprint_sha256'] = digest(root / 'banked-store-fingerprint.json')
+    return value
 
 
 def digest_bytes(value):
@@ -601,10 +686,15 @@ def run(root, *, note=None):
         modern.install_sessions()
         actions = Actions(root, task)
         try:
-            task.step('restore', lambda: actions.restore(),
-                validate=lambda stored: verify_envelope(root))
+            task.step('restore', lambda: restore_parquet(root, approval),
+                validate=lambda stored: verify_envelope(root) == {key: stored.get(key)
+                    for key in ('engine', 'container_bytes', 'server_bytes')})
             task.step('verify-envelope', lambda: verify_envelope(root))
-            task.step('verify-store', lambda: verify_store(root))
+            task.step('verify-store', lambda: verify_store(root),
+                validate=lambda stored: (
+                    lambda counts: (int(counts[0]['documents']) == stored['counts'][0]['documents']
+                        and int(counts[0]['events']) == stored['counts'][0]['events']))
+                    (store_counts(modern.Session(root))))
             task.step('steady-state', lambda: full_store.steady_state(root))
             task.step('read-setup', lambda: actions.stage('read-setup', {}))
             task.step('migrate', lambda: actions.stage('migrate', {}))
