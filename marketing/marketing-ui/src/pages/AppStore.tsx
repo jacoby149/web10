@@ -4,7 +4,7 @@ import { trackFunnel } from '@/lib/analytics'
 import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins'
 import { AppCard } from '@/components/AppCard'
 
-const ICON_PATH = '/brand/icon-192.png'
+import { SOCIAL_CATALOG_ICON } from '../lib/catalogBrand'
 const PAGE_SIZE = 20
 
 function nodeApi(): string {
@@ -255,7 +255,7 @@ function AppStore() {
         name: FLAGSHIP_NAME,
         description: 'Feed, DMs, media, streaming — your audience and your data, on a node you own.',
         href: SOCIAL_ORIGIN,
-        iconSrc: ICON_PATH,
+        iconSrc: SOCIAL_CATALOG_ICON,
         // The canonical registration (social.web10.app at its root) is a
         // known-host root, so the grid filter drops it from `apps` and
         // `flagship` is often undefined. `flagshipMetric` was captured from
@@ -278,7 +278,7 @@ function AppStore() {
         name: 'web10 hub',
         description: 'Login, consent, contracts, and the Studio — the operator surface every node runs.',
         href: AUTH_ORIGIN,
-        iconSrc: ICON_PATH,
+        iconSrc: SOCIAL_CATALOG_ICON,
         users_30d: consoleMetric?.users_30d ?? 0,
         visits: consoleMetric?.visits ?? 0,
         appId: consoleMetric?.appId,
@@ -329,73 +329,87 @@ function AppStore() {
   )
 
   const activeUsers30d = stats?.active_users?.users_30d ?? 0
+  const metrics = stats ? [
+    { value: activeUsers30d.toLocaleString(), label: 'Users · 30d' },
+    { value: stats.app_count.toLocaleString(), label: 'Apps' },
+    { value: formatBytes(stats.storage), label: 'Data owned' },
+  ] : []
 
   return (
-    <div className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
-      <div className="mx-auto max-w-5xl">
-        <div className="reveal text-center">
-          <span className="inline-flex items-center rounded-full bg-brand-muted px-2.5 py-0.5 text-[0.75rem] font-medium uppercase tracking-wide text-brand-300">
+    <main className="catalog-theme min-h-screen bg-background text-foreground">
+      <header className="mx-auto max-w-5xl px-5 pt-8 pb-6 text-center sm:px-6 sm:pt-10 sm:pb-8">
+          <p className="inline-block rounded-full bg-brand-muted px-3 py-1 text-xs font-medium uppercase tracking-widest text-brand-300">
             The web10 App Store
-          </span>
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+          </p>
+          <h1 className="mt-3 text-balance font-display text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
             Apps that run on data you own.
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
+          <p className="mx-auto mt-3 max-w-lg text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
             Sorted by active users — no algorithm, no promotion, just who&rsquo;s actually using it.
-            {loading ? (
-              <span className="inline-block h-5 w-64 animate-pulse rounded bg-elevated align-middle" />
-            ) : stats ? (
-              <>
-                {' '}
-                <span className="font-semibold text-foreground">{activeUsers30d.toLocaleString()}</span> web10 users &middot; 30d
-                {' · '}
-                <span className="font-semibold text-foreground">{stats.app_count.toLocaleString()}</span> apps
-                {' · '}
-                <span className="font-semibold text-foreground">{formatBytes(stats.storage)}</span> of data owned on web10.
-              </>
-            ) : null}
           </p>
-        </div>
+          <div className="mt-3 min-h-5 text-sm text-muted-foreground">
+            {stats ? (
+              <dl aria-label="App Store statistics" className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+                {metrics.map(({ value, label }) => (
+                  <div key={label} className="inline-flex flex-row-reverse gap-1 whitespace-nowrap">
+                    <dt>{label}</dt>
+                    <dd className="font-semibold text-foreground tabular-nums">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : loading ? (
+              <div aria-hidden="true" className="mx-auto h-4 max-w-60 animate-pulse rounded-sm bg-elevated" />
+            ) : <p>Store statistics unavailable.</p>}
+          </div>
+      </header>
 
+      <div className="mx-auto max-w-5xl space-y-5 px-5 pb-10 sm:space-y-6 sm:px-6 sm:pb-12">
         {/* Plug slots — curated, above the grid */}
         {!loading && plugSlots.length > 0 && (
-          <div className="reveal mt-12 flex flex-col gap-4" data-testid="plug-slots">
-            {plugSlots.map((plug, i) => (
-              <AppCard
-                key={plug.href}
-                size="plug"
-                iconSrc={plug.iconSrc}
-                iconLetter={plug.name.charAt(0)}
-                name={plug.name}
-                description={plug.description}
-                href={plug.href}
-                visits={plug.users_30d}
-                metricLabel="users · 30d"
-                badge={plug.badge}
-                appId={plug.appId}
-                data-testid={`plug-slot-${i}`}
-              />
-            ))}
-          </div>
+          <section aria-labelledby="featured-apps" data-testid="plug-slots">
+            <h2 id="featured-apps" className="sr-only">Featured apps</h2>
+            <div className="grid gap-3">
+              {plugSlots.map((plug, i) => (
+                <AppCard
+                  key={plug.href}
+                  size="plug"
+                  iconSrc={plug.iconSrc}
+                  iconLetter={plug.name.charAt(0)}
+                  name={plug.name}
+                  description={plug.description}
+                  href={plug.href}
+                  visits={plug.users_30d}
+                  metricLabel="users · 30d"
+                  badge={plug.badge}
+                  appId={plug.appId}
+                  data-testid={`plug-slot-${i}`}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Browse — search + uniform small cards, paginated */}
-        <div className="reveal mt-12" data-testid="browse-section">
-          {!loading && (
-            <div className="relative mb-6">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={2} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search apps…"
-                className="w-full rounded-full border border-border bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground placeholder-muted-foreground outline-none transition-colors duration-150 focus:border-brand"
-                data-testid="browse-search"
-              />
-            </div>
-          )}
+        <section aria-labelledby="browse-apps" data-testid="browse-section">
+          <div className="mb-3 sm:mb-4">
+            <h2 id="browse-apps" className="sr-only">Browse apps</h2>
+            {!loading && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={2} />
+                <input
+                  type="text"
+                  aria-label="Search apps"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search apps…"
+                  className="min-h-11 w-full rounded-full border border-border bg-surface py-2 pl-9 pr-4 text-base text-foreground placeholder-muted-foreground transition-colors duration-150 focus:border-brand"
+                  data-testid="browse-search"
+                />
+              </div>
+            )}
+          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4">
             {loading
               ? Array.from({ length: 10 }).map((_, i) => (
                   <AppCard
@@ -431,7 +445,7 @@ function AppStore() {
 
           {/* Load more — the list is server-paginated (D49) */}
           {!loading && !searchQuery && apps.length < total && (
-            <div className="mt-10 flex justify-center">
+            <div className="mt-7 flex justify-center sm:mt-8">
               <button
                 type="button"
                 onClick={loadMore}
@@ -444,9 +458,9 @@ function AppStore() {
               </button>
             </div>
           )}
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   )
 }
 

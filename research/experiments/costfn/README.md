@@ -28,6 +28,23 @@ logical read bytes, largest individual statement memory, summed native duration
 `255003176` remains retained. Verify private archives by SHA-256 before cleanup;
 report estimated compute separately from storage and the invoice.
 
+## Sustained-DAU load test — contract only
+
+The [sustained-DAU load test contract](DAU-SUSTAINED-LOAD.md) defines the
+right-sized receipt against the realism contract's load (15 reads/s peak,
+2.9 reads/s average) on the frozen million-author store, on a DigitalOcean
+host sized to the budget (≥64 threads / ≥128 GB / NVMe, storage proven
+non-binding in calibration), under mixed load, with the clog criterion as
+the primary gate, exact ordered oracle gates, pre-declared stop criteria and
+a breaking-point clause. The gate is on the slope of the debt-carrying
+quantities, not their level: start/end/slope banked per window, all flat or
+shrinking at the contract peak is the strong claim, a sustained positive
+slope names the debt and banks time-to-bind, and the drain must empty. The paper's claim is the derived budget plus the
+software proof, not a server model; production hardware (R630) is an ops
+matter, out of scope.
+Planning contract only: no runner, no host, no admission and no measurement.
+It does not replace the full-store hybrid arm or Study L.
+
 ## D117 row-model proving cell — complete; maximal model rejected
 
 Merged #1620 completed the full post-family load, independent parity, and six

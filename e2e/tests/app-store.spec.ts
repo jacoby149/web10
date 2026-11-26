@@ -52,13 +52,20 @@ test.describe('app store (v3, D49)', () => {
     // ?api= points the page's stats fetch at THIS stack's API (the page
     // defaults to http://api.localhost:80, which is wrong on isolated
     // e2e stacks on a non-80 port).
+    const statsResponse = page.waitForResponse(response =>
+      new URL(response.url()).pathname === '/v3/stats' && response.request().method() === 'POST',
+    );
     await page.goto(`${MARKETING_BASE}/app-store?api=${encodeURIComponent(API_BASE)}`);
     await expect(page).toHaveTitle(/web10/i);
-    // The header stats line ("N web10 users · 30d · N apps · N of data owned
-    // on web10") only renders once the /v3/stats fetch resolves — the v3
-    // brick was this fetch hanging 30s on a Mongo scan the v3 stack doesn't
-    // run. The headline is the macro active-user set (D49), not "members".
-    await expect(page.getByText(/web10 users/)).toBeVisible({ timeout: 15000 });
+    const response = await statsResponse;
+    expect(response.ok()).toBeTruthy();
+    const stats = await response.json();
+    // D49: verify the displayed number is the live active-user count, not
+    // registered members or a static placeholder. The catalog groups the metrics.
+    const metrics = page.getByLabel('App Store statistics');
+    const users = metrics.getByText('Users · 30d', { exact: true }).locator('..').locator('dd');
+    expect(stats.active_users.users_30d).toEqual(expect.any(Number));
+    await expect(users).toHaveText(stats.active_users.users_30d.toLocaleString('en-US'), { timeout: 15000 });
   });
 
   test('register app via API (v3, anonymous) — url normalized, pending', async ({ request }) => {

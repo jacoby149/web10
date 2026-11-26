@@ -20,6 +20,16 @@ superseded by a later entry remain visible as history.
 
 ---
 
+### D126 — Make Revolution the marketing design language [DECIDED]
+
+Carry the homepage's navy, sky, Georgia and Jost styling through the
+marketing site and App Store. Keep a blue-toned Light option, the fractal
+unique to the homepage, and the social and authenticator design unchanged.
+Flatten the header to Home, App Store, Freedom, Docs and Appearance; keep
+old Trending and Join links working. Retire the Everything App pitch and
+redirect its old URL home: demonstrate the product rather than promise it.
+Tokens and scope: [design.md §13](design.md#marketing-wide-revolution-styling).
+
 ### D125 — Essay-length post bodies clamp with a per-post "See more" toggle; the clamp is a budget, not a wall [DECIDED]
 
 **Operator, 25 November 2026** (screenshot of a wall-of-text post that took

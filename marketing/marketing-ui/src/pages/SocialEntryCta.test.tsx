@@ -37,17 +37,12 @@ describe('social entry copy', () => {
     expect(screen.queryByRole('button', { name: 'Sign In', exact: true })).not.toBeInTheDocument()
   })
 
-  it.each(['/', '/audience'])('scopes the classic navbar to the landing at %s', async (path) => {
+  it.each(['/', '/app-store', '/audience'])('uses the classic navbar at %s', async (path) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stargazers_count: 0 }) }))
     await act(async () => { render(<MemoryRouter initialEntries={[path]}><Navbar /></MemoryRouter>) })
     const nav = screen.getByRole('navigation', { name: 'main navigation' })
     const themeAwareLogo = nav.querySelector('[data-brand-variant="dark"]')
-    if (path === '/') {
-      expect(nav).toHaveAttribute('data-classic', 'true')
-      expect(themeAwareLogo).not.toBeInTheDocument()
-    } else {
-      expect(nav).not.toHaveAttribute('data-classic')
-      expect(themeAwareLogo).toBeInTheDocument()
-    }
+    expect(nav).toHaveClass('classic-surface')
+    expect(themeAwareLogo).not.toBeInTheDocument()
   })
 })

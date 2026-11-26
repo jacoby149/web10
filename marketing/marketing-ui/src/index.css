@@ -4,8 +4,6 @@
 @source "../../shared/discover/src/ReliableImage.tsx";
 
 /* self-hosted type — never a font CDN (design.md §5) */
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/space-grotesk";
 @import "@fontsource-variable/jetbrains-mono";
 
 /* Jost Latin variable, Fontsource 5.3.0. License: public/fonts/jost-OFL.txt. */
@@ -19,34 +17,27 @@
 
 /* SOURCE OF TRUTH: /design.md §13 — sync, don't fork */
 @theme {
-  /* neutrals — zinc, dark-first (§4) */
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-surface: #111113;
-  --color-elevated: #18181b;
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-ring: #8b5cf6;
-  --color-muted: #18181b;
-  --color-muted-foreground: #a1a1aa;
-
-  /* brand — violet (§4) */
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-muted: #2e1065;
-  --color-brand-foreground: #fafafa;
-
-  /* glow — ambient light (§4). the trending page is the marketing
-     site's energy screen; its heat-glow motif is this screen's one
-     allowed decorative glow (§4 marketing: one per screen). */
-  --color-glow: rgba(139, 92, 246, 0.15);
-  --color-glow-intense: rgba(139, 92, 246, 0.35);
+  /* Revolution palette: paper and charcoal throughout marketing; blue for art and actions. */
+  --color-background: var(--color-revolution-charcoal);
+  --color-foreground: var(--color-classic-foreground);
+  --color-surface: var(--color-revolution-slate);
+  --color-elevated: #424950;
+  --color-border: #59626d;
+  --color-input: var(--color-border);
+  --color-ring: var(--color-classic-sky);
+  --color-muted: var(--color-elevated);
+  --color-muted-foreground: var(--color-revolution-gray);
+  --color-brand-300: var(--color-classic-sky);
+  --color-brand-400: var(--color-classic-sky-bright);
+  --color-brand: var(--color-classic-sky);
+  --color-brand-600: var(--color-classic-sky-bright);
+  --color-brand-muted: #394b60;
+  --color-brand-foreground: var(--color-classic-ink);
+  --color-glow: rgba(135, 206, 235, 0.12);
+  --color-glow-intense: rgba(135, 206, 235, 0.25);
   --color-glow-danger: rgba(239, 68, 68, 0.25);
 
-  /* classic landing surface (D125) — always-dark, scoped to the page
-     root via [data-classic="true"]; measured from hero-fractal.jpg */
+  /* Classic values from the homepage, kept independent of light overrides. */
   --color-classic-background: #101648;
   --color-classic-surface: #161d5e;
   --color-classic-elevated: #1d2570;
@@ -57,6 +48,13 @@
   --color-classic-sky-bright: #b5e6f8;
   --color-classic-sky: #87ceeb;
   --color-classic-brand-muted: #1a2260;
+  --color-revolution-paper: #fafafa;
+  --color-revolution-type: #232323;
+  --color-revolution-muted: #474747;
+  --color-revolution-charcoal: #2b2f32;
+  --color-revolution-slate: #33363b;
+  --color-revolution-gray: #cbcbcb;
+  --color-revolution-blue: #174a76;
 
   /* semantic (§4) */
   --color-success: #22c55e;
@@ -65,24 +63,22 @@
   --color-danger-muted: #450a0a;
 
   /* shadcn compatibility layer */
-  --color-card: #111113;
-  --color-card-foreground: #fafafa;
-  --color-popover: #18181b;
-  --color-popover-foreground: #fafafa;
-  --color-primary: #fafafa;
-  --color-primary-foreground: #09090b;
-  --color-secondary: #27272a;
-  --color-secondary-foreground: #fafafa;
-  --color-accent: #27272a;
-  --color-accent-foreground: #fafafa;
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-classic-foreground);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-classic-foreground);
+  --color-primary: var(--color-classic-foreground);
+  --color-primary-foreground: var(--color-background);
+  --color-secondary: var(--color-elevated);
+  --color-secondary-foreground: var(--color-classic-foreground);
+  --color-accent: var(--color-elevated);
+  --color-accent-foreground: var(--color-classic-foreground);
   --color-destructive: #ef4444;
 
   /* type (§5) */
-  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
-  /* 2022 art direction: Georgia titles and geometric body text. */
+  --font-sans: 'Jost', system-ui, sans-serif;
+  --font-display: 'Jost', system-ui, sans-serif;
   --font-classic-display: Georgia, 'Times New Roman', Times, serif;
-  --font-classic-body: 'Jost', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
 
   /* radius (§6) */
@@ -94,46 +90,42 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* D108: same canonical light palette as social, design.md §13. */
-:root[data-theme="light"] {
-  --color-background: #fafafa;
-  --color-foreground: #18181b;
+/* Light interior routes and the homepage's fixed paper chapter share the same tokens. */
+:root:not(.dark), .classic-paper {
+  --color-background: var(--color-revolution-paper);
+  --color-foreground: var(--color-revolution-type);
   --color-surface: #ffffff;
   --color-card: #ffffff;
-  --color-card-foreground: #18181b;
-  --color-elevated: #f4f4f5;
-  --color-muted: #f4f4f5;
-  --color-border: #d4d4d8;
-  --color-input: #d4d4d8;
-  --color-muted-foreground: #52525b;
-  --color-ring: #7c3aed;
-  --color-brand-300: #6d28d9;
-  --color-brand-400: #5b21b6;
-  --color-brand: #7c3aed;
-  --color-brand-600: #6d28d9;
-  --color-brand-muted: #ede9fe;
+  --color-card-foreground: var(--color-foreground);
+  --color-elevated: #e3edf8;
+  --color-muted: var(--color-elevated);
+  --color-border: #c4d4e8;
+  --color-input: var(--color-border);
+  --color-muted-foreground: var(--color-revolution-muted);
+  --color-ring: var(--color-brand);
+  --color-brand: var(--color-revolution-blue);
+  --color-brand-600: #0e365b;
+  --color-brand-300: var(--color-brand);
+  --color-brand-400: var(--color-brand-600);
+  --color-brand-muted: #dae9f8;
+  --color-brand-foreground: #ffffff;
   --color-success: #166534;
   --color-warning: #854d0e;
   --color-danger: #b91c1c;
   --color-destructive: #b91c1c;
   --color-danger-muted: #fee2e2;
   --color-popover: #ffffff;
-  --color-popover-foreground: #18181b;
-  --color-primary: #18181b;
-  --color-primary-foreground: #fafafa;
-  --color-secondary: #f4f4f5;
-  --color-secondary-foreground: #18181b;
-  --color-accent: #f4f4f5;
-  --color-accent-foreground: #18181b;
+  --color-popover-foreground: var(--color-foreground);
+  --color-primary: var(--color-foreground);
+  --color-primary-foreground: var(--color-background);
+  --color-secondary: var(--color-elevated);
+  --color-secondary-foreground: var(--color-foreground);
+  --color-accent: var(--color-elevated);
+  --color-accent-foreground: var(--color-foreground);
 }
 
-/* D125: the classic landing page is always-dark. The page root carries
-   [data-classic="true"]; this remaps the standard utility namespaces onto
-   the classic palette so token-based components (CTA buttons, borders,
-   secondary text, focus rings, glow) resolve to classic values inside the
-   scope — brand/violet becomes sky — while the rest of the site
-   keeps its D108 system/light/dark theming. */
-[data-classic="true"] {
+/* Fixed dark regions and the catalog's Dark appearance share Home's palette. */
+.classic-surface, .dark .catalog-theme, :where([data-testid="hls-video-player"], [data-testid="player-controls"]) {
   color-scheme: dark;
   /* Inherited color must follow the scope too — the page root's type has no
      text-foreground class, so without this a light-theme visit inherits the
@@ -151,7 +143,7 @@
   --color-brand: var(--color-classic-sky);
   --color-brand-600: var(--color-classic-sky-bright);
   --color-brand-300: var(--color-classic-sky);
-  --color-brand-400: var(--color-classic-sky);
+  --color-brand-400: var(--color-classic-sky-bright);
   --color-brand-muted: var(--color-classic-brand-muted);
   --color-brand-foreground: var(--color-classic-ink);
   --color-ring: var(--color-classic-sky);
@@ -160,54 +152,10 @@
   --color-card-foreground: var(--color-classic-foreground);
   --color-popover: var(--color-classic-surface);
   --color-popover-foreground: var(--color-classic-foreground);
-  --font-sans: var(--font-classic-body);
-  --font-display: var(--font-classic-display);
-  font-family: var(--font-classic-body);
-}
-
-.classic-hero {
-  /* One image, shaded in the middle for type and at the base for depth. */
-  background-image:
-    radial-gradient(ellipse at center, var(--color-classic-ink) -35%, transparent 76%),
-    linear-gradient(180deg, transparent, var(--color-classic-ink) 112%),
-    url('/hero-fractal.jpg');
-  background-position: center;
-  background-size: cover;
-}
-
-@media (min-width: 64rem) and (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .classic-hero {
-    background-attachment: scroll, scroll, fixed;
-  }
-}
-
-/* Preserve film control contrast without inverting any media pixels. */
-:where([data-testid="hls-video-player"], [data-testid="player-controls"]) {
-  color-scheme: dark;
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-surface: #111113;
-  --color-elevated: #18181b;
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-muted: #18181b;
-  --color-muted-foreground: #a1a1aa;
-  --color-ring: #8b5cf6;
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-muted: #2e1065;
-  --color-card: #111113;
-  --color-card-foreground: #fafafa;
-  --color-popover: #18181b;
-  --color-popover-foreground: #fafafa;
-  --color-primary: #fafafa;
-  --color-primary-foreground: #09090b;
-  --color-secondary: #27272a;
-  --color-secondary-foreground: #fafafa;
-  --color-accent: #27272a;
-  --color-accent-foreground: #fafafa;
+  --color-secondary: var(--color-classic-elevated);
+  --color-secondary-foreground: var(--color-classic-foreground);
+  --color-accent: var(--color-classic-elevated);
+  --color-accent-foreground: var(--color-classic-foreground);
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
@@ -215,9 +163,67 @@
   --color-danger-muted: #450a0a;
 }
 
+.dark .catalog-theme {
+  --color-background: var(--color-classic-ink);
+  --color-surface: var(--color-classic-background);
+  --color-card: var(--color-surface);
+  --color-popover: var(--color-surface);
+  --color-elevated: var(--color-classic-surface);
+}
+
+.classic-hero {
+  /* One image with the archive's dark scrim, eased at the edges to show the art. */
+  background-image:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-black) 48%, transparent), color-mix(in srgb, var(--color-black) 65%, transparent) 68%, color-mix(in srgb, var(--color-black) 76%, transparent)),
+    url('/hero-fractal.jpg');
+  background-position: center;
+  background-size: cover;
+}
+
+/* 2022 content and footer tones. They're editorial, not theme overrides. */
+.classic-paper {
+  color-scheme: light;
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.classic-footer {
+  --color-background: var(--color-revolution-charcoal);
+  --color-muted-foreground: var(--color-revolution-gray);
+  background: var(--color-background);
+}
+
+.classic-stats, .classic-pledge {
+  --classic-archive-shade: color-mix(in srgb, var(--color-black) 65%, transparent);
+  background-color: var(--color-classic-ink);
+  background-position: center;
+  background-size: cover;
+}
+
+.classic-stats {
+  background-image: linear-gradient(var(--classic-archive-shade), var(--classic-archive-shade)), url('/stats-2022.webp');
+}
+
+.classic-pledge {
+  background-color: var(--color-revolution-charcoal);
+  background-image: linear-gradient(var(--classic-archive-shade), var(--classic-archive-shade)), url('/pledge-sky-2022.jpg');
+  /* Keep the archived charcoal showing through the near-black image. */
+  background-blend-mode: normal, screen;
+}
+
+@media (min-width: 64rem) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .classic-hero, .classic-stats {
+    /* Keep the scrim with its section and the image pinned to the viewport. */
+    background-attachment: scroll, fixed;
+  }
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
+  }
+  h1, h2 {
+    font-family: var(--font-display);
   }
 }
 
@@ -225,7 +231,7 @@ html {
   color-scheme: light;
 }
 
-html[data-theme="dark"] {
+html.dark {
   color-scheme: dark;
 }
 
@@ -293,7 +299,7 @@ body {
 }
 
 /*
- * Docs prose (design.md §5: 65-75ch measure, Space Grotesk headings,
+ * Docs prose (design.md §13: 65-75ch measure, Jost headings,
  * JetBrains Mono code). The markdown pipeline (remark) emits raw HTML via
  * dangerouslySetInnerHTML, so these elements never carry Tailwind classes —
  * styled here, once, instead of per-component CSS-in-JS.
@@ -311,7 +317,7 @@ body {
 
 .docs-prose h1 {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 400;
   font-size: 2.25rem;
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -320,17 +326,10 @@ body {
 
 .docs-prose h2 {
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 400;
   font-size: 1.5rem;
   line-height: 1.3;
   margin: 2.5rem 0 1rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.docs-prose h2:first-of-type {
-  padding-top: 0;
-  border-top: none;
 }
 
 .docs-prose h3 {

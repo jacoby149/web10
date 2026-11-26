@@ -1,24 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Search, Link as LinkIcon, ChevronDown } from 'lucide-react'
+import { Menu, X, Search, Link as LinkIcon } from 'lucide-react'
 import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
-import { SOCIAL_ORIGIN, SOCIAL_FEED_URL } from '../lib/origins'
+import { SOCIAL_ORIGIN } from '../lib/origins'
 import BrandLogo from './BrandLogo'
 
-// Trending is a normal same-tab handoff, not another marketing screen.
 const navItems = [
   { path: '/', label: 'Home' },
-  { path: SOCIAL_FEED_URL, label: 'Trending' },
   { path: '/app-store', label: 'App Store' },
-
-  { path: '/join', label: 'Join' },
-]
-
-const learnItems = [
   { path: '/freedom', label: 'Freedom' },
-  { path: '/everything', label: 'The Everything App' },
   { path: '/docs', label: 'Docs' },
   { path: '/appearance', label: 'Appearance' },
 ]
@@ -27,53 +19,18 @@ function Navbar() {
   const location = useLocation()
   const classic = location.pathname === '/'
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [learnOpen, setLearnOpen] = useState(false)
-  const learnRef = useRef<HTMLDivElement>(null)
-  const learnTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
-  const openLearn = useCallback(() => {
-    clearTimeout(learnTimer.current)
-    setLearnOpen(true)
-  }, [])
-
-  const closeLearn = useCallback(() => {
-    learnTimer.current = setTimeout(() => setLearnOpen(false), 100)
-  }, [])
-
-  const isActive = (path: string) => {
-    if (path === '/') {
-      // Home = the classic landing (D125): the bare `/`.
-      return classic
-    }
-    return location.pathname === path || location.pathname.startsWith(path)
-  }
-
-  const isLearnActive = learnItems.some(item => isActive(item.path))
-
-  useEffect(() => {
-    if (!learnOpen) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLearnOpen(false)
-    }
-    document.addEventListener('keydown', handler)
-    return () => {
-      document.removeEventListener('keydown', handler)
-      clearTimeout(learnTimer.current)
-    }
-  }, [learnOpen])
-
-  useEffect(() => () => clearTimeout(learnTimer.current), [])
+  const isActive = (path: string) => location.pathname === path ||
+    (path !== '/' && location.pathname.startsWith(`${path}/`))
 
   return (
     <nav
-      data-classic={classic ? 'true' : undefined}
-      className={`sticky top-0 z-40 ${classic ? 'bg-classic-ink' : 'border-b border-border bg-background/95 backdrop-blur-sm'}`}
+      className="classic-surface sticky top-0 z-40 bg-classic-ink"
       role="navigation"
       aria-label="main navigation"
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link to="/" className="flex shrink-0 items-center" onClick={() => setMobileOpen(false)}>
-          <BrandLogo className={classic ? 'h-8' : 'h-7'} onDark={classic} />
+          <BrandLogo className="h-8" onDark />
         </Link>
 
         <div className="hidden items-center gap-1 lg:flex">
@@ -81,7 +38,7 @@ function Navbar() {
             <Link
               key={item.path}
               to={item.path}
-              reloadDocument={item.path === SOCIAL_FEED_URL}
+              aria-current={isActive(item.path) ? 'page' : undefined}
               className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-out ${
                 isActive(item.path)
                   ? 'bg-brand-muted text-brand-300'
@@ -92,45 +49,6 @@ function Navbar() {
             </Link>
           ))}
 
-          {/* Learn dropdown */}
-          <div
-            ref={learnRef}
-            className="relative"
-            onMouseEnter={openLearn}
-            onMouseLeave={closeLearn}
-          >
-            <button
-              onClick={() => setLearnOpen(v => !v)}
-              className={`flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-out ${
-                isLearnActive
-                  ? 'bg-brand-muted text-brand-300'
-                  : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
-              }`}
-              aria-expanded={learnOpen}
-              aria-haspopup="true"
-            >
-              Learn
-              <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${learnOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
-            </button>
-            {learnOpen && (
-              <div className="absolute left-0 top-full w-44 overflow-hidden rounded-lg border border-border bg-background/95 backdrop-blur-sm shadow-lg">
-                {learnItems.map(item => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setLearnOpen(false)}
-                    className={`block px-3 py-2.5 text-sm transition-colors duration-150 ${
-                      isActive(item.path)
-                        ? 'bg-brand-muted text-brand-300'
-                        : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="hidden items-center gap-2 lg:flex">
@@ -144,11 +62,11 @@ function Navbar() {
           <Button variant={classic ? 'outline' : 'brand'} size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
             Open web10 social
           </Button>
-          <Link to="/links">
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground">
+          <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground">
+            <Link to="/links" aria-label="Links">
               <LinkIcon className="h-4 w-4" strokeWidth={1.75} />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           <GitHubStarButton />
         </div>
 
@@ -163,13 +81,13 @@ function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className={`flex flex-col gap-1 px-4 pb-4 pt-2 lg:hidden ${classic ? '' : 'border-t border-border'}`}>
+        <div className="flex flex-col gap-1 px-4 pb-4 pt-2 lg:hidden">
           {navItems.map(item => (
             <Link
               key={item.path}
               to={item.path}
-              reloadDocument={item.path === SOCIAL_FEED_URL}
               onClick={() => setMobileOpen(false)}
+              aria-current={isActive(item.path) ? 'page' : undefined}
               className={`rounded-md px-3 py-3 text-sm font-medium ${
                 isActive(item.path)
                   ? 'bg-brand-muted text-brand-300'
@@ -179,35 +97,16 @@ function Navbar() {
               {item.label}
             </Link>
           ))}
-          <div className="rounded-md border border-border p-1">
-            <p className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
-              Learn
-            </p>
-            {learnItems.map(item => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileOpen(false)}
-                className={`block rounded-sm px-3 py-2.5 text-sm font-medium ${
-                  isActive(item.path)
-                    ? 'bg-brand-muted text-brand-300'
-                    : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
           <div className="mt-2 flex flex-col gap-2">
             <Button variant={classic ? 'outline' : 'brand'} size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
               Open web10 social
             </Button>
-            <Link to="/links" onClick={() => setMobileOpen(false)}>
-              <Button variant="ghost" size="sm" className="w-full justify-center">
+            <Button asChild variant="ghost" size="sm" className="w-full justify-center">
+              <Link to="/links" onClick={() => setMobileOpen(false)}>
                 <LinkIcon className="h-4 w-4" strokeWidth={1.75} />
                 Links
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <GitHubStarButton className="w-full justify-center" onClose={() => setMobileOpen(false)} />
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, PackageX, Star, LogIn, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AUTH_ORIGIN } from '@/lib/origins'
+import { catalogIconFor } from '@/lib/catalogBrand'
 
 function nodeApi(): string {
   if (typeof window !== 'undefined') {
@@ -253,7 +254,7 @@ function AppDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background px-4 py-16 sm:px-6 sm:py-24">
+      <div className="catalog-theme min-h-screen bg-background px-4 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto max-w-2xl">
           <Link
             to="/app-store"
@@ -284,7 +285,7 @@ function AppDetail() {
 
   if (notFound || !app) {
     return (
-      <div className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
+      <div className="catalog-theme min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
         <div className="mx-auto max-w-2xl text-center">
           <Link
             to="/app-store"
@@ -318,11 +319,8 @@ function AppDetail() {
   // Manifest is the identity source (D47) — prefer it over the stored values.
   const name = manifest?.name || manifest?.short_name || app.name
   const description = manifest?.description || app.description
-  const iconSrc = manifest
-    ? pickIcon(manifest)
-      ? resolveIcon(app.url, pickIcon(manifest)!)
-      : app.icon_url
-    : app.icon_url
+  const iconFromManifest = manifest && pickIcon(manifest)
+  const iconSrc = catalogIconFor(appUrl) ?? (iconFromManifest ? resolveIcon(app.url, iconFromManifest) : app.icon_url)
 
   const metricBlocks = [
     { value: app.metrics.users_30d, label: 'users · 30d' },
@@ -335,7 +333,7 @@ function AppDetail() {
   const shownStars = hoverStars || stars
 
   return (
-    <div className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
+    <div className="catalog-theme min-h-screen bg-background px-4 py-16 text-foreground sm:px-6 sm:py-24">
       <div className="mx-auto max-w-2xl">
         <Link
           to="/app-store"
@@ -373,7 +371,7 @@ function AppDetail() {
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col gap-3">
-            <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-foreground sm:text-3xl" data-testid="app-detail-name">
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl" data-testid="app-detail-name">
               {name}
             </h1>
             {description ? (
