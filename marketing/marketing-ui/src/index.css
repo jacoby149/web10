@@ -197,7 +197,10 @@
 }
 
 .classic-pledge {
+  background-color: var(--color-revolution-charcoal);
   background-image: linear-gradient(var(--classic-archive-shade), var(--classic-archive-shade)), url('/pledge-sky-2022.jpg');
+  /* Keep the archived charcoal showing through the near-black image. */
+  background-blend-mode: normal, screen;
 }
 
 @media (min-width: 64rem) and (hover: hover) and (prefers-reduced-motion: no-preference) {

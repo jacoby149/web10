@@ -70,9 +70,13 @@ describe('classic landing (D125)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The web10 Revolution')
   })
 
-  it('carries the 2022 pledge', async () => {
+  it('keeps the quiet 2022 pledge after Team and before the footer', async () => {
     await renderHome()
     expect(screen.getByText(/users lead their internet destiny/)).toBeInTheDocument()
+    const pledge = screen.getByRole('region', { name: 'The 2022 pledge' })
+    expect(screen.getByRole('heading', { name: 'Team' }).compareDocumentPosition(pledge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(pledge.compareDocumentPosition(screen.getByRole('contentinfo')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(pledge).getByText('2022')).toBeInTheDocument()
   })
 
   it('keeps Privacy immediately after Terms in the footer', async () => {

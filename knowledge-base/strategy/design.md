@@ -815,7 +815,7 @@ In the `@theme` copy, `brand` and `ring` map to `sky`, the CTA hover
 maps to `sky-bright`, and its text maps to `ink`. On `/`, use
 `--font-classic-display` (Georgia, Times New Roman, Times, serif) at regular
 weight. Use mixed-case hero and section headings for readability, and italics
-for the pledge. Use `--font-sans` (Jost, system-ui,
+for the pledge year. Use `--font-sans` (Jost, system-ui,
 sans-serif) for prose and navigation. The 2022 source (`f3d695394:home/`)
 used Georgia and Lineto Brown Pro; Jost is the self-hosted OFL stand-in,
 not a claim that the original used Jost. No third-party font requests.
@@ -836,7 +836,10 @@ use paper (`#fafafa`) with charcoal type, gray supporting text, and a readable
 blue accent. The flat, horizontal stats row restores the original `back3.jpg`
 image under a 65% black scrim, with no parallax or box. The pledge uses the
 archived `sky.jpg` from `f3d695394:home/layouts/images/sky.jpg` under the same
-scrim, correcting the old relative path. Ink (`#090c22`) is the image fallback.
+scrim, correcting the old relative path. The sky layers over charcoal to
+retain the look of the archive's rendered fallback. After the Team section,
+the pledge is a left-aligned sign-off in body-sized type, with separate
+attribution and year, not a second display headline.
 Keep `ink` for the header and the archive's
 charcoal and light gray for the footer. A 1px `border-border` line reads as a
 "stretchy divider" (operator, 25.11.2026, against a first capture:

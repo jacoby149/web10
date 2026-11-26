@@ -199,14 +199,15 @@ function Features() {
 
 function Pledge() {
   return (
-    <section className="classic-pledge px-6 py-12 sm:py-16">
-      <figure className="mx-auto max-w-3xl text-center">
-        <blockquote className="text-balance font-classic-display text-2xl italic leading-snug text-foreground sm:text-4xl">
-          “We pledge to make an internet space in which users lead their
-          internet destiny.”
+    <section aria-label="The 2022 pledge" className="classic-pledge px-6 py-12 sm:py-20">
+      <figure className="mx-auto max-w-6xl">
+        <blockquote className="max-w-prose text-base leading-relaxed text-foreground">
+          We pledge to make an internet space in which users lead their
+          internet destiny.
         </blockquote>
-        <figcaption className="mt-6 text-xs font-medium uppercase tracking-widest text-brand-300">
-          — web10 Team, 2022
+        <figcaption className="mt-4 text-foreground">
+          <span className="block font-classic-display text-lg">— web10 Team</span>
+          <span className="mt-3 block text-sm italic text-muted-foreground">2022</span>
         </figcaption>
       </figure>
     </section>
@@ -286,10 +287,10 @@ function Home() {
           <Features />
         </div>
         <StatsBand />
-        <Pledge />
         <div className="classic-paper">
           <Team />
         </div>
+        <Pledge />
       </main>
       <Footer />
     </div>
