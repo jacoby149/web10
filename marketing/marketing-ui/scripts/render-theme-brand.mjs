@@ -39,25 +39,4 @@ try {
     await writeFile(path.resolve(root, output), Buffer.from(result.png, 'base64'));
     console.log('[brand] derived transparent dark artwork', output, result.width, result.height);
   }
-  // Shared marketing catalog tile, not a replacement for installed app icons.
-  const mark = await readFile(path.resolve(root, '../web10-social/public/keys-mark.png'));
-  const png = await page.evaluate(async data => {
-    const image = new Image();
-    image.src = data;
-    await image.decode();
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 192;
-    const ctx = canvas.getContext('2d');
-    const height = 132;
-    const width = height * image.naturalWidth / image.naturalHeight;
-    ctx.drawImage(image, (192 - width) / 2, (192 - height) / 2, width, height);
-    ctx.globalCompositeOperation = 'source-in';
-    ctx.fillStyle = '#ffffff'; // canonical white keys, design.md §3
-    ctx.fillRect(0, 0, 192, 192);
-    ctx.globalCompositeOperation = 'destination-over';
-    ctx.fillStyle = '#1656d9'; // catalog cobalt, design.md §13
-    ctx.fillRect(0, 0, 192, 192);
-    return canvas.toDataURL('image/png').split(',')[1];
-  }, `data:image/png;base64,${mark.toString('base64')}`);
-  await writeFile(path.resolve(root, 'public/brand/social-catalog.png'), Buffer.from(png, 'base64'));
 } finally { await browser.close(); }

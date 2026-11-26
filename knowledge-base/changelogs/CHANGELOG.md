@@ -1,3 +1,6 @@
+6.31.1 || 26.11.2026
+fix(marketing): stabilize Home's fixed artwork crop when mobile browser chrome moves. Restore the original white-on-black icons for web10 social and web10 hub in the App Store and app details; installed apps are unchanged.
+
 6.31.0 || 26.11.2026
 feat(stats): expose retained, counted app visits as `app_visits` in public `/v3/stats`, reusing the active-user query. Show Total app visits as the fourth homepage counter when available, with three counters on older nodes. Put icons beside the values and labels underneath; abbreviate values from 1,000 with up to two significant digits. No new event collection.
 

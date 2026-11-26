@@ -425,6 +425,17 @@
   background: var(--classic-backdrop) center / cover no-repeat;
 }
 
+@supports (block-size: 100lvh) {
+  @media (hover: none), (width < 64rem) {
+    .classic-hero::before, .classic-stats::before {
+      /* Size cover for the full-height viewport even while browser chrome is visible. */
+      --classic-backdrop-height: 100lvh;
+      inset-block-end: auto;
+      block-size: var(--classic-backdrop-height);
+    }
+  }
+}
+
 .classic-hero::after, .classic-stats::after {
   position: absolute;
   z-index: -1;
