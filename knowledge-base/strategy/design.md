@@ -532,7 +532,8 @@ Settings, Monetization, then admin-only Node Settings. Keep the card premier;
 People is the first ordinary navigation row.
 
 Social's top bar is the same solid ice blue as Hub and marketing in both
-themes. The desktop wordmark strip aligns with the bar; use dark ink and
+themes, with no divider along its edge. The desktop wordmark strip meets the
+bar without a seam; use dark ink and
 pale control fills for search and account controls. Open menus and search results
 retain their selected Light or Dark surface. The floating mobile dock, sidebar
 below the wordmark, and navigation menus keep their frosted chrome. Content, forms

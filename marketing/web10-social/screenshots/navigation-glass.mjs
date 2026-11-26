@@ -40,12 +40,17 @@ try {
       assert.equal(await header.isVisible(), true);
       assert.deepEqual(await header.evaluate(el => {
         const css = getComputedStyle(el);
-        return [css.backgroundColor, css.backdropFilter];
-      }), ['rgb(181, 212, 220)', 'none'], 'Social shares Hub’s solid ice-blue top bar');
+        return [css.backgroundColor, css.backdropFilter, css.borderTopWidth, css.borderBottomWidth];
+      }), ['rgb(181, 212, 220)', 'none', '0px', '0px'], 'Social shares Hub’s solid ice-blue top bar without a divider');
       if (!mobile) {
         const strip = page.getByTestId('sidebar-brand-strip');
-        assert.equal(await strip.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(181, 212, 220)');
-        assert.equal((await strip.boundingBox()).height, (await header.boundingBox()).height);
+        assert.deepEqual(await strip.evaluate(el => {
+          const css = getComputedStyle(el);
+          return [css.backgroundColor, css.borderBottomWidth];
+        }), ['rgb(181, 212, 220)', '0px']);
+        const brand = await strip.boundingBox(), bar = await header.boundingBox();
+        assert.equal(brand.height, bar.height);
+        assert.equal(brand.x + brand.width, bar.x, 'brand strip and toolbar meet with no seam');
       }
       assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'no painted frost gradient');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

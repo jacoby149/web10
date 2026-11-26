@@ -287,7 +287,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
           <div className="absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
         </div>
-        <div className="relative flex h-14 items-center border-b border-social-header-ink/20 bg-social-header px-4" data-testid="sidebar-brand-strip">
+        <div className="relative -mr-px flex h-14 items-center bg-social-header px-4" data-testid="sidebar-brand-strip">
           <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
@@ -423,7 +423,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
-        <header data-testid="topbar-mobile" className="md:hidden flex shrink-0 items-center justify-between px-3 h-14 border-b border-social-header-ink/20 bg-social-header sticky top-0 z-20 gap-1">
+        <header data-testid="topbar-mobile" className="md:hidden flex shrink-0 items-center justify-between px-3 h-14 bg-social-header sticky top-0 z-20 gap-1">
           <Wordmark className={cn('shrink-0 [&_.wordmark-label]:text-base', isAnon && 'max-[359px]:[&_.wordmark-label]:sr-only')} />
           <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
@@ -473,7 +473,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         {!isShorts && (
           <header
             data-testid="topbar-desktop"
-            className="hidden md:flex shrink-0 items-center justify-between gap-4 border-b border-social-header-ink/20 bg-social-header z-20 px-4 h-14"
+            className="hidden md:flex shrink-0 items-center justify-between gap-4 bg-social-header z-20 px-4 h-14"
           >
             {/* The desktop search: a fixed-width field on the left (the
                 YouTube/Instagram top-bar shape). The results dropdown
