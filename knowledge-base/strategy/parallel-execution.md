@@ -85,6 +85,8 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
+- [✓ 6.32.25 local] **Hub “More” menu for the removed sidebar's ecosystem destinations** — What is web10 / App Store / Docs return as a More menu on the ice-blue header (top bar beside the account chip and the sign-in header), desktop only, new-tab external links, closed by default, footer credit included. `ui/src/lib/links.ts` restored; `MoreMenu.tsx` added to the shared shell; focused unit controls plus the real-Chromium navigation gate (updated to open the menu and verify hrefs/targets) pass in both themes at 375/768/1280/1440px; desktop/375px captures inspected. No auth, consent, API or SDK change; no live auth or deployment claim.
+
 - [✓ 6.32.13 local] **Hub top-bar navigation and in-page search** — desktop header navigation from 768px, phone dock retained, App permissions and Pending requests search in their lists. Verified in both themes at 375/768/1280/1440px with Chromium fixtures; no live auth or deployment claim.
 
 - [✓ 6.32.4 local] **Hub navigation and blue header** — dock at every width, ice-blue Hub and sign-in chrome and no sidebar promos. Keep role-based navigation and account controls. Social keeps the keys and adds “social” to its wordmark; App Store artwork is unchanged. Avatar interop follows separately.

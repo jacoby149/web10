@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.25 local] **Hub “More” menu for the ecosystem destinations** — the removed sidebar's What is web10 / App Store / Docs links return as a More menu on the ice-blue header (top bar and sign-in, desktop only, new-tab external links, footer credit included); phone dock and account controls unchanged.
+
 - [✓ 6.32.24 local] **Social dark sidebar and transparent toolbar mark** — match the desktop sidebar to marketing charcoal in Dark mode; let the ice-blue toolbar supply the backdrop for the conversation PNG.
 
 - [✓ 6.32.23 local] **Social ice-blue top bar** — align Social’s desktop and phone headers with Hub and marketing; preserve app branding, account behavior, and surrounding surfaces.

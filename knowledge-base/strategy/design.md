@@ -604,7 +604,11 @@ inset; on a uniform backdrop, displacement must add no lines.
 
 **Hub refresh (26.11.2026):** Put the role-appropriate destinations in the
 ice-blue top bar from 768px up; below that, keep the glass phone dock. The
-desktop sidebar and ecosystem promos stay removed. Search lives in the body
+desktop sidebar stays removed; its ecosystem destinations (What is web10,
+App Store, Docs — the removed "ecosystem promos") open from a **More** menu
+on the ice-blue header instead: the top bar beside the account chip and the
+sign-in header, desktop only, new-tab external links, closed by default,
+with the sidebar's footer credit in the menu footer. Search lives in the body
 of the list it filters (App permissions or Pending requests), at every width.
 Hub and sign-in share an ice-blue header (`#b5d4dc`) with
 transparent dark keys, plus marketing-inspired paper and charcoal themes.

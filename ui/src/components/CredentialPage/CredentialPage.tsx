@@ -1,4 +1,5 @@
 import Branding from '../shared/Branding';
+import MoreMenu from '../shared/MoreMenu';
 import LoginForm from './LoginForm';
 import ForgotForm from './ForgotForm';
 import SignupForm from './SignupForm';
@@ -21,8 +22,11 @@ function CredentialPage({ I }: { I: Record<string, any> }) {
       className="flex min-h-dvh flex-col items-center bg-background text-foreground"
       data-testid="credential-page"
     >
-      <header className="hub-header flex h-14 w-full shrink-0 items-center px-4 sm:px-6">
+      {/* The More menu keeps the old sidebar's ecosystem links reachable from
+          the signed-out header too — desktop only, like the old sidebar. */}
+      <header className="hub-header flex h-14 w-full shrink-0 items-center justify-between gap-2 px-4 sm:px-6">
         <Branding I={I} size="sm" tagline={false} hubHeader />
+        <MoreMenu />
       </header>
       <div className="flex w-full flex-1 items-center justify-center px-5 py-8 sm:py-10">
         <CredentialForm I={entry} />
