@@ -1,3 +1,6 @@
+6.32.12 || 26.11.2026
+research: the 26.10 setup statements take their per-query memory cap from the admission-declared DAU envelope (the sized host's server cap) instead of the banked 22 GiB frame pin, so the full-store engagement migration INSERT fits on the sized host; banked admissions (no dau_envelope) keep the exact 22 GiB pin and the measured single-read comparison frame is unchanged. One control. No host, no admission, no native execution.
+
 6.32.11 || 26.11.2026
 research: the sustained-DAU Parquet restore now writes the modern-restore receipt the banked read-setup path reads (source, engine, retained-snapshot reference, declared envelope) with fixture=None so the profiles use the banked parity-fixture fallback computed from this store instead of a snapshot fixture. One control extended. No host, no admission, no native execution.
 
