@@ -136,6 +136,36 @@ class OracleAudit(unittest.TestCase):
                 run.audit_response(bad, 'reader-1', self.billboards, self.expected_views)
 
 
+class StoreCounts(unittest.TestCase):
+    def test_parquet_transfer_binds_to_the_verified_input_not_the_snapshot_census(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps(dict(dau_store_source='PARQUET_TRANSFER')))
+            (root / 'input').mkdir()
+            (root / 'input' / 'manifest.json').write_text(json.dumps(dict(files=dict(
+                documents=dict(rows=88200300), content_events=dict(rows=1600000000),
+                doc_groups=dict(rows=92200600)))))
+            self.assertEqual(run.input_manifest_counts(root), dict(documents=88200300,
+                content_events=1600000000, doc_groups=92200600))
+
+    def test_parquet_transfer_refuses_store_drift_from_the_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps(dict(dau_store_source='PARQUET_TRANSFER')))
+            (root / 'input').mkdir()
+            (root / 'input' / 'manifest.json').write_text(json.dumps(dict(files=dict(
+                documents=dict(rows=88200300), content_events=dict(rows=1600000000),
+                doc_groups=dict(rows=92200600)))))
+            session = Mock()
+            session.rows.side_effect = lambda label, sql: (
+                [dict(documents=88200363, events=1600000000)], label)
+            with patch.object(run, 'canonical_fingerprint', return_value=dict(
+                    canonical_content_sha256='x', canonical_generation='g')), \
+                    patch.object(run.modern, 'Session', return_value=session):
+                with self.assertRaisesRegex(ValueError, 'verified input'):
+                    run.verify_store(root)
+
+
 class RestoreReentry(unittest.TestCase):
     def test_completed_import_reverifies_and_skips_the_reimport(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -148,6 +178,11 @@ class RestoreReentry(unittest.TestCase):
                 dict(project='web10-costfn-frozen-x', api_port=6098,
                     overlay=str(root / 'restore.overlay.json'))))
             (root / 'restore.overlay.json').write_text(json.dumps(self.overlay_value()))
+            (root / 'input').mkdir()
+            (root / 'input' / 'manifest.json').write_text(json.dumps(dict(files=dict(
+                documents=dict(rows=run.BANKED_DOCUMENT_COUNT),
+                content_events=dict(rows=run.BANKED_EVENT_COUNT),
+                doc_groups=dict(rows=92200600)))))
             counts = [dict(documents=run.BANKED_DOCUMENT_COUNT,
                         events=run.BANKED_EVENT_COUNT)]
             with patch.object(run.arm_run, 'operation'), \
