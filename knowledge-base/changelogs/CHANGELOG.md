@@ -1,3 +1,6 @@
+6.29.13 || 25.11.2026
+research: the sustained-DAU runner's store verification computes the canonical content fingerprint without the banked 28 GiB container assertion, so the sized host's declared envelope (100 GiB container / 80 GiB server cap) verifies the same canonical bytes. The snapshot-host fingerprint binding and the mid-hash generation-change refusal are unchanged; one new control. No host, no admission, no native execution.
+
 6.29.12 || 25.11.2026
 research: add the sustained-DAU load test runner and its offline controls (`dau_sustain_workload.py` + `dau_sustain_run.py`, tested in `dau_sustain_workload.test.py` / `dau_sustain_run.test.py`) for the DAU-SUSTAINED-LOAD.md contract: the frozen workload (W/A/B/D phases at 15/s peak and 2.9/s average, 150-reader staggered round-robin pool, 100-writer publication stream, pre-declared stops and debt-quantity definitions) and the host-side driver (snapshot-store verification against the banked fingerprint, declared steady state, shared-span reader-pool gate, per-reader frozen oracle with the W-phase first-delivery delta, native fail-closed writer-grant verification, open-loop offered/achieved accounting, storage-headroom calibration gate, G1-G5 verdicts on the banked windows). No host, no admission, no native execution.
 
