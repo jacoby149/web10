@@ -85,6 +85,8 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
+- [✓ 6.32.28 local] **Hub desktop sidebar and More menu** — desktop navigation moves to the sidebar, with Social charcoal in Dark; the desktop sidebar and phone dock both restore ecosystem links under More…. In-page search and role gates stay unchanged.
+
 - [✓ 6.32.13 local] **Hub top-bar navigation and in-page search** — desktop header navigation from 768px, phone dock retained, App permissions and Pending requests search in their lists. Verified in both themes at 375/768/1280/1440px with Chromium fixtures; no live auth or deployment claim.
 
 - [✓ 6.32.4 local] **Hub navigation and blue header** — dock at every width, ice-blue Hub and sign-in chrome and no sidebar promos. Keep role-based navigation and account controls. Social keeps the keys and adds “social” to its wordmark; App Store artwork is unchanged. Avatar interop follows separately.
@@ -277,6 +279,12 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 - [ ] **MK-CLASSIC-05 — decision + ship (Phase 5)** — single end-of-window read; winner renders at `/` (flag retired, code simplified to the winner); loser stays at `/revolution` if it has ongoing value or is retired; outcome + decision recorded in `decisions.md` (new D number), lane ticked. Optional follow-up only if classic wins: a second experiment splitting pitch vs ask (classic hero, current Explore-only CTA) to attribute story vs signup-ask.
 
 ### Lane: social-appearance
+
+- [✓ 6.32.28 local] **Social Discover topic alignment** — line up topic chips with the post column at desktop widths, including beside the Top 10 rail; preserve mobile gutters and URL filters.
+
+- [✓ 6.32.27 local] **Social rounded blue icon and taller headers** — restore the blue-backed icon in both layouts, align the desktop header at 64px, leave 12px between the desktop bell and account picker, and make the phone header 60px. Notifications open below the bar in both layouts; exports stay unchanged.
+
+- [✓ 6.32.26 local] **Soften the Dark desktop Social top bar and space the sidebar** — match the sidebar charcoal and run a divider across the entire header only on desktop Dark. Leave 12px before the first desktop sidebar row. Preserve Light and phone colors, the dock, and other apps.
 
 - [✓ 6.32.24 local] **Social dark sidebar and transparent toolbar mark** — preview the marketing charcoal on desktop Dark and the unboxed PNG on Social's ice-blue toolbar; preserve Join, install, and mobile dock art.
 

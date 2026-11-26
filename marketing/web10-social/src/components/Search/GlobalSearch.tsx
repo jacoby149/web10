@@ -34,8 +34,8 @@ type GlobalSearchVariant = 'desktop' | 'mobile';
 interface GlobalSearchProps {
   /**
    * desktop: slim top bar, field expands in place, results in a dropdown.
-   * mobile: icon in the 56px header; open → full-screen results view with an
-   * X (a dropdown from a 56px header over a scrollable screen + keyboard is
+   * mobile: icon in the top bar; open → full-screen results view with an
+   * X (a dropdown over a scrollable screen + keyboard is
    * fiddly — the operator's call).
    */
   variant: GlobalSearchVariant;
@@ -841,7 +841,7 @@ export default function GlobalSearch({ variant }: GlobalSearchProps) {
     );
   }
 
-  // Mobile: the trigger sits inline in the 56px header; open → a full-screen
+  // Mobile: the trigger sits inline in the top bar; open → a full-screen
   // results view (not a dropdown) with an X to collapse. The portal keeps it
   // above the app chrome and on the selected theme's reading surface.
   return (

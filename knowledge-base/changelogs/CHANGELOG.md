@@ -1,3 +1,12 @@
+6.32.28 || 26.11.2026
+style: put Hub desktop navigation in a Social-style charcoal sidebar in Dark mode and restore What is web10, App Store, and Docs under More… there and in the phone dock. Align Social’s Discover topic chips with the desktop post column without changing filters or the phone gutter.
+
+6.32.27 || 26.11.2026
+style(social): restore the rounded, blue-filled conversation icon in both headers. Match marketing's 64px desktop height, leave 12px between the bell and account picker, and give phones a 60px bar. Notifications stay below both headers; catalog/install artwork is unchanged.
+
+6.32.26 || 26.11.2026
+style(social): match the top bar to the sidebar charcoal in desktop Dark mode, with a full-width bottom divider and light controls. Give the first desktop sidebar row 12px below the wordmark. Keep the ice-blue bar in Light mode and on phones; Hub, marketing, and the phone dock are unchanged.
+
 6.32.25 || 26.11.2026
 research: the sustained-DAU runner now rebuilds the K20 expected references a reused (already saved) read-setup step does not regenerate in memory: at task start, when read-setup is stored, the reference-*/expected.json objects the oracle froze are reloaded into the stage actions, and a missing artifact refuses. The billboard fixture setup now refuses the degenerate empty-expectation state (no target groups) before it would emit an empty-values doc_groups insert, which the native side rejects (code 108, no query_log receipt) and which made the awaiter exhaust the unchanged 600 s budget (attempt 12's stop). Four controls. No host, no admission, no native execution.
 

@@ -1,5 +1,13 @@
 # web10 v3 Plan
 
+- [✓ 6.32.28 local] **Hub desktop sidebar and More menu** — use Social's charcoal in desktop Dark, keep role-gated destinations, and restore the three ecosystem links in the sidebar and phone dock. Preserve the header and in-page search.
+
+- [✓ 6.32.28 local] **Social Discover topic alignment** — line up the chips with the desktop post column, accounting for the Top 10 rail. Keep the phone gutter and URL filters.
+
+- [✓ 6.32.27 local] **Social rounded blue icon and taller headers** — use the blue-backed icon in both headers, match marketing's 64px desktop bar, separate the desktop bell and account picker, and give phones a 60px bar. Preserve existing artwork exports.
+
+- [✓ 6.32.26 local] **Soften the Dark desktop Social top bar and space the sidebar** — match the sidebar charcoal and add a full-width divider only on desktop Dark; give the first desktop navigation row 12px below the wordmark. Preserve Light and phone colors.
+
 - [✓ 6.32.24 local] **Social dark sidebar and transparent toolbar mark** — match the desktop sidebar to marketing charcoal in Dark mode; let the ice-blue toolbar supply the backdrop for the conversation PNG.
 
 - [✓ 6.32.23 local] **Social ice-blue top bar** — align Social’s desktop and phone headers with Hub and marketing; preserve app branding, account behavior, and surrounding surfaces.

@@ -45,6 +45,10 @@ body {
   border: 1px solid transparent;
   border-radius: var(--radius-full);
 }
+
+:root[data-theme="dark"] .hub-sidebar {
+  background-color: var(--color-hub-sidebar-dark);
+}
 .auth-mobile-dock::after {
   content: '';
   position: absolute;

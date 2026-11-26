@@ -91,7 +91,7 @@ function Wordmark({ className }: { className?: string }) {
   // Facebook-style variant was retired with the sidebar search).
   return (
     <span className={cn('flex items-center gap-2 text-social-header-ink', className)}>
-      <SocialMark className="size-8" transparent />
+      <SocialMark className="size-8" />
       <span className="wordmark-label whitespace-nowrap font-display text-lg font-bold tracking-tight">
         web<span className="text-social-header-accent">10</span> <span>social</span>
       </span>
@@ -287,10 +287,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         <div className="pointer-events-none absolute inset-0 overflow-hidden dark:hidden" aria-hidden="true">
           <div className="absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
         </div>
-        <div className="relative -mr-px flex h-14 items-center bg-social-header px-4" data-testid="sidebar-brand-strip">
+        <div className="social-desktop-header relative -mr-px flex h-16 shrink-0 items-center bg-social-header px-4" data-testid="sidebar-brand-strip">
           <Wordmark />
         </div>
-        <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
+        <nav className="relative flex-1 px-2 pt-3 space-y-1" aria-label="Primary">
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
             const target = path === '/profile' ? profilePath : path;
             // The profile item shows the user's own name (the operator's call:
@@ -423,7 +423,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
-        <header data-testid="topbar-mobile" className="md:hidden flex shrink-0 items-center justify-between px-3 h-14 bg-social-header sticky top-0 z-20 gap-1">
+        <header data-testid="topbar-mobile" className="md:hidden flex shrink-0 items-center justify-between px-3 h-15 bg-social-header sticky top-0 z-20 gap-1">
           <Wordmark className={cn('shrink-0 [&_.wordmark-label]:text-base', isAnon && 'max-[359px]:[&_.wordmark-label]:sr-only')} />
           <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
@@ -473,7 +473,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         {!isShorts && (
           <header
             data-testid="topbar-desktop"
-            className="hidden md:flex shrink-0 items-center justify-between gap-4 bg-social-header z-20 px-4 h-14"
+            className="social-desktop-header hidden md:flex shrink-0 items-center justify-between gap-4 bg-social-header z-20 px-4 h-16"
           >
             {/* The desktop search: a fixed-width field on the left (the
                 YouTube/Instagram top-bar shape). The results dropdown
@@ -481,7 +481,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             <div className="w-72 max-w-full shrink-0">
               <GlobalSearch variant="desktop" />
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-3">
             {isAnon ? (
               /* Anon: no notifications, no account row — a clear Sign in
                  affordance (the operator: "make it clear you can sign in"). */
@@ -657,7 +657,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             data-testid="notifications-panel"
             role="dialog"
             aria-label="Notifications"
-            className="fixed z-40 inset-x-0 top-14 bottom-14 bg-surface flex flex-col md:inset-x-auto md:top-14 md:right-4 md:bottom-auto md:w-96 md:max-w-[calc(100vw-2rem)] md:max-h-[calc(100vh-4rem)] md:rounded-lg md:border md:border-border md:shadow-[0_8px_30px_rgb(0,0,0/0.35)] md:bg-popover md:overflow-hidden"
+            className="fixed z-40 inset-x-0 top-15 bottom-14 bg-surface flex flex-col md:inset-x-auto md:top-16 md:right-4 md:bottom-auto md:w-96 md:max-w-[calc(100vw-2rem)] md:max-h-[calc(100vh-4rem)] md:rounded-lg md:border md:border-border md:shadow-[0_8px_30px_rgb(0,0,0/0.35)] md:bg-popover md:overflow-hidden"
           >
             <div className="flex-1 min-h-0 overflow-y-auto">
               <NotificationsScreen onClose={() => setNotificationsOpen(false)} />

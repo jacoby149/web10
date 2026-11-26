@@ -159,6 +159,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail' || screen === 'po
     : screen === 'feed' ? '/feed'
     : screen === 'posts' ? '/feed'
     : screen === 'posts-following' ? '/feed?tab=following'
+    : screen === 'posts-discover' ? discoverUrl('/feed')
     : screen === 'composer' ? '/composer'
     : screen === 'uploads' ? `/uploads${params.get('upload') ? `?upload=${encodeURIComponent(params.get('upload')!)}` : ''}`
     : screen === 'upload-compose' ? '/upload-compose'
