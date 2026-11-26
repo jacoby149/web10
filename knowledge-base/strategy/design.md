@@ -856,8 +856,8 @@ by re-pointing the scope.
 
 ### Marketing-wide Revolution styling
 
-The archive's paper and charcoal are the shared marketing canvases, including
-the App Store, app details, and docs. Light uses paper (`#fafafa`), white
+The archive's paper and charcoal are the shared marketing canvases. Light uses
+paper (`#fafafa`), white
 cards, pale blue raised surfaces (`#e3edf8`), charcoal text (`#232323`),
 gray secondary text (`#474747`), and deep blue links, buttons, and focus
 rings (`#174a76`, hover `#0e365b`). Dark uses the home footer's charcoal
@@ -877,9 +877,10 @@ content and a stronger accent only for actions and focus. Type and spacing
 should separate sections before color does. The homepage is cinematic; the
 App Store uses this hierarchy as a catalog, not as a second landing page.
 
-The App Store uses the shared paper and charcoal tokens in Light and Dark.
-Keep the introduction centered and compact, align featured rows,
-search, and browse grid on one rail, and give the app artwork the strongest
-colors. Browse tiles stay icon-led: two columns on phones and five where
-space allows. On phones the featured description gets the full card width.
-Both appearances keep the same hierarchy.
+The App Store and app details use the homepage's ink canvas and deep navy cards
+in Dark; Light keeps the shared paper canvas. Keep the centered introduction
+compact, align featured rows, search, and browse grid to the same centered
+64rem content width, and give the app icons the strongest colors. Use the
+existing App Store components; don't put the homepage images behind the
+catalog. Browse stays icon-led: two columns on phones and five where space
+allows. On phones the featured description gets the full card width.

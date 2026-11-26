@@ -336,8 +336,8 @@ function AppStore() {
   ] : []
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="mx-auto max-w-3xl px-5 pt-9 pb-7 text-center sm:px-6 sm:pt-12 sm:pb-9">
+    <main className="catalog-theme min-h-screen bg-background text-foreground">
+      <header className="mx-auto max-w-5xl px-5 pt-8 pb-6 text-center sm:px-6 sm:pt-10 sm:pb-8">
           <p className="inline-block rounded-full bg-brand-muted px-3 py-1 text-xs font-medium uppercase tracking-widest text-brand-300">
             The web10 App Store
           </p>
@@ -363,7 +363,7 @@ function AppStore() {
           </div>
       </header>
 
-      <div className="mx-auto max-w-6xl space-y-6 px-5 pb-12 sm:space-y-8 sm:px-6 sm:pb-16">
+      <div className="mx-auto max-w-5xl space-y-5 px-5 pb-10 sm:space-y-6 sm:px-6 sm:pb-12">
         {/* Plug slots — curated, above the grid */}
         {!loading && plugSlots.length > 0 && (
           <section aria-labelledby="featured-apps" data-testid="plug-slots">
@@ -445,7 +445,7 @@ function AppStore() {
 
           {/* Load more — the list is server-paginated (D49) */}
           {!loading && !searchQuery && apps.length < total && (
-            <div className="mt-10 flex justify-center">
+            <div className="mt-7 flex justify-center sm:mt-8">
               <button
                 type="button"
                 onClick={loadMore}
