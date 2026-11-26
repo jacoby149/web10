@@ -19,11 +19,12 @@ describe('classic landing (D125)', () => {
     await renderHome()
     const h1 = screen.getByRole('heading', { level: 1 })
     expect(h1).toHaveTextContent('The web10 Revolution')
-    // Operator-authored sub copy (25.11.2026): "domain name" = the user's
-    // own web10 address, not a DNS purchase. Not the 2022 original.
-    expect(screen.getByText(/Start owning your photos, music, and data on the internet\. The key to the vault is your domain name\./)).toBeInTheDocument()
+    // Restored pre-D13 sub copy (operator, 25.11.2026): "domain name" = the
+    // user's own web10 address, not a DNS purchase. The original line
+    // reads better than the vault-key tightening.
+    expect(screen.getByText(/Get a domain name to start owning your photos, music, and data on the internet\./)).toBeInTheDocument()
     // The always-dark surface is scoped on the page root (index.css).
-    expect(document.querySelector('[data-classic="true"]')).not.toBeNull()
+    expect(document.querySelector('.classic-surface')).not.toBeNull()
   })
 
   it('has a single entry CTA into the social app (operator: "JUST be Enter web10 social")', async () => {
@@ -47,9 +48,9 @@ describe('classic landing (D125)', () => {
     expect(screen.getByRole('heading', { name: 'Peer to Peer' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Own Your Data' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Data Freedom' })).toBeInTheDocument()
-    // "with your domain", not "on your domain" (operator, 25.11.2026): the
-    // domain is the key to the vault, not storage the data sits on.
-    expect(screen.getByText(/Your data isn't stuck anymore, it's with your domain on your terms\./)).toBeInTheDocument()
+    // "on your domain", restored (operator, 25.11.2026): the pre-D13 line
+    // reads better than the more accurate "with" rewording.
+    expect(screen.getByText(/Your data isn't stuck anymore, it's on your domain on your terms\./)).toBeInTheDocument()
   })
 
   it('renders the live stats band from /v3/stats', async () => {

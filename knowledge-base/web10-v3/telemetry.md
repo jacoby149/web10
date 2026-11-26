@@ -142,6 +142,9 @@ merely that a `$snapshot` batch exists. New recordings after deployment are
 required; removed metadata/CSS cannot be recovered from old recordings.
 Fixed structural MIME/input types, stylesheet rel and numeric rrweb blocked-media
 dimensions also survive; masking `type="text/css"` disables the stylesheet.
+Marketing theme CSS uses preserved `dark` and `classic-surface` classes,
+not `data-*` selectors. Replay continues to omit CSS resource URLs, so a
+decorative background image can be absent even when palette and layout match.
 
 ## Configure and verify
 

@@ -33,6 +33,13 @@ The bundled founder portrait uses the shared `ReliableImage` renderer.
 It lazy-loads at its original square size, and a retry requests only the
 same local asset. It does not need a renderer-inventory exception.
 
+**Marketing follow-through (D126):** the App Store and the rest of marketing
+adopt the same typography and blue palette, including a cool Light mode.
+The homepage keeps the fractal. The header shows Home, App Store, Freedom,
+Docs and Appearance directly. Trending and Join are no longer tabs; their
+old links still work. The Everything App pitch is retired; `/everything`
+redirects home. See [design.md §13](design.md#marketing-wide-revolution-styling).
+
 ## Why
 
 The marketing homepage was rebuilt on 19.07.2026 (D13, 1.0.63) from the
@@ -135,17 +142,20 @@ shell — and faithful in soul:
 
 - **Hero**: fractal background (desktop), “The web10 Revolution”,
   **operator-approved sub copy (25.11.2026)**: “Use a web10 app. Sign up
-  for an account. Start owning your photos, music, and data on the
-  internet. The key to the vault is your domain name.” (An added
-  “that only you control” clause was drafted and cut as too much.)
+  for an account. Get a domain name to start owning your photos, music,
+  and data on the internet.” (An added “that only you control” clause was
+  drafted and cut as too much.)
   Reading: “domain name” = the user’s **own web10 address**
   (the `web10.app/jacoby149`-style profile URL they get at signup), not a
   DNS purchase — web10 does not sell or issue domains (the D41 property
   that the address stays the user’s is what makes the metaphor hold).
   Evolution: the 2022 original (“Get a domain name to
   start owning…”) was first kept as-is, then the operator tightened it to
-  the vault-key line; a TXT-record rewrite (“Point your domain at it with a
-  TXT record…”) was discussed and rejected as harder to understand. The
+  the vault-key line, then restored the original the same day (25.11.2026)
+  — the operator prefers the original line’s voice, “even though it is a
+  little less accurate”; a TXT-record rewrite (“Point your domain at it
+  with a TXT record…”) was discussed and rejected as harder to understand.
+  The
   real-DNS-domain claim (a TXT record at `web10.<yourdomain.com>`
   attaching the user’s own domain; repointing the record moves the vault
   between nodes without changing the address) remains a separate, deeper
@@ -155,10 +165,12 @@ shell — and faithful in soul:
   primary **“Enter web10” → AUTH_ORIGIN** (the signup ask, through the
   existing decorated handoff) and secondary **“Explore web10” → SOCIAL_ORIGIN**
   (D111 preserved).
-- **Features**: Peer to Peer / Own Your Data / Data Freedom — original copy,
-  with one operator-approved adjustment (25.11.2026): the Own Your Data
-  body’s “it’s **on** your domain” → “it’s **with** your domain” — the
-  domain is the key to the vault, not storage the data sits on.
+- **Features**: Peer to Peer / Own Your Data / Data Freedom — original
+  copy. The Own Your Data body keeps the pre-D13 “it’s **on** your domain
+  on your terms”: an operator tightening to “with” (the domain as vault
+  key, not storage) was reversed the same day (25.11.2026) — the operator
+  prefers the original line’s voice, “even though it is a little less
+  accurate”.
 - **Stats band**: classic navy, live `POST /v3/stats` — users / apps in the
   store / data liberated (existing fields only).
 - **Pledge quote** (2022) — kept.
