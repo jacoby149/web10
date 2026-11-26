@@ -1,3 +1,6 @@
+6.30.8 || 26.11.2026
+research: the full-store hybrid runner now loads the gates' expected references from the persisted billboard-applied receipts when the read-setup step is reused on task-mode resume (the in-memory profiles only exist when that step actually ran). One new control. No engine, host or admission change.
+
 6.30.7 || 25.11.2026
 research: the full-store hybrid runner now normalizes a malformed `aggregate_seed_day_buckets` admission value (an int where the banked seed planner owns a {day: buckets} dict) to the banked default — one slice per owned day, with the all-time backfill's bounded batches internal — and records the repair in the task receipt's admission copy. Two new controls. No engine, host or admission-document change.
 
