@@ -266,7 +266,7 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 - [✓ 6.31.1 local] **MK-REVOLUTION-STABLE-MOBILE-ART** — 375px Chromium verifies the large-viewport sizing and unchanged layer size under a visual-viewport change; pinned-art pixel checks still pass. A physical URL-bar check is not implied.
 - [✓ 6.31.1 local] **MK-REVOLUTION-ORIGINAL-APP-ICONS** — both cards reuse the pre-cobalt asset. Chromium checks its black pixels in the catalog and app detail in both modes. No change to installed app icons or their themes.
 
-- [✓ 6.32.9 local] **Hub in App Store Browse** — one searchable, unbadged Hub card; Social alone is featured. Preserve Hub's keys icon, registration count and link.
+- [✓ 6.32.10 local] **Hub in App Store Browse** — one searchable, unbadged Hub card; Social alone is featured. Preserve Hub's keys icon, registration count and link.
 - [✓ 6.31.1 local] **MK-REVOLUTION-STORE-ART** — three distinct app windows connect to one data key. Keep the shared intro layout, catalog, and other page illustrations unchanged.
 - [ ] **MK-CLASSIC-03 — observation window (Phase 3)** — 2–4 weeks, no flag: PostHog funnel comparison `/revolution` vs `/` (views, CTA clicks, signups), recorded against the Phase 0 baseline. Exit: `/revolution` signups ≥ `/` at equal-or-lower traffic → Phase 4; clearly worse → one copy/CTA iteration + one more window; too thin → extend once, then observational-only (stated plainly, no fake significance).
 - [ ] **MK-CLASSIC-04 — the A/B on `/` (Phase 4)** — PostHog flag `home_classic` 50/50 on the landing route only: variant `classic` renders the full classic composition at `/`, variant `current` unchanged; client-side evaluation, variant attached to pageview/funnel events, signup attribution via the existing campaign handoff + account-row signup context. The pre-declared decision rule (primary metric = completed signups, window = max(N days, M visits/arm), minimum lift, no peeking) is written into the contract and operator-approved BEFORE the first visit. Gate: rule recorded + flag PR with variant controls (both variants render; each CTA set carries its correct destination; allowlisted events only).
@@ -274,7 +274,7 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
-- [✓ 6.32.8 local] **Social conversation mark** — use full-body three-person artwork without a background in Social chrome and Join, on white in the App Store. No theme-specific variant or installed-icon change.
+- [✓ 6.32.9 local] **Social conversation mark** — use full-body three-person artwork without a background in Social chrome and Join, on white in the App Store. No theme-specific variant or installed-icon change.
 
 - [✓ 5.20.1 local] **Invite exploration from marketing** — operator-approved follow-up to 5.13.1: “Explore web10” on Home/Freedom and “Open web10 social” in desktop/mobile header navigation. Destinations/handlers/analytics unchanged; compact navigation below 1024px avoids tablet overflow. Owns those marketing labels, focused tests and browser captures. All 378 tests/build/typecheck and desktop/375px light/dark browser gate pass, with 768/1280 responsive checks and inspected tablet menu. Synthetic data; no deployment.
 
