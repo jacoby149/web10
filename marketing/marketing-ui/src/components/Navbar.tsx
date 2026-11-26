@@ -6,6 +6,7 @@ import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
 import BrandLogo from './BrandLogo'
+import NavbarGlass from './NavbarGlass'
 
 const navItems = [
   { path: '/', label: 'Home' },
@@ -21,16 +22,19 @@ function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const isActive = (path: string) => location.pathname === path ||
     (path !== '/' && location.pathname.startsWith(`${path}/`))
+  const interior = navItems.some(item => item.path !== '/' && isActive(item.path))
 
   return (
     <nav
-      className="classic-surface sticky top-0 z-40 bg-classic-ink"
+      className="marketing-navbar classic-surface sticky top-0 z-40 bg-classic-ink"
       role="navigation"
       aria-label="main navigation"
+      data-menu-open={mobileOpen}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <NavbarGlass interior={interior} />
+      <div className="marketing-nav-controls mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link to="/" className="flex shrink-0 items-center" onClick={() => setMobileOpen(false)}>
-          <BrandLogo className="h-8" onDark />
+          <BrandLogo className="h-8" />
         </Link>
 
         <div className="hidden items-center gap-1 lg:flex">
@@ -81,7 +85,7 @@ function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="flex flex-col gap-1 px-4 pb-4 pt-2 lg:hidden">
+        <div className="marketing-nav-controls marketing-nav-menu flex flex-col gap-1 px-4 pb-4 pt-2 lg:hidden">
           {navItems.map(item => (
             <Link
               key={item.path}

@@ -48,6 +48,7 @@
   --color-classic-sky-bright: #b5e6f8;
   --color-classic-sky: #87ceeb;
   --color-classic-brand-muted: #1a2260;
+  --color-interior-canvas: #1b2026;
   --color-revolution-paper: #fafafa;
   --color-revolution-type: #232323;
   --color-revolution-muted: #474747;
@@ -124,8 +125,8 @@
   --color-accent-foreground: var(--color-foreground);
 }
 
-/* Fixed dark regions and the interior's Dark appearance share Home's palette. */
-.classic-surface, .dark .interior-theme, :where([data-testid="hls-video-player"], [data-testid="player-controls"]) {
+/* Home, fixed ink chrome, and media controls keep the classic palette. */
+.classic-surface, :where([data-testid="hls-video-player"], [data-testid="player-controls"]) {
   color-scheme: dark;
   /* Inherited color must follow the scope too — the page root's type has no
      text-foreground class, so without this a light-theme visit inherits the
@@ -163,12 +164,229 @@
   --color-danger-muted: #450a0a;
 }
 
+/* Quiet charcoal surfaces off Home. Blue marks actions and selection, not panels. */
 .dark .interior-theme {
-  --color-background: var(--color-classic-ink);
-  --color-surface: var(--color-classic-background);
+  color: var(--color-foreground);
+  --color-background: var(--color-interior-canvas);
+  --color-surface: #222930;
+  --color-elevated: #2b353f;
+  --color-border: #3a4652;
+  --color-input: var(--color-border);
+  --color-foreground: #e5e9ee;
+  --color-muted-foreground: #aeb8c4;
+  --color-muted: var(--color-elevated);
+  --color-brand: #88aee0;
+  --color-brand-300: #95b9df;
+  --color-brand-400: var(--color-brand-600);
+  --color-brand-600: #a8c6ea;
+  --color-brand-muted: #293b51;
+  --color-brand-foreground: #141d28;
+  --color-ring: var(--color-brand-300);
   --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-foreground);
   --color-popover: var(--color-surface);
-  --color-elevated: var(--color-classic-surface);
+  --color-popover-foreground: var(--color-foreground);
+  --color-primary: var(--color-foreground);
+  --color-primary-foreground: var(--color-background);
+  --color-secondary: var(--color-elevated);
+  --color-secondary-foreground: var(--color-foreground);
+  --color-accent: var(--color-elevated);
+  --color-accent-foreground: var(--color-foreground);
+  --color-success: #86cfa3;
+  --color-warning: #e9bb76;
+  --color-danger: #f18d88;
+  --color-destructive: var(--color-danger);
+  --color-danger-muted: #492a2c;
+}
+
+.marketing-navbar [data-brand-variant="white"] { display: block; }
+.marketing-navbar [data-brand-variant="dark"] { display: none; }
+
+/* Floating ice-blue chrome, reserved for the shared interior pages in Dark. */
+.dark .marketing-navbar:has(+ .interior-theme) {
+  color-scheme: light;
+  --color-background: #b5d4dc;
+  --color-navbar-edge: #6a91a5;
+  --color-navbar-edge-light: #e2f1f5;
+  --color-foreground: #18232c;
+  --color-muted-foreground: #344654;
+  --color-elevated: #d2e8ee;
+  --color-muted: var(--color-elevated);
+  --color-border: #657985;
+  --color-input: var(--color-border);
+  --color-brand-muted: #e1f2f6;
+  --color-brand-300: #193b54;
+  --color-brand: #c2dfed;
+  --color-brand-600: #d4eaf3;
+  --color-brand-foreground: var(--color-foreground);
+  --color-ring: #244a64;
+  --marketing-nav-radius: var(--radius-full);
+  top: 0.75rem;
+  width: min(72rem, calc(100% - 1.5rem));
+  margin: 0.75rem auto 0;
+  border-radius: var(--marketing-nav-radius);
+  background: transparent;
+}
+
+.dark #root:has(> .interior-theme) {
+  display: flow-root;
+  background: var(--color-interior-canvas);
+}
+
+.marketing-nav-bed, .marketing-nav-rim { display: none; }
+
+.dark .marketing-navbar:has(+ .interior-theme) :is(.marketing-nav-bed, .marketing-nav-rim) {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+  z-index: 1;
+  background: var(--color-background);
+}
+
+.dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-rim {
+  z-index: 0;
+  padding: 8px;
+  background: color-mix(in srgb, var(--color-background) 24%, transparent);
+  mask: linear-gradient(var(--color-foreground) 0 0) content-box, linear-gradient(var(--color-foreground) 0 0);
+  mask-composite: exclude;
+}
+
+.dark .marketing-navbar:has(+ .interior-theme):has(.marketing-nav-rim) .marketing-nav-bed {
+  clip-path: inset(8px round max(0px, calc(var(--marketing-nav-radius) - 8px)));
+}
+
+/* Draw the edge after the optical layers so it isn't itself refracted. */
+.dark .marketing-navbar:has(+ .interior-theme)::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  border: 1px solid var(--color-navbar-edge);
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 var(--color-navbar-edge-light), 0 8px 24px color-mix(in srgb, var(--color-black) 18%, transparent);
+  pointer-events: none;
+}
+
+.dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-controls {
+  position: relative;
+  z-index: 2;
+}
+
+.dark .marketing-navbar:has(+ .interior-theme) :is(a[aria-current="page"], button) {
+  border-radius: var(--radius-full);
+}
+
+@media (width < 64rem) {
+  .dark .marketing-navbar[data-menu-open="true"]:has(+ .interior-theme) {
+    --marketing-nav-radius: var(--radius-lg);
+  }
+  .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-menu {
+    max-height: calc(100dvh - 5.5rem);
+    overflow-y: auto;
+  }
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (prefers-reduced-transparency: no-preference) {
+    .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+      background: color-mix(in srgb, var(--color-background) 86%, transparent);
+      -webkit-backdrop-filter: blur(12px) saturate(140%);
+      backdrop-filter: blur(12px) saturate(140%);
+    }
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-rim { display: none; }
+  .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+    background: var(--color-background);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .dark .marketing-navbar:has(+ .interior-theme):has(.marketing-nav-rim) .marketing-nav-bed { clip-path: none; }
+}
+
+@media (forced-colors: active) {
+  .dark .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+    background: Canvas;
+  }
+  .dark .marketing-navbar:has(+ .interior-theme)::after {
+    border: 0;
+    box-shadow: none;
+    outline: 1px solid CanvasText;
+  }
+  .dark .marketing-navbar:has(+ .interior-theme) a[aria-current="page"] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+@media (width >= 64rem) {
+  .dark .marketing-navbar:has(+ .interior-theme) {
+    top: 0;
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    background: var(--color-background);
+    box-shadow: inset 0 -1px 0 var(--color-navbar-edge);
+  }
+  .dark .marketing-navbar:has(+ .interior-theme) :is(.marketing-nav-bed, .marketing-nav-rim) { display: none; }
+  .dark .marketing-navbar:has(+ .interior-theme)::after { content: none; }
+}
+
+@media (width >= 64rem) and (forced-colors: active) {
+  .dark .marketing-navbar:has(+ .interior-theme) {
+    background: Canvas;
+    box-shadow: none;
+    outline: 1px solid CanvasText;
+  }
+}
+
+.dark .marketing-navbar:has(+ .interior-theme) [data-brand-variant="white"] { display: none; }
+.dark .marketing-navbar:has(+ .interior-theme) [data-brand-variant="dark"] { display: block; }
+
+/* One illustrated chapter opener; the content below keeps the shared palette. */
+.interior-intro {
+  --intro-ground: #eef4f8;
+  --intro-edge: #d7e7f1;
+  --intro-line: #315e7c;
+  --intro-face: #c1dbe9;
+  --intro-glint: #eaf7fc;
+  background: linear-gradient(116deg, var(--intro-ground) 40%, var(--intro-edge));
+}
+
+.dark .interior-intro {
+  --intro-ground: #17242e;
+  --intro-edge: #112c43;
+  --intro-line: #83b8d8;
+  --intro-face: #1e3e56;
+  --intro-glint: #284c64;
+}
+
+.interior-intro-art {
+  width: 100%;
+  height: clamp(6rem, 22vw, 9rem);
+  stroke: var(--intro-line);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.intro-art-faint { opacity: 0.3; }
+.intro-art-face { fill: var(--intro-face); }
+.intro-art-glint { fill: var(--intro-glint); }
+
+/* Keep the lock outline legible inside Freedom's central gate. */
+.interior-intro-art[data-artwork="freedom"] .intro-art-glint { fill: none; stroke-width: 2.5; }
+
+@media (min-width: 48rem) {
+  .interior-intro-art { height: 11rem; }
 }
 
 .classic-hero {

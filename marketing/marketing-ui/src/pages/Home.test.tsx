@@ -56,10 +56,22 @@ describe('classic landing (D125)', () => {
   it('renders the live stats band from /v3/stats', async () => {
     await renderHome({ users: 4321, app_count: 77, storage: 1073741824 })
     const band = within(screen.getByRole('region', { name: 'Network statistics' }))
-    expect(band.getByText('4,321')).toBeInTheDocument()
+    expect(band.getByText('4.3K')).toHaveAttribute('title', '4,321')
     expect(band.getByText('77')).toBeInTheDocument()
     expect(band.getByText('data liberated')).toBeInTheDocument()
+    expect(band.queryByText('total app visits')).not.toBeInTheDocument()
   })
+
+  it.each([
+    [0, '0'], [999, '999'], [1_000, '1K'], [2_345, '2.3K'], [999_999, '1M'],
+    [2_345_678, '2.3M'], [2_345_678_901, '2.3B'], [2_345_678_901_234, '2.3T'],
+  ])(
+    'shows %s counted app visits as %s', async (app_visits, expected) => {
+      await renderHome({ users: 42, app_count: 9, storage: 1073741824, app_visits })
+      const band = within(screen.getByRole('region', { name: 'Network statistics' }))
+      expect(band.getByText('total app visits').previousElementSibling).toHaveTextContent(expected)
+    },
+  )
 
   it('drops the stats band quietly when the node is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')))

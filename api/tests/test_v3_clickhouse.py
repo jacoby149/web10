@@ -1639,7 +1639,7 @@ class TestNodeStats:
                 _mock_result_rows([(5,)]),  # groups
                 _mock_result_rows([(3,)]),  # app_count
                 _mock_result_rows([(1024,)]),  # storage (system.parts)
-                _mock_result_rows([(7, 40, 90, 120)]),  # active_users 1d/30d/90d/1y
+                _mock_result_rows([(256, 7, 40, 90, 120)]),  # visits, active users 1d/30d/90d/1y
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=512):
                 stats = ch.get_node_stats()
@@ -1647,9 +1647,14 @@ class TestNodeStats:
             assert stats["documents"] == 100
             assert stats["groups"] == 5
             assert stats["app_count"] == 3
+            assert stats["app_visits"] == 256
             assert stats["active_users"] == {"users_1d": 7, "users_30d": 40, "users_90d": 90, "users_1y": 120}
             assert stats["storage"] == 1536  # 1024 clickhouse + 512 s3
             assert "apps" not in stats  # per-app list moved to list_store_apps
+            app_activity_sql = mock_client.query.call_args.args[0]
+            assert "count() AS app_visits" in app_activity_sql
+            assert app_activity_sql.endswith("FROM app_visits")
+            assert mock_client.query.call_count == 6  # no second activity scan
 
     def test_stats_no_visits_no_storage(self):
         with _patch_client() as mock_client:
@@ -1665,6 +1670,7 @@ class TestNodeStats:
                 stats = ch.get_node_stats()
             assert stats["users"] == 10
             assert stats["app_count"] == 0
+            assert stats["app_visits"] == 0
             assert stats["active_users"] == {"users_1d": 0, "users_30d": 0, "users_90d": 0, "users_1y": 0}
             assert stats["storage"] == 0
 
@@ -1676,7 +1682,7 @@ class TestNodeStats:
                 _mock_result_rows([(1,)]),  # groups
                 _mock_result_rows([(0,)]),  # app_count
                 Exception("ClickHouse unavailable"),  # storage — error
-                _mock_result_rows([(0, 0, 0, 0)]),  # active_users
+                _mock_result_rows([(0, 0, 0, 0, 0)]),  # visits and active users
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", return_value=256):
                 stats = ch.get_node_stats()
@@ -1691,7 +1697,7 @@ class TestNodeStats:
                 _mock_result_rows([(1,)]),  # groups
                 _mock_result_rows([(0,)]),  # app_count
                 _mock_result_rows([(2048,)]),  # storage
-                _mock_result_rows([(0, 0, 0, 0)]),  # active_users
+                _mock_result_rows([(0, 0, 0, 0, 0)]),  # visits and active users
             ]
             with patch("app.v3.services.clickhouse.total_s3_size", side_effect=Exception("S3 down")):
                 stats = ch.get_node_stats()

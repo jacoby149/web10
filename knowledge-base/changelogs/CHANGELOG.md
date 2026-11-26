@@ -1,3 +1,13 @@
+6.31.0 || 26.11.2026
+feat(stats): expose retained, counted app visits as `app_visits` in public `/v3/stats`, reusing the active-user query. Show Total app visits as the fourth homepage counter when available, with three counters on older nodes. Put icons beside the values and labels underneath; abbreviate values from 1,000 with up to two significant digits. No new event collection.
+
+style(marketing): bring Home's art-then-content rhythm to App Store, Freedom, Docs Overview, and Appearance. Give each introduction its own illustration and mixed-case Georgia title in Light and Dark, then return to the ordinary reading surface. Replace the local framed-card experiment; preserve the catalog layout and Home.
+
+style(marketing): give the mobile Dark interior navbar and its expanded menu the social dock's glass treatment: a frosted bed, a refractive rim in tested Chromium, and sharp controls above the edge. Keep desktop a plain full-width bar, preserve opaque accessibility fallbacks, and leave Home and Light mode unchanged.
+
+6.30.10 || 26.11.2026
+fix(marketing): use a softer charcoal and slate palette with blue accents in Dark mode for the App Store, app details, Freedom, Docs, and Appearance. Give the navbar an ice-blue band with blue edging, near-black type, the dark logo, and a brighter selected tab. Keep Light mode, app artwork, and the homepage palette unchanged. Give the homepage stats band more vertical space and use Jost Light for the Brown-inspired counter numerals, preserving the fixed backdrop and live values.
+
 6.30.9 || 26.11.2026
 fix(marketing): give Freedom, Docs Overview, and Appearance the App Store's compact centered introduction in Light and Dark. Remove Freedom's old hero glow and dividers. Keep the Docs reading layout with a quicker way to browse articles on phones, and leave saved theme preferences unchanged.
 

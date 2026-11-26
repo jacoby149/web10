@@ -3924,20 +3924,19 @@ def get_app_metrics(app_urls: list[str]) -> dict:
     }
 
 
-def get_node_active_users() -> dict:
-    """Node-wide active users across all apps (D49 `/stats` macro): the same
-    active-user set as the store, minus the per-app grouping. The homepage
-    leads with users_30d."""
+def get_node_app_activity() -> tuple[int, dict[str, int]]:
+    """Retained visits and windowed active users across all apps (D49)."""
     result = client.query(
         "SELECT "
+        "count() AS app_visits, "
         "countDistinctIf(username, seen_at > now() - INTERVAL 1 DAY) AS users_1d, "
         "countDistinctIf(username, seen_at > now() - INTERVAL 30 DAY) AS users_30d, "
         "countDistinctIf(username, seen_at > now() - INTERVAL 90 DAY) AS users_90d, "
         "countDistinctIf(username, seen_at > now() - INTERVAL 365 DAY) AS users_1y "
         "FROM app_visits"
     )
-    row = result.result_rows[0] if result.result_rows else (0, 0, 0, 0)
-    return {"users_1d": int(row[0]), "users_30d": int(row[1]), "users_90d": int(row[2]), "users_1y": int(row[3])}
+    row = result.result_rows[0] if result.result_rows else (0, 0, 0, 0, 0)
+    return int(row[0]), {"users_1d": int(row[1]), "users_30d": int(row[2]), "users_90d": int(row[3]), "users_1y": int(row[4])}
 
 
 def list_store_apps(limit: int = 20, offset: int = 0) -> dict:
@@ -3958,7 +3957,7 @@ def list_store_apps(limit: int = 20, offset: int = 0) -> dict:
 
 def get_node_stats() -> dict:
     """Node-level stats (D49): user/doc/group counts, storage, the approved-
-    app count, and the node-wide active-user set (the store's metric, macro).
+    app count, retained app visits, and node-wide active-user windows.
     The per-app array moved to list_store_apps (paginated)."""
     # Count ACCOUNTS (the users table), not content authors. A user can
     # legitimately have zero documents (fresh signup, or post-migration before
@@ -3994,12 +3993,14 @@ def get_node_stats() -> dict:
     except Exception:
         pass  # S3 unavailable — keep ClickHouse bytes
 
+    app_visits, active_users = get_node_app_activity()
     return {
         "users": user_count,
         "documents": doc_count,
         "groups": group_count,
         "app_count": app_count,
-        "active_users": get_node_active_users(),
+        "app_visits": app_visits,
+        "active_users": active_users,
         "storage": storage,
     }
 
