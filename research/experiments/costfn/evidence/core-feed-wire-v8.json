@@ -4,7 +4,7 @@
   "sources": {
     "feed": {
       "path": "marketing/web10-social/src/data/feed.ts",
-      "sha256": "fcdff1a59e241a52ed1fc68530256073d647f28c8d45cacaefd6ccffc4922217"
+      "sha256": "8a80533dd25e485d27a92fdd437ba10bf82effad9de65240137d1175392a838e"
     },
     "sdk": {
       "path": "sdk/src/v3.ts",
