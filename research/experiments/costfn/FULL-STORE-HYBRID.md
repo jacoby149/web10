@@ -61,6 +61,10 @@ production change.
    steady state, and the demand figures are measured in that regime, stated
    rather than assumed. The slice run's banked OPTIMIZE receipt (61.7 s
    native, ~1.4 GB peak) is the cost reference; this receipt states its own.
+   The runner implementing this contract is `hybrid_k20_full_store.py` with
+   the offline controls `hybrid_k20_full_store.test.py`; the run binds to
+   that merged source. `content_events` is the append-only event log: its
+   merge regime is banked as a parts census, never OPTIMIZED by the runner.
    Then build the skinny attachment-history satellite on the full store from
    canonical history — all historical placements, exact versions/tombstones/
    multiplicity retained, the independent edge census and frozen parts

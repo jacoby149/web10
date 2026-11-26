@@ -1,3 +1,6 @@
+6.29.11 || 25.11.2026
+research: add the full-store hybrid K20 runner (`hybrid_k20_full_store.py`) and its offline controls for the FULL-STORE-HYBRID.md contract: snapshot-only restore, the declared post-merge steady state (OPTIMIZE FINAL on the version-carrying canonical hot tables with parts census banked pre/post; content_events banked as parts only), the banked full-store adoption (settle, initial K20 counts, fanout, physical certificate), migration, billboards, furniture (tallies, pairs, pin index, both event aggregate grains), the four gates, then the chunked skinny attachment satellite (one receipted INSERT per owned hash subdivision, same exact census as the slice build) and two frozen uniform K20 hybrid samples at exact ordered oracle parity. The indexed baseline is cited from the banked PR #1618 receipt, never re-measured. No host, no admission, no native execution.
+
 6.29.8 || 25.11.2026
 fix(social): stop the signed-in feed crash (React #185) when clamping a post makes its reported scroll height shrink. Measure the natural height before deciding whether to clamp, preserve See more/See less, and cover the failing layout and resize path.
 
