@@ -834,6 +834,8 @@ from `e01e4b6c3^`) is the lead artwork on the
 surface; a dark scrim shades the center for text and deepens
 at the bottom. The hero and stats art stay fixed to the viewport and are clipped
 to their sections on desktop and phones, regardless of the device motion setting.
+On phones, size the backdrop to the stable large viewport (`100lvh`) from the
+start so tucking the browser address bar away does not zoom its cover crop.
 The scrims and the pledge scroll normally. The founder photo (`public/founder-2022.jpg`,
 640×640, ~109 KB, restored + cropped from `e01e4b6c3^`) is a real portrait,
 not decoration.
@@ -881,9 +883,8 @@ light gray secondary text (`#cbcbcb`), and the hero's sky accent (`#87ceeb`).
 The startup browser tint matches the resolved canvas. Keep the fractal on `/`
 only; interior reading surfaces use flat colors. Shared marketing prose and
 controls use Jost; code keeps its mono face. The web10
-social and web10 hub listings and canonical app details share one marketing-only
-tile: the unredrawn white keys on saturated cobalt (`#1656d9`). Reserve that
-stronger blue for artwork, not page chrome.
+social and web10 hub listings and canonical app details reuse the original
+`/brand/icon-192.png`: white keys on near-black (`#09090b`), not cobalt.
 Other apps retain their artwork. Installed icons and the social, authenticator,
 and standalone demo interfaces do not inherit the marketing palette.
 
@@ -912,6 +913,8 @@ below it on phones. The catalog, prose, and settings underneath keep the quiet
 interior palette; don't frame every card or repeat the homepage fractal.
 Freedom's illustration shows endpoints connected through one locked central
 gate: the picture is about who controls the network, not data transfer.
+The App Store illustration connects distinct app windows to a shared data
+layer marked with a key, rather than using generic boxes.
 Freedom keeps a narrower reading rail than the catalog and uses headings,
 spacing, and cards rather than full-width dividers. Keep the copy and links.
 Docs articles retain their own title and reading measure, with a bounded

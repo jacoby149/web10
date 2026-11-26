@@ -48,6 +48,43 @@ async function capture(page, name) {
   await page.mouse.move(0, 0);
   await page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' });
 }
+async function verifyStableBackdropHeight(page) {
+  const session = await page.context().newCDPSession(page);
+  const read = () => page.evaluate(() => {
+    const heightOf = unit => {
+      const probe = document.createElement('div');
+      probe.style.cssText = `position:absolute;visibility:hidden;block-size:100${unit}`;
+      document.body.append(probe);
+      const height = probe.offsetHeight;
+      probe.remove();
+      return height;
+    };
+    return {
+      large: heightOf('lvh'), small: heightOf('svh'), visual: visualViewport.height,
+      art: ['.classic-hero', '.classic-stats'].map(selector => {
+        const css = getComputedStyle(document.querySelector(selector), '::before');
+        return { unit: css.getPropertyValue('--classic-backdrop-height').trim(), height: parseFloat(css.blockSize), size: css.backgroundSize };
+      }),
+    };
+  });
+  try {
+    // Headless Chromium has no URL bar. Separate its viewport units and
+    // change only the visual viewport as a control, not as device proof.
+    await session.send('Emulation.setSmallViewportHeightDifferenceOverride', { difference: 96 });
+    const expanded = await read();
+    assert.equal(expanded.large - expanded.small, 96);
+    for (const art of expanded.art) assert.deepEqual(art, { unit: '100lvh', height: expanded.large, size: 'cover' });
+    await session.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1.25 });
+    const smallerVisualViewport = await read();
+    assert.ok(smallerVisualViewport.visual < expanded.visual);
+    assert.deepEqual(smallerVisualViewport.art, expanded.art, 'visual viewport changes do not resize the artwork layer');
+    return { large: expanded.large, small: expanded.small, visual: [expanded.visual, smallerVisualViewport.visual] };
+  } finally {
+    await session.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1 });
+    await session.send('Emulation.setSmallViewportHeightDifferenceOverride', { difference: 0 });
+    await session.detach();
+  }
+}
 async function verifyNavbarOptics(page) {
   await page.getByTestId('marketing-nav-refraction').waitFor();
   const nav = page.getByRole('navigation', { name: 'main navigation', exact: true });
@@ -148,6 +185,19 @@ async function verifyLogo(page, variant = 'white') {
   assert.equal(await active.evaluate(el => getComputedStyle(el).filter), 'none');
   assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
   assert.equal(await active.evaluate(el => el.complete && el.naturalWidth > 0), true);
+}
+async function verifyBlackCatalogIcon(locator) {
+  const corner = await locator.evaluate(async el => {
+    const image = new Image();
+    image.src = el.getAttribute('src');
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0, 1, 1, 0, 0, 1, 1);
+    return [...context.getImageData(0, 0, 1, 1).data];
+  });
+  assert.deepEqual(corner, [9, 9, 11, 255], 'first-party catalog icon uses an opaque near-black tile');
 }
 async function readInteriorPalette(page) {
   return page.getByRole('heading', { level: 1 }).first().evaluate(heading => {
@@ -307,6 +357,9 @@ try {
         if (name === 'app-store') {
           await page.getByTestId('browse-card-0').waitFor();
           await page.getByTestId('plug-slot-1').waitFor();
+          for (const slot of ['plug-slot-0', 'plug-slot-1']) {
+            await verifyBlackCatalogIcon(page.getByTestId(slot).locator('img[src="/brand/icon-192.png"]'));
+          }
           const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
             const css = getComputedStyle(el);
             return [css.backgroundColor, css.backgroundImage, css.boxShadow];
@@ -318,6 +371,7 @@ try {
         } else if (name !== 'home') {
           assert.deepEqual(await readInteriorPalette(page), interiorPalette, `${name} must match the shared interior in ${mode}`);
         }
+        if (name === 'app-detail') await verifyBlackCatalogIcon(page.locator('img[src="/brand/icon-192.png"]'));
         if (['app-store', 'freedom', 'docs', 'appearance'].includes(name)) {
           const art = await readInteriorIntro(page);
           assert.equal(art.kind, name === 'app-store' ? 'store' : name);
@@ -384,10 +438,11 @@ try {
     await context.close();
 
     const scrollPage = await browser.newPage({
-      viewport: { width, height: 900 }, hasTouch: width === 375, reducedMotion: 'no-preference',
+      viewport: { width, height: 900 }, hasTouch: width === 375, isMobile: width === 375, reducedMotion: 'no-preference',
     });
     await isolate(scrollPage.context());
     await scrollPage.goto(origin, { waitUntil: 'networkidle' });
+    if (width === 375) receipts.push({ width, stableBackdropHeight: await verifyStableBackdropHeight(scrollPage) });
     await verifyPinnedArt(scrollPage, 'Mandelbrot', '.classic-hero');
     await verifyPinnedArt(scrollPage, 'stats', '.classic-stats');
     const stats = scrollPage.getByRole('region', { name: 'Network statistics' });
