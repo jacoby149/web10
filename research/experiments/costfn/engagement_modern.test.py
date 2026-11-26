@@ -41,6 +41,16 @@ class ModernTests(unittest.TestCase):
             deadline_utc=(now + timedelta(hours=4)).isoformat(), engagement_engine=modern.ENGINE,
             engagement_directive=modern.DIRECTIVE, purpose='ENGAGEMENT_FULL_STORE_A_D', engagement_ref_admitted=True)
 
+    def test_setup_memory_cap_takes_the_declared_dau_envelope_else_the_banked_frame(self):
+        self.assertEqual(modern.setup_memory_cap({}), 22 * 1024**3)
+        self.assertEqual(modern.setup_memory_cap({'dau_envelope': dict(server_bytes=85899345920)}),
+            85899345920)
+        for bad in ({'dau_envelope': dict(server_bytes='80g')},
+                    {'dau_envelope': dict(server_bytes=0)},
+                    {'dau_envelope': '80g'}):
+            with self.subTest(bad=bad):
+                self.assertEqual(modern.setup_memory_cap(bad), 22 * 1024**3)
+
     def test_modern_engine_requires_its_own_exact_directive_and_does_not_expand_historical_admission(self):
         value = self.approval()
         modern.admitted(value, 123)
