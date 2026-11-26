@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { Search as SearchIcon, Settings as GearIcon, LogOut, UserRound, ChevronDown } from 'lucide-react';
+import { Settings as GearIcon, LogOut, UserRound, ChevronDown } from 'lucide-react';
 import Branding from './Branding';
-import { Input } from '@/components/ui/input';
+import MobileNav from './MobileNav';
 import { cn } from '@/lib/utils';
 
 interface TopBarProps {
@@ -39,7 +39,7 @@ function AccountMenu({ I, username }: { I: Record<string, any>; username: string
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-muted">
           <UserRound className="h-3.5 w-3.5 text-brand-300" strokeWidth={2} />
         </span>
-        <span className="max-w-[10rem] truncate text-sm font-medium text-hub-ink" data-testid="topbar-username">
+        <span className="max-w-24 truncate text-sm font-medium text-hub-ink lg:max-w-40" data-testid="topbar-username">
           {username}
         </span>
         <ChevronDown className={cn('h-3.5 w-3.5 text-hub-ink transition-transform', open && 'rotate-180')} strokeWidth={1.5} />
@@ -81,9 +81,6 @@ function AccountMenu({ I, username }: { I: Record<string, any>; username: string
   );
 }
 
-// search applies to the list views only
-const SEARCHABLE = new Set(['contracts', 'requests']);
-
 function IconButton({
   onClick,
   label,
@@ -117,34 +114,15 @@ function IconButton({
 function TopBar({ I }: TopBarProps) {
   const authed = I.isAuthenticated?.();
   const username = I.v3?.readToken?.()?.username as string | undefined;
-  const showSearch = authed && SEARCHABLE.has(I.mode);
 
   return (
-    <header className="hub-header flex h-14 shrink-0 items-center gap-4 px-4" data-testid="hub-header">
+    <header className="hub-header flex h-14 shrink-0 items-center justify-between gap-2 px-4 lg:gap-4" data-testid="hub-header">
       <button type="button" onClick={() => I.setMode(authed ? 'contracts' : 'login')} aria-label="web10 Hub home"
         className="shrink-0 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hub-ink">
         <Branding I={I} size="sm" tagline={false} hubHeader />
       </button>
 
-      {/* CENTER — search, centered in the available space */}
-      <div className="flex flex-1 justify-center">
-        {showSearch && (
-          <div className="relative hidden w-full max-w-md sm:block">
-            <SearchIcon
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
-              strokeWidth={1.5}
-            />
-            <Input
-              className="h-9 border-hub-ink/20 bg-hub-tint pl-9 text-hub-ink placeholder:text-hub-ink/75 focus-visible:ring-hub-ink"
-              placeholder={`Search ${I.mode === 'contracts' ? 'app permissions' : 'requests'}…`}
-              aria-label={`Search ${I.mode === 'contracts' ? 'app permissions' : 'requests'}`}
-              value={I.search ?? ''}
-              onChange={(e) => I.runSearch(e.target.value)}
-              data-testid="topbar-search"
-            />
-          </div>
-        )}
-      </div>
+      <MobileNav I={I} placement="header" />
 
       {/* RIGHT — account menu (desktop) / settings + logout (mobile) */}
       <div className="flex shrink-0 items-center gap-2">

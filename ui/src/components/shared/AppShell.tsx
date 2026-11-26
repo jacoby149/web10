@@ -13,7 +13,7 @@ interface AppShellProps {
   padded?: boolean;
 }
 
-// Only the content scrolls; the header and floating dock stay in reach.
+// Only the content scrolls; desktop navigation and the phone dock stay in reach.
 function AppShell({ I, children, maxWidth = 'max-w-4xl', testid, padded = true }: AppShellProps) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
