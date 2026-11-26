@@ -35,6 +35,18 @@ DIRECTIVE = 'Jacob Hoffman 2026-11-25 sustained-DAU contract-rate load test'
 DEBT_SAMPLE_SECONDS = 10
 BANKED_EVENT_COUNT = 1_600_000_000
 BANKED_DOCUMENT_COUNT = 88_200_363
+BANKED_DOC_GROUPS_COUNT = 92_200_693
+
+
+def input_manifest_counts(root):
+    """The verified frozen input's own row counts — the byte lineage of the
+    Parquet-transfer provenance. The snapshot store's canonical census
+    additionally carries the banked F-arm population artifacts and the
+    18 November billboards (outside the frozen dataset and outside the K20
+    span); the sized host binds to the input, not to that census."""
+    manifest = json.loads((Path(root) / 'input' / 'manifest.json').read_bytes())
+    return {name: info['rows'] for name, info in manifest['files'].items()
+        if name in ('documents', 'content_events', 'doc_groups')}
 STORAGE_DEMAND_GB_PER_S = 1.85
 CALIBRATION_RATE = 2.9
 CALIBRATION_SECONDS = 120
@@ -92,9 +104,10 @@ def restore_parquet(root, approval):
         # (re)apply the declared envelope.
         session = modern.Session(root)
         counts = store_counts(session)
-        if (int(counts[0]['documents']) != BANKED_DOCUMENT_COUNT
-                or int(counts[0]['events']) != BANKED_EVENT_COUNT):
-            raise ValueError('prior import verification failed; counts differ from the banked store')
+        wanted = input_manifest_counts(root)
+        if (int(counts[0]['documents']) != wanted['documents']
+                or int(counts[0]['events']) != wanted['content_events']):
+            raise ValueError('prior import verification failed; counts differ from the verified input')
     else:
         if (root / 'restore.overlay.json').exists():
             raise FileExistsError('restore overlay without receipt; no partial adoption')
@@ -102,10 +115,21 @@ def restore_parquet(root, approval):
             arm_t.VALIDATION, project, 6098, root / 'restore.json', engine=modern.ENGINE)
     if not (root / 'dau-restore.json').is_file():
         apply_envelope_overlay(root, approval)
-        # Re-raise the stack under the declared envelope.
+        # Re-raise the stack under the declared envelope; the engine must be
+        # ready (not merely up) before the envelope is verified live.
         session = modern.Session(root)
         restore.command(session.compose, session.env, 'stop', timeout=120)
         restore.command(session.compose, session.env, 'up', '-d', 'clickhouse', 'minio', timeout=300)
+    import restore_dataset
+    for _ in range(3):
+        try:
+            restore_dataset.wait_for(lambda: restore.server_ready(
+                modern.Session(root).compose, modern.Session(root).env),
+                'sized-host engine under the declared envelope')
+            break
+        except RuntimeError:
+            if _ == 2:
+                raise
     value = verify_envelope(root)
     value['restore_source'] = 'ARCHIVED_PARQUET_TRANSFERRED_FROM_SNAPSHOT_HOST'
     value['verified_input'] = 'banked verified_input manifest + per-file sha256 + validation receipt'
@@ -195,19 +219,26 @@ def verify_store(root):
     imported parts are the comparison point)."""
     session = modern.Session(root)
     counts = store_counts(session)
-    if (int(counts[0]['documents']) != BANKED_DOCUMENT_COUNT
-            or int(counts[0]['events']) != BANKED_EVENT_COUNT):
-        raise ValueError('frozen store counts differ from the banked store')
     fingerprint = canonical_fingerprint(session)
     value = dict(counts=counts,
         fingerprint_sha256=digest_bytes(fingerprint),
         canonical_generation=fingerprint['canonical_generation'])
     if read(root / 'admission.json')['dau_store_source'] == 'PARQUET_TRANSFER':
+        wanted = input_manifest_counts(root)
+        if (int(counts[0]['documents']) != wanted['documents']
+                or int(counts[0]['events']) != wanted['content_events']):
+            raise ValueError('frozen store counts differ from the verified input')
         value['provenance'] = ('verified-input manifest + per-file sha256 + validation receipt, '
             'banked restore path; host baseline fingerprint captured here')
+        value['snapshot_census_note'] = ('the retained snapshot store\'s canonical census carries the '
+            'banked F-arm population artifacts and the 18 November billboards beyond the frozen '
+            'dataset; the sized host binds to the verified input, not to that census')
         save(root / 'dau-host-baseline-fingerprint.json', fingerprint)
         value['baseline_fingerprint_sha256'] = digest(root / 'dau-host-baseline-fingerprint.json')
         return value
+    if (int(counts[0]['documents']) != BANKED_DOCUMENT_COUNT
+            or int(counts[0]['events']) != BANKED_EVENT_COUNT):
+        raise ValueError('frozen store counts differ from the banked store')
     banked = read(root / 'banked-store-fingerprint.json')
     if (fingerprint['canonical_content_sha256'] != banked['canonical_content_sha256']
             or fingerprint['canonical_generation'] != banked['canonical_generation']):

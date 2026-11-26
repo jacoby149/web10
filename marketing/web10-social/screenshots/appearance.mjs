@@ -100,7 +100,7 @@ try {
       assert.equal(colors.overflow, false);
       const mark = page.getByTestId('social-conversation-mark').filter({ visible: true });
       assert.equal((await mark.locator('..').textContent()).trim(), 'web10 social');
-      assert.equal(await mark.getAttribute('src'), '/social-conversation.png');
+      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair.png');
       assert.equal(await mark.evaluate(el => el.complete && el.naturalWidth === 256 && getComputedStyle(el).filter === 'none'), true);
       if (mode === 'light') {
         const ratios = await page.evaluate(() => {
