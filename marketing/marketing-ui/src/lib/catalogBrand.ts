@@ -1,6 +1,6 @@
 import { AUTH_ORIGIN, SOCIAL_ORIGIN } from './origins'
 
-export const SOCIAL_CATALOG_ICON = '/brand/social-catalog.png'
+export const SOCIAL_CATALOG_ICON = '/brand/icon-192.png'
 
 export function catalogIconFor(url: string): string | undefined {
   try {

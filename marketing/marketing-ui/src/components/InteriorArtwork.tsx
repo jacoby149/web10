@@ -2,12 +2,16 @@ export type InteriorArtworkKind = 'store' | 'freedom' | 'docs' | 'appearance'
 
 function StoreArtwork() {
   return <>
-    <path className="intro-art-faint" d="M20 136 166 64l174 47M20 100 166 27l174 47M89 166l147-74M229 170l89-45" />
-    <path className="intro-art-face" d="m57 92 51-26 51 26-51 26z M57 92v28l51 26 51-26V92m-51 26v28" />
-    <path className="intro-art-face" d="m169 98 56-29 57 29-57 29z M169 98v31l56 29 57-29V98m-57 29v31" />
-    <path className="intro-art-glint" d="m119 64 62-32 63 32-63 32z M119 64v24l62 32 63-32V64m-63 32v24" />
-    <path d="m144 64 37-19 37 19-37 19z M168 64l13 7 13-7 M278 53l19-10 19 10-19 10z" />
-    <path className="intro-art-faint" d="M57 128v18m51 8v15m117-7v12m57-37v17M181 19V7m117 28V22" />
+    <path className="intro-art-faint" d="M27 48h306M27 118h306M75 22v142m105-154v152M285 22v142M44 155h68m136 0h68" />
+    <path d="M82 89v14a8 8 0 0 0 8 8h180a8 8 0 0 0 8-8V89M180 80v47" />
+    <rect className="intro-art-face" x="43" y="35" width="78" height="54" rx="6" />
+    <rect className="intro-art-glint" x="137" y="23" width="86" height="57" rx="6" />
+    <rect className="intro-art-face" x="239" y="35" width="78" height="54" rx="6" />
+    <path d="M43 49h78m16-11h86m16 11h78M53 42h2m5 0h2m85-11h2m5 0h2m93 11h2m5 0h2M65 62h34M65 69h25m-25 7h30m181-16v16m-8-12v8m16-11v14m8-9v4" />
+    <path d="M175 48v20l16-10z" />
+    <circle className="intro-art-glint" cx="180" cy="111" r="4" />
+    <rect className="intro-art-glint" x="130" y="127" width="100" height="31" rx="9" />
+    <path d="M175 142.5a6 6 0 1 0-12 0 6 6 0 0 0 12 0zm0 0h24m-5 0v6m-8-6v4M141 142.5h10m58 0h10" />
   </>
 }
 

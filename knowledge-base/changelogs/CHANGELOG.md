@@ -1,6 +1,9 @@
 6.32.0 || 26.11.2026
 feat(social): add optional Works at and Studied at fields with downloadable employer and school suggestions. Posts can carry an editable place label, with city autocomplete and explicit device-location fill-in. Suggestions run locally, free text still works, and only the label is stored with the post, including queued video. No node schema or permission changes.
 
+6.31.1 || 26.11.2026
+fix(marketing): stabilize Home's fixed artwork crop when mobile browser chrome moves. Restore the original white-on-black icons for web10 social and web10 hub in the App Store and app details; installed apps are unchanged. Replace the Store hero's abstract boxes with app windows connected to a shared data layer.
+
 6.31.0 || 26.11.2026
 feat(stats): expose retained, counted app visits as `app_visits` in public `/v3/stats`, reusing the active-user query. Show Total app visits as the fourth homepage counter when available, with three counters on older nodes. Put icons beside the values and labels underneath; abbreviate values from 1,000 with up to two significant digits. No new event collection.
 
