@@ -896,7 +896,7 @@ light gray secondary text (`#cbcbcb`), and the hero's sky accent (`#87ceeb`).
 The startup browser tint matches the resolved canvas. Keep the fractal on `/`
 only; interior reading surfaces use flat colors. Shared marketing prose and
 controls use Jost; code keeps its mono face. Social's listing and canonical
-detail use the transparent conversation mark. Hub keeps the original
+detail put the conversation mark on a solid white tile in both themes. Hub keeps the original
 `/brand/icon-192.png`: white keys on near-black (`#09090b`), not cobalt.
 Other apps retain their artwork. Installed icons and the social, authenticator,
 and standalone demo interfaces do not inherit the marketing palette.

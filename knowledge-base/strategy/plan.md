@@ -1,6 +1,6 @@
 # web10 v3 Plan
 
-- [✓ 6.32.8 local] **Social conversation mark** — use one transparent mark in Social chrome, Join and the App Store; preserve Hub and installed icons.
+- [✓ 6.32.8 local] **Social conversation mark** — use the same mark in Social and Join (transparent) and the App Store (white); preserve Hub and installed icons.
 
 - [✓ 6.32.4 local] **Hub navigation and blue header** — extend the glass dock to desktop, remove the sidebar and keep role-based navigation and account controls. Sign-in and Hub share transparent dark keys on ice-blue. Public Social avatar lookup is a separate change.
 

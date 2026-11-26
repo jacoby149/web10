@@ -1,5 +1,5 @@
 6.32.8 || 26.11.2026
-style(social): use the three-person conversation mark in Social's app and Join chrome and on its marketing App Store listing. One transparent asset style serves both themes; Hub and installed icons are unchanged.
+style(social): use the three-person conversation mark in Social and Join, with a transparent background in both themes and a white tile in the App Store. Hub and installed icons are unchanged.
 
 6.32.7 || 26.11.2026
 research: the 26.10 admission vehicle now carries the sustained-DAU purpose: DAU_SUSTAINED_CONTRACT_RATE with the named DAU directive takes the full-store composition vehicle (engine, limits, composition/tally/K20/completion flags, ref admission) exactly as the banked all-fixes purpose does; every other purpose and flag combination still refuses. One new control beside the banked approval fixture. No engine, host or admission change.
