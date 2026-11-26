@@ -905,6 +905,7 @@ Use one continuous canvas per screen, with a neighboring tone for grouped
 content and a stronger accent only for actions and focus. Type and spacing
 should separate sections before color does. The homepage is cinematic; the
 App Store uses this hierarchy as a catalog, not as a second landing page.
+Only Social is featured. Hub is a normal searchable Browse card without a Core badge.
 
 The App Store, app details, Freedom, Docs (including articles), and Appearance
 share one interior theme: in Dark, a cool charcoal canvas (`#1b2026`), slate

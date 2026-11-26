@@ -1,3 +1,6 @@
+6.32.9 || 26.11.2026
+style(marketing): move web10 Hub out of the App Store’s Core slot and into the searchable Browse grid. Keep one Hub card, its keys icon and registration metrics; Social remains the only featured app.
+
 6.32.8 || 26.11.2026
 style(social): use the three-person conversation mark in Social and Join, with a transparent background in both themes and a white tile in the App Store. Hub and installed icons are unchanged.
 

@@ -356,9 +356,9 @@ try {
         }
         if (name === 'app-store') {
           await page.getByTestId('browse-card-0').waitFor();
-          await page.getByTestId('plug-slot-1').waitFor();
+          assert.equal(await page.getByTestId('plug-slot-1').count(), 0);
           await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-conversation.png"]'), [255, 255, 255, 255]);
-          await verifyCatalogIcon(page.getByTestId('plug-slot-1').locator('img[src="/brand/icon-192.png"]'), [9, 9, 11, 255]);
+          await verifyCatalogIcon(page.getByTestId('browse-section').getByRole('img', { name: 'web10 hub' }), [9, 9, 11, 255]);
           const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
             const css = getComputedStyle(el);
             return [css.backgroundColor, css.backgroundImage, css.boxShadow];
