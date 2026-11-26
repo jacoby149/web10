@@ -5,6 +5,7 @@ export interface MediaPostDraft {
   title: string;
   text: string;
   visibility: Visibility;
+  locationName?: string;
   authorAs?: string;
   authorLabel: string;
   groups?: string[];

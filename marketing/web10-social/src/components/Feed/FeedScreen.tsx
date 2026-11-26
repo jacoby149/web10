@@ -41,6 +41,7 @@ import { useFeedSources } from './useFeedSources';
 import { createMixedFeedReader, type MixedFeedPage } from '@/data/mixedFeed';
 import type { ServerAllocation } from '@/lib/serverMixer';
 import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film, Bookmark, Pin, PinOff } from 'lucide-react';
+import { PostLocationLabel } from './PostLocationLabel';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { PostActions } from './PostActions';
@@ -321,6 +322,7 @@ function RepostedEmbed({
           <span className="text-[0.8125rem] text-muted-foreground shrink-0">· {formatTimeAgo(original.created_at)}</span>
         </div>
       </div>
+      <PostLocationLabel location={original.location} className="px-3 pb-2" />
       {original.text ? (
         <div className="px-3 pb-2.5 text-sm text-foreground line-clamp-6">
           <PostBody text={original.text} density="light" />
@@ -707,6 +709,8 @@ export function PostCard({
           </div>
         )}
       </div>
+
+      <PostLocationLabel location={post.location} className="px-4 pb-3" />
 
       {/* Repost (reposts.md): the reposter's comment (the quote) sits above the
           embedded original post — the X/Twitter quote-tweet layout. A repost

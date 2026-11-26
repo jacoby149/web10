@@ -173,6 +173,39 @@ describe('UserProfileScreen post read failures', () => {
   });
 });
 
+it('saves matched profile affiliations with IDs and keeps a custom school as plain text', async () => {
+  const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+  const fetchCatalog = vi.fn(async (url: string) => ({ ok: true, json: async () => url.includes('/employers-')
+    ? [['320193', 'Apple Inc.', 'AAPL', ['AAPL']]]
+    : [['00kztt736', 'New York University', 'US', ['NYU']]],
+  }));
+  vi.stubGlobal('fetch', fetchCatalog);
+  try {
+    render(<MemoryRouter><UserProfileScreen username="testuser" provider="test.localhost" /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('edit-profile-button'));
+    const work = screen.getByRole('combobox', { name: 'Works at (optional)' });
+    await act(async () => work.focus());
+    fireEvent.change(work, { target: { value: 'aapl' } });
+    await screen.findByRole('option', { name: /Apple Inc/ });
+    fireEvent.keyDown(work, { key: 'ArrowDown' });
+    fireEvent.keyDown(work, { key: 'Enter' });
+    const school = screen.getByRole('combobox', { name: 'Studied at (optional)' });
+    await act(async () => school.focus());
+    fireEvent.change(school, { target: { value: 'nyu' } });
+    fireEvent.click(await screen.findByRole('option', { name: /New York University/ }));
+    expect(school).toHaveValue('New York University');
+    fireEvent.change(school, { target: { value: 'Neighborhood Art School' } });
+    fireEvent.click(screen.getByTestId('save-profile-button'));
+    expect(await screen.findByTestId('profile-workplace')).toHaveTextContent('Works at Apple Inc.');
+    expect(screen.getByTestId('profile-school')).toHaveTextContent('Studied at Neighborhood Art School');
+    expect(mockSaveProfile).toHaveBeenLastCalledWith(expect.objectContaining({
+      workplace: { name: 'Apple Inc.', directoryId: 'sec:320193' }, school: { name: 'Neighborhood Art School', directoryId: undefined },
+    }));
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 describe('ProfileScreen D24/D34 — follower stat is real (ledger-backed)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

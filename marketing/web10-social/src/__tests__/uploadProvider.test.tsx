@@ -102,14 +102,14 @@ describe('real queue orchestration with IndexedDB and HTTP adapter (byte engine 
   it('saves the frozen draft and admits HLS-waiting publication, then observes its result after remount without a file', async () => {
     const view = mount();
     await waitFor(() => expect(queue.enabled).toBe(true));
-    const input = draft();
+    const input = { ...draft(), locationName: 'Film Center' };
     await act(async () => { expect(await queue.queue(input)).toBe(true); });
-    input.text = 'Later edit'; input.groups!.push('unintended');
+    input.text = 'Later edit'; input.locationName = 'Later place'; input.groups!.push('unintended');
     await waitFor(() => expect(queue.tasks[0]?.phase).toBe('processing'));
     expect(fake.run).toHaveBeenCalledTimes(1);
     const create = requests.find(item => item.path.endsWith('/deferred/create'))!;
-    expect(create.body.intent).toMatchObject({ author_as: 'team', groups: ['team', 'discover'], body: { text: 'Original text', media_refs: ['media-id'] } });
-    expect((await loadUploads(owner))[0]).toMatchObject({ phase: 'processing', deferred_admitted: true, media_doc_id: 'media-id' });
+    expect(create.body.intent).toMatchObject({ author_as: 'team', groups: ['team', 'discover'], body: { text: 'Original text', media_refs: ['media-id'], location: { name: 'Film Center' } } });
+    expect((await loadUploads(owner))[0]).toMatchObject({ phase: 'processing', deferred_admitted: true, media_doc_id: 'media-id', draft: { locationName: 'Film Center' } });
     view.unmount(); phase = 'done';
     mount();
     await waitFor(() => expect(queue.tasks[0]?.phase).toBe('published'));

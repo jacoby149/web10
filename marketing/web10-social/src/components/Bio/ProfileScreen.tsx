@@ -15,6 +15,7 @@ import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PostLightbox } from './PostLightbox';
+import { ProfileAffiliationFields, ProfileAffiliationRows } from './ProfileAffiliations';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
 
 function ProfileSkeleton() {
@@ -393,12 +394,14 @@ export default function ProfileScreen() {
                 onChange={(e) => setDraft({ ...draft, location: e.target.value })}
                 placeholder="Location"
               />
+              <ProfileAffiliationFields profile={draft} disabled={saving} onChange={(field, value) => setDraft(current => ({ ...current, [field]: value }))} />
             </div>
           ) : (
             <div className="space-y-1.5">
               {profile?.bio && (
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
               )}
+              <ProfileAffiliationRows profile={profile} />
               {profile?.location && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                   <MapPin className="w-3.5 h-3.5" />

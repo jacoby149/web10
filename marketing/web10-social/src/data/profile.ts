@@ -1,7 +1,7 @@
 import { getV3Client } from './v3';
 import { followersGroupId, ensureFollowers } from './groups';
 import { resolveMediaRefs } from './posts';
-import { fromV3DocToProfile, type ProfileRecord } from './types';
+import { fromV3DocToProfile, normalizeProfileAffiliation, type ProfileRecord } from './types';
 
 // ── Profile data layer (v3) ──────────────────────────────────────────────────
 // Profile is a document in the `profile` collection. One record per user.
@@ -129,6 +129,8 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
     bio: profile.bio,
     website: profile.website,
     location: profile.location,
+    ...(profile.workplace !== undefined ? { workplace: normalizeProfileAffiliation(profile.workplace) } : {}),
+    ...(profile.school !== undefined ? { school: normalizeProfileAffiliation(profile.school) } : {}),
     // The pin list (profile-pins.md) rides the face doc. Written only when the
     // caller supplied it: a partial save that doesn't know the current pins
     // must not null them out. Callers that edit other face fields carry the
