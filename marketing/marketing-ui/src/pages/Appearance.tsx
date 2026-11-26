@@ -1,5 +1,6 @@
 import { Monitor, Sun, Moon } from 'lucide-react'
 import { useTheme, type ThemePreference } from '../lib/theme'
+import InteriorIntro from '../components/InteriorIntro'
 
 const choices = [
   { value: 'system', label: 'System', icon: Monitor },
@@ -9,12 +10,11 @@ const choices = [
 
 export default function Appearance() {
   const { preference, resolved, persistent, setPreference } = useTheme()
-  return <main className="mx-auto min-h-[calc(100dvh-4rem)] max-w-2xl space-y-6 px-4 py-12 sm:px-6" data-testid="appearance-screen">
-    <div className="space-y-2">
-      <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Appearance</h1>
-      <p id="appearance-description" className="text-sm text-muted-foreground">Follow your device, or choose your own look. This choice stays in this browser.</p>
-    </div>
-    <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:p-6">
+  return <main className="pb-10 sm:pb-12" data-testid="appearance-screen">
+    <InteriorIntro label="Color theme" title="Appearance" descriptionId="appearance-description">
+      Follow your device, or choose your own look. This choice stays in this browser.
+    </InteriorIntro>
+    <div className="mx-auto w-[calc(100%-2.5rem)] max-w-xl space-y-4 rounded-lg border border-border bg-card p-4 sm:p-6">
       <fieldset aria-describedby="appearance-description" className="grid min-w-0 grid-cols-3 gap-2">
         <legend className="sr-only">Color theme</legend>
         {choices.map(({ value, label, icon: Icon }) => <label key={value} className="relative min-w-0 cursor-pointer">

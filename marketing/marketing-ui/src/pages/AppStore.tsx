@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { trackFunnel } from '@/lib/analytics'
 import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins'
 import { AppCard } from '@/components/AppCard'
+import InteriorIntro from '@/components/InteriorIntro'
 
 import { SOCIAL_CATALOG_ICON } from '../lib/catalogBrand'
 const PAGE_SIZE = 20
@@ -337,16 +338,7 @@ function AppStore() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="mx-auto max-w-5xl px-5 pt-8 pb-6 text-center sm:px-6 sm:pt-10 sm:pb-8">
-          <p className="inline-block rounded-full bg-brand-muted px-3 py-1 text-xs font-medium uppercase tracking-widest text-brand-300">
-            The web10 App Store
-          </p>
-          <h1 className="mt-3 text-balance font-display text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
-            Apps that run on data you own.
-          </h1>
-          <p className="mx-auto mt-3 max-w-lg text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Sorted by active users — no algorithm, no promotion, just who&rsquo;s actually using it.
-          </p>
+      <InteriorIntro label="The web10 App Store" title="Apps that run on data you own." details={
           <div className="mt-3 min-h-5 text-sm text-muted-foreground">
             {stats ? (
               <dl aria-label="App Store statistics" className="flex flex-wrap justify-center gap-x-4 gap-y-1">
@@ -361,7 +353,9 @@ function AppStore() {
               <div aria-hidden="true" className="mx-auto h-4 max-w-60 animate-pulse rounded-sm bg-elevated" />
             ) : <p>Store statistics unavailable.</p>}
           </div>
-      </header>
+      }>
+        Sorted by active users — no algorithm, no promotion, just who&rsquo;s actually using it.
+      </InteriorIntro>
 
       <div className="mx-auto max-w-5xl space-y-5 px-5 pb-10 sm:space-y-6 sm:px-6 sm:pb-12">
         {/* Plug slots — curated, above the grid */}

@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
 import { FileText, Code, Terminal, ExternalLink, Compass, User, Radio, DollarSign } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
+import InteriorIntro from '../components/InteriorIntro'
 
 type DocPage = { slug: string; title: string; file: string }
 
@@ -125,7 +126,7 @@ function WhoAreYou() {
               key={a.slug}
               to={a.to}
               data-testid={`audience-card-${a.slug}`}
-              className="group flex items-start gap-3 rounded-lg border border-border bg-elevated/50 p-4 transition-colors duration-150 ease-out hover:border-brand-300/40 hover:bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="group flex items-start gap-3 rounded-lg border border-border bg-card p-4 transition-colors duration-150 ease-out hover:border-brand-300/40 hover:bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <Icon
                 className="mt-0.5 h-5 w-5 shrink-0 text-brand-300"
@@ -166,7 +167,7 @@ function DocsSidebar() {
   const currentPage = rawPage === '' ? 'overview' : rawPage.split('/')[0]
 
   return (
-    <aside className="w-full shrink-0 border-b border-border px-4 py-6 sm:px-6 md:w-56 md:border-b-0 md:border-r md:py-10">
+    <aside id="docs-navigation" aria-label="Documentation navigation" tabIndex={-1} className="scroll-mt-20 rounded-lg border border-border bg-card p-4 md:col-start-1 md:row-start-1 md:sticky md:top-20 md:max-h-[calc(100dvh-6rem)] md:overflow-y-auto">
       {DOC_SECTIONS.map(section => (
         <div key={section.title} className="mb-6">
           <h3 className="mb-3 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
@@ -179,7 +180,8 @@ function DocsSidebar() {
                 <Link
                   key={page.slug}
                   to={`/docs/${page.slug}`}
-                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out ${
+                  aria-current={currentPage === page.slug ? 'page' : undefined}
+                  className={`flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 ease-out md:min-h-9 ${
                     currentPage === page.slug
                       ? 'bg-brand-muted font-medium text-brand-300'
                       : 'text-muted-foreground hover:bg-elevated hover:text-foreground'
@@ -220,8 +222,7 @@ function DocsSidebar() {
   )
 }
 
-function DocsContent() {
-  const { page } = useParams()
+function DocsContent({ page }: { page: string | undefined }) {
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('Documentation')
   const [loading, setLoading] = useState(false)
@@ -270,7 +271,10 @@ function DocsContent() {
   }, [page])
 
   return (
-    <div className="flex-1 px-4 py-10 sm:px-8 md:px-12">
+    <div className="min-w-0 md:col-start-2 md:row-start-1">
+      <a href="#docs-navigation" className="mb-4 inline-flex min-h-11 items-center rounded-md border border-border bg-card px-3 text-sm font-medium text-brand-300 hover:bg-elevated md:hidden">
+        Browse documentation
+      </a>
       {/* The landing asks who's reading before the pitch (the audience model). */}
       {isLanding && <WhoAreYou />}
       {loading ? (
@@ -288,16 +292,27 @@ function DocsContent() {
 }
 
 function Docs() {
+  const { page } = useParams()
+  const { pathname, hash } = useLocation()
+  const isLanding = page === undefined || page === 'overview'
   useEffect(() => {
     trackFunnel('docs_view')
   }, [])
+  useEffect(() => {
+    if (!hash && window.scrollY > 0) window.scrollTo(0, 0)
+  }, [pathname, hash])
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex max-w-6xl flex-col md:flex-row">
+    <main className="min-h-screen bg-background text-foreground">
+      {isLanding && (
+        <InteriorIntro label="web10 Docs" title="Documentation">
+          Guides for users, developers, node operators, and creators.
+        </InteriorIntro>
+      )}
+      <div className={`mx-auto grid max-w-5xl items-start gap-6 px-5 pb-10 sm:px-6 sm:pb-12 md:grid-cols-[14rem_minmax(0,1fr)] ${isLanding ? '' : 'pt-8 sm:pt-10'}`}>
+        <DocsContent page={page} />
         <DocsSidebar />
-        <DocsContent />
       </div>
-    </div>
+    </main>
   )
 }
 
