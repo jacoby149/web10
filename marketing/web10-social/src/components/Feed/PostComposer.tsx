@@ -27,7 +27,7 @@ import {
   type VideoThumbnailSelection,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, Paperclip, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film, Music } from 'lucide-react';
+import { Image, Paperclip, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film, Music, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
@@ -37,6 +37,7 @@ import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 import { markdownToHtml } from '@/lib/markdownHtml';
 import { DiscoverAudience } from './DiscoverAudience';
 import { MusicTagToggle } from './MusicTagToggle';
+import { PostLocationField } from './PostLocationField';
 import type { MediaPostDraft } from '@/components/Uploads/uploadState';
 import { EditorMentions } from '@/components/shared/EditorMentions';
 import { AccessRecovery } from '@/components/shared/AccessRecovery';
@@ -490,6 +491,9 @@ export default function PostComposer({
   // is caption-only (the pre-D82 shape). In edit mode both are pre-filled from
   // the post being edited.
   const [title, setTitle] = useState(editingPost?.title || '');
+  const originalLocation = typeof editingPost?.location?.name === 'string' ? editingPost.location.name : '';
+  const [location, setLocation] = useState(originalLocation);
+  const [locationOpen, setLocationOpen] = useState(!!originalLocation);
   const [mediaItems, setMediaItems] = useState<AttachedMedia[]>([]);
   // A rejected post write must not force the same large video to upload twice.
   // Only completed media, exact file/metadata and the same account/service can
@@ -1011,11 +1015,14 @@ export default function PostComposer({
     setPosting(true);
     setAccessBlocked(false);
     try {
-      const updates: Partial<PostRecord> = {
+      const updates: Parameters<typeof updatePost>[1] = {
         title: title.trim() || undefined,
         text: markdown,
         updated_at: new Date().toISOString(),
       };
+      if (location.trim() !== originalLocation.trim()) {
+        updates.location = location.trim() ? { name: location.trim() } : null;
+      }
       // Preview resolution is not removal intent: unresolved siblings survive.
       const originalRefs = editingPost.media_refs || [];
       if (retainedEditRefs.length !== originalRefs.length) {
@@ -1094,6 +1101,7 @@ export default function PostComposer({
         console.log('[social-composer] media queue handoff started', { files: mediaItems.length });
         const accepted = await onQueueMediaPost({
           title: title.trim(), text: markdown, visibility,
+          ...(location.trim() ? { locationName: location.trim() } : {}),
           authorAs: authorAs || undefined,
           authorLabel: selectedGroup?.name || profile?.display_name || 'You',
           groups: groups ? [...groups] : undefined,
@@ -1295,6 +1303,7 @@ export default function PostComposer({
           text: markdown,
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
+          ...(location.trim() ? { location: { name: location.trim() } } : {}),
           created_at: new Date().toISOString(),
           tags: composerTags.length ? composerTags : undefined,
         },
@@ -1315,6 +1324,8 @@ export default function PostComposer({
       mediaItems.forEach((item) => previewUrlsRef.current.delete(item.previewUrl));
       previewUrlsRef.current.clear();
       setTitle('');
+      setLocation('');
+      setLocationOpen(false);
       editor?.commands.clearContent();
       setHasText(false);
       setMediaItems([]);
@@ -1351,8 +1362,9 @@ export default function PostComposer({
   // full form when it has focus or content (the Discover surface — the video
   // wall is the hero, not the composer). The full form is always shown for a
   // repost (the context block must be visible) or when not compact.
-  const hasContent = hasText || title.trim().length > 0 || mediaItems.length > 0 || retainedEditRefs.length > 0;
+  const hasContent = hasText || title.trim().length > 0 || locationOpen || mediaItems.length > 0 || retainedEditRefs.length > 0;
   const expanded = !compact || focused || hasContent || !!repostingTo || isEditing;
+  const canSetLocation = !repostingTo && !editingPost?.repost_of;
 
   return (
     <div
@@ -1624,6 +1636,11 @@ export default function PostComposer({
               </div>
 
           <div className="mt-4 border-t border-border pt-3">
+            {canSetLocation && locationOpen && (
+              <div className="mb-2 max-w-md" data-replay-mask="">
+                <PostLocationField value={location} onChange={setLocation} disabled={uploading || posting} />
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-1">
               {/* Attach media is create-only — you can't add new media to an
                   existing post in edit mode (media is remove-only there). */}
@@ -1639,6 +1656,13 @@ export default function PostComposer({
                   data-testid="attach-media-button"
                 >
                   <Paperclip className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                </Button>
+              )}
+
+              {canSetLocation && !locationOpen && (
+                <Button type="button" variant="ghost" size="sm" className="min-h-11 gap-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setLocationOpen(true)} disabled={uploading || posting} data-testid="add-post-location">
+                  <MapPin className="size-4" aria-hidden="true" />Add location
                 </Button>
               )}
 

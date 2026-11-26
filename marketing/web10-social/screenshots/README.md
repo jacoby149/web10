@@ -1,5 +1,14 @@
 # Messages screenshots — how to capture them (read this before you try)
 
+## Profile work/school and post location
+
+`node screenshots/profile-catalogs.mjs` boots the screenshot harness and uses
+the shipping catalog files for employer, school and city suggestions at 1440
+and 375px. It exercises keyboard and touch selection, displays the saved
+profile, and drives the actual composer sheet with Chromium's emulated location
+and a separate permission-denied case. Captures go to `.context/profile-catalogs/`.
+Profile writes use the harness stub; this is not connected-node or physical GPS proof.
+
 ## Feed playback and glass music widget
 
 `node screenshots/feed-player.mjs` boots/stops its own harness and checks both

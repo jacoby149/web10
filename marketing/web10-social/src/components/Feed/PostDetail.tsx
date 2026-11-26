@@ -34,7 +34,8 @@ import { ExpandablePostBody } from '@/components/Feed/ExpandablePostBody';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { useSave } from '@/context/SaveContext';
 import type { ReactionKind } from '@/components/Feed/PostActions';
-import type { AdProduct, MediaRecord } from '@/data/types';
+import type { AdProduct, MediaRecord, PostLocation } from '@/data/types';
+import { PostLocationLabel } from './PostLocationLabel';
 
 function formatTimeAgo(dateStr: string): string {
   const then = new Date(dateStr).getTime();
@@ -152,6 +153,7 @@ export interface PostIdentityRowProps {
     avatar_url?: string;
     created_at: string;
     visibility?: string;
+    location?: PostLocation;
     author_username?: string;
     author_provider?: string;
   };
@@ -254,6 +256,7 @@ export function PostIdentityRow({
         >
           {isPublic ? <Globe className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />}
         </span>
+        <PostLocationLabel location={post.location} className="mt-1 basis-full" />
       </div>
       {/* A trailing action (before the ⋯ menu) — the watch page's Follow. */}
       {action && <div className="shrink-0">{action}</div>}

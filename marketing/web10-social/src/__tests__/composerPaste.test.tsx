@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
@@ -18,6 +18,7 @@ vi.mock('@/data', async (importOriginal) => {
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
     uploadMedia: (...args: unknown[]) => uploadMediaMock(...args),
     createPost: vi.fn().mockResolvedValue({ _id: 'post-1' }),
+    updatePost: vi.fn().mockResolvedValue({ _id: 'post-edit' }),
     readMyAds: vi.fn().mockResolvedValue({ ads: [], albums: [] }),
     fanOutToFollowers: vi.fn().mockResolvedValue(undefined),
   };
@@ -128,6 +129,58 @@ async function renderComposer(props?: Record<string, unknown>) {
   const { default: PostComposer } = await import('@/components/Feed/PostComposer');
   return render(<PostComposer {...props} />);
 }
+
+describe('post composer location', () => {
+  it('asks for device location only on a tap and submits only the resolved label', async () => {
+    const { createPost } = await import('@/data');
+    vi.mocked(createPost).mockClear();
+    const locate = vi.fn((success: PositionCallback) => success({ coords: { latitude: 29.424, longitude: -98.494 } } as GeolocationPosition));
+    const fetchCatalog = vi.fn(async (url: string) => ({ ok: true, json: async () => url.startsWith('/profile-catalogs/')
+      ? [['4726206', 'San Antonio', 'Texas, US', [], 29.424, -98.494]] : {},
+    }));
+    const catalogCalls = () => fetchCatalog.mock.calls.filter(([url]) => url.startsWith('/profile-catalogs/'));
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition: locate } });
+    vi.stubGlobal('fetch', fetchCatalog);
+    try {
+      await renderComposer({ draftText: 'A new post' });
+      expect(locate).not.toHaveBeenCalled();
+      expect(catalogCalls()).toEqual([]);
+      fireEvent.click(screen.getByTestId('add-post-location'));
+      expect(locate).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByTestId('use-device-location'));
+      const input = screen.getByRole('combobox', { name: 'Location (optional)' });
+      await waitFor(() => expect(input).toHaveValue('San Antonio, Texas, US'));
+      expect(catalogCalls()).toEqual([['/profile-catalogs/cities-v1.json']]);
+      fireEvent.click(screen.getByTestId('post-submit'));
+      await waitFor(() => expect(createPost).toHaveBeenCalledOnce());
+      expect(vi.mocked(createPost).mock.calls[0][0].location).toEqual({ name: 'San Antonio, Texas, US' });
+      await screen.findByTestId('add-post-location');
+    } finally {
+      Reflect.deleteProperty(navigator, 'geolocation');
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('ignores a late GPS reply after manual typing and can clear an existing location', async () => {
+    let success: PositionCallback;
+    const { updatePost } = await import('@/data');
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition: (callback: PositionCallback) => { success = callback; } } });
+    try {
+      await renderComposer({ editingPost: { _id: 'post-edit', text: 'hello', location: { name: 'Berlin' } } });
+      const input = screen.getByRole('combobox', { name: 'Location (optional)' });
+      expect(input).toHaveValue('Berlin');
+      fireEvent.click(screen.getByTestId('use-device-location'));
+      fireEvent.change(input, { target: { value: 'My own place' } });
+      await act(async () => success({ coords: { latitude: 29.424, longitude: -98.494 } } as GeolocationPosition));
+      expect(input).toHaveValue('My own place');
+      fireEvent.click(screen.getByRole('button', { name: 'Clear location' }));
+      fireEvent.click(screen.getByTestId('post-submit'));
+      await waitFor(() => expect(updatePost).toHaveBeenCalledWith('post-edit', expect.objectContaining({ location: null }), expect.anything(), undefined));
+    } finally {
+      Reflect.deleteProperty(navigator, 'geolocation');
+    }
+  });
+});
 
 describe('composer paste-to-attach (the third attach path)', () => {
   it('pasting a screenshot attaches it to the tray and gives it a stable name', async () => {

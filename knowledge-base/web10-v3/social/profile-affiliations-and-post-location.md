@@ -1,0 +1,7 @@
+# Profile affiliations and post locations
+
+In web10-social, **Works at** and **Studied at** are optional, self-reported profile details. A directory match stores its source-qualified ID and display name; typed text stores only the name. These fields follow the existing profile audience and never verify an affiliation or grant access. Clearing a field removes it from the profile display.
+
+In the post composer, an optional location is a label, not a check-in. You can enter any label or select a city. **Use my location** asks the browser only on tap and uses the coordinates locally to suggest the nearest listed city within 35 km. Review, edit, or clear the label before posting. A denied permission, missing nearby city, or unavailable catalog never prevents typing. Coordinates are never sent to the node, persisted, or logged. The post label follows the post's audience, including for queued video. Editing an existing post can clear its label. Repost creation does not acquire a new location.
+
+At the web10-social → app static-assets boundary, the app loads compact, versioned catalogs on demand; search inputs never go to a server. Catalogs cover GeoNames cities, ROR higher-education organizations and SEC-listed issuers as a starter employer list. These are suggestions, not a broad employer or K–12 directory. See the app's catalog README for source downloads, attribution and refresh instructions. At the web10-social → node API boundary, the app uses existing profile and posts documents; there is no new endpoint, table, or permission.
