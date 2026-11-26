@@ -74,7 +74,7 @@ def rewrite(sql):
     return tree.sql(dialect='clickhouse')
 
 
-def build(session, root):
+def build(session, root, *, chunked=False):
     path = root / 'hybrid-attachment-proof.json'
     execute = lambda sql: session.rows('hybrid_attachment_fence', sql)[0]  # noqa: E731
     if path.is_file():
@@ -84,10 +84,25 @@ def build(session, root):
     before = parts_digest(execute(parts_sql(SOURCE)))
     session = setup_writes(session, root / 'hybrid-attachment-setup', SOURCE)
     writes = []
-    for name, sql in (('create', DDL), ('copy', f'INSERT INTO {TABLE} SELECT {FIELDS} FROM {SOURCE}'),
-            ('settle', f'OPTIMIZE TABLE {TABLE} FINAL')):
-        _, query_id = session.query('hybrid_attachment_' + name, sql)
-        writes.append(dict(stage=name, query_id=query_id, native=session.native(query_id)))
+    _, query_id = session.query('hybrid_attachment_create', DDL)
+    writes.append(dict(stage='create', query_id=query_id, native=session.native(query_id)))
+    if chunked:
+        # Full-store scale: one receipted INSERT per owned hash subdivision,
+        # so no single statement carries the whole canonical history. The
+        # copy is still the same exact tuple projection of every row.
+        for bucket in range(BUCKETS):
+            scope = f' WHERE cityHash64(doc_id)%{BUCKETS}={bucket}'
+            sql = f'INSERT INTO {TABLE} SELECT {FIELDS} FROM {SOURCE}{scope}'
+            _, query_id = session.query('hybrid_attachment_copy_' + str(bucket), sql)
+            writes.append(dict(stage='copy', bucket=bucket, query_id=query_id,
+                native=session.native(query_id)))
+        copies = BUCKETS
+    else:
+        _, query_id = session.query('hybrid_attachment_copy', f'INSERT INTO {TABLE} SELECT {FIELDS} FROM {SOURCE}')
+        writes.append(dict(stage='copy', query_id=query_id, native=session.native(query_id)))
+        copies = 1
+    _, query_id = session.query('hybrid_attachment_settle', f'OPTIMIZE TABLE {TABLE} FINAL')
+    writes.append(dict(stage='settle', query_id=query_id, native=session.native(query_id)))
     session.query('hybrid_attachment_freeze', f'SYSTEM STOP MERGES {TABLE}')
     checks = []
     for bucket in range(BUCKETS):
@@ -102,7 +117,7 @@ def build(session, root):
     if parts[SOURCE] != before:
         raise ValueError('canonical attachment generation changed during hybrid build')
     proof = dict(parity='PASS', host=session.host_id, parts=parts, checks=checks, writes=writes,
-        table=TABLE, historical_multiplicity_preserved=True)
+        table=TABLE, copy_chunks=copies, historical_multiplicity_preserved=True)
     return publish(path, proof)
 
 
