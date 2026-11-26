@@ -913,6 +913,8 @@ below it on phones. The catalog, prose, and settings underneath keep the quiet
 interior palette; don't frame every card or repeat the homepage fractal.
 Freedom's illustration shows endpoints connected through one locked central
 gate: the picture is about who controls the network, not data transfer.
+The App Store illustration connects distinct app windows to a shared data
+layer marked with a key, rather than using generic boxes.
 Freedom keeps a narrower reading rail than the catalog and uses headings,
 spacing, and cards rather than full-width dividers. Keep the copy and links.
 Docs articles retain their own title and reading measure, with a bounded
