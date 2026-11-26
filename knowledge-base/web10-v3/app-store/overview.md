@@ -175,21 +175,13 @@ identity, not installability.
 The marketing site's store page (`marketing-ui`, `/app-store`) has two
 layers:
 
-**Plug slots (curated, above the grid).** The two primary first-party
-apps, hand-picked: the social app (**Flagship**) and **web10 hub**
-(**Core** — the node console: login, consent, contracts, and the Studio;
-the operator surface every node runs). Both carry their **real user
-count** — each registers like any app (the SDK auto-ping), so the metric
-is real web10 users, not a placeholder. The flagship's count comes from
-its real registration, matched by display name first then canonical host
-(the flagship may be registered at a non-canonical origin); web10 hub's
-comes from its registration at the auth host (a known-host root, so the
-store captures its metric from the list before the grid filter drops it).
-The importer is first-party too but a marketing page, not a real app, so
-it lives in the grid. A registered copy of a curated plug slot (same
-product, different URL — the flagship, or web10 hub's own registration)
-is deduped from the grid — the plug slot is curated above, so it never
-renders twice.
+**Featured (above the grid).** web10 social is the only featured app and
+keeps its **Flagship** badge. Its count comes from its registration, matched
+by display name first, then canonical host. Its registered copy is omitted
+from Browse to avoid duplication. **web10 hub** appears once in Browse with
+its existing keys icon and no Core badge. Its canonical registration supplies
+the user count and detail URL as soon as that page is loaded; the fallback
+card links directly to Hub.
 
 **The grid (everything else, sorted by `users_30d`).** Every approved
 registered app that is not a plug slot, server-paginated
@@ -199,14 +191,15 @@ time with a load-more). The filter rules:
 | Registered URL | In the grid? | Why |
 |---|---|---|
 | `social.web10.app` (root) | No — plug slot | Infrastructure, curated above |
-| `auth.web10.app` (root) | No — plug slot | Infrastructure, curated above |
+| `auth.web10.app` (root) | Yes — one Hub card | The registration supplies metrics and detail URL to the fallback card |
 | `www.web10.app` (root) | No | The marketing site itself |
 | `www.web10.app/docs/notes/` (path) | **Yes** | A path on a known host is an app (D47) |
 | `realnews10.netlify.app` (third-party) | Yes | Any approved app |
 | `anything.localhost/...` | No | Dev hygiene — localhost URLs mean nothing to a visitor |
 
-The rule in one line: **a known host at its root is infrastructure; a
-known host with a path is an app.** `.localhost` hosts are filtered
+Other known hosts at their root are infrastructure; a known host with a
+path is an app. Pagination advances by server rows consumed, not by visible
+cards. `.localhost` hosts are filtered
 unconditionally — the store is a public surface, and `marketing.localhost`
 is not a place a visitor can go.
 

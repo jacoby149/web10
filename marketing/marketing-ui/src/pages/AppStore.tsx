@@ -5,7 +5,7 @@ import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins'
 import { AppCard } from '@/components/AppCard'
 import InteriorIntro from '@/components/InteriorIntro'
 
-import { SOCIAL_CATALOG_ICON } from '../lib/catalogBrand'
+import { HUB_CATALOG_ICON, SOCIAL_CATALOG_ICON } from '../lib/catalogBrand'
 const PAGE_SIZE = 20
 
 function nodeApi(): string {
@@ -153,13 +153,13 @@ function AppStore() {
   const [stats, setStats] = useState<NodeStats | null>(null)
   const [apps, setApps] = useState<StoreApp[]>([])
   const [total, setTotal] = useState(0)
+  const [nextOffset, setNextOffset] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   // The node console (web10 hub) is a known-host root, so the grid filter
-  // drops it from `apps` — but its Core plug slot needs its real user metric.
-  // Captured here from the same list fetch, before the filter, so the plug
-  // slot shows real web10 users instead of a permanent 0.
+  // drops its registration from `apps`. Keep its real metrics for the Hub
+  // fallback card in Browse instead of rendering a second registration.
   const [consoleMetric, setConsoleMetric] = useState<{ users_30d: number; visits: number; appId?: string } | null>(null)
   // The flagship (web10 social) has the same problem: its canonical
   // registration (social.web10.app at its root) is a known-host root, so
@@ -205,9 +205,7 @@ function AppStore() {
     const page: RegisteredApp[] = Array.isArray(data.apps) ? data.apps : []
     const api = nodeApi()
     const enriched = await Promise.all(page.map((app) => enrichWithManifest(app, api)))
-    // Capture the node console's real metric before the grid filter drops it
-    // (it's a known-host root). The Core plug slot reads this.
-    const consoleApp = enriched.find((a) => a.url && hostOf(a.url) === hostOf(AUTH_ORIGIN))
+    const consoleApp = enriched.find((a) => a.url && hostOf(a.url) === hostOf(AUTH_ORIGIN) && isHostRoot(a.url))
     if (consoleApp) {
       setConsoleMetric({ users_30d: consoleApp.users_30d ?? 0, visits: consoleApp.visits ?? 0, appId: consoleApp.url })
     }
@@ -219,6 +217,7 @@ function AppStore() {
       setFlagshipMetric({ users_30d: flagshipApp.users_30d ?? 0, visits: flagshipApp.visits ?? 0, appId: flagshipApp.url })
     }
     const mapped: StoreApp[] = enriched
+      .filter((a) => !a.url || hostOf(a.url) !== hostOf(AUTH_ORIGIN) || !isHostRoot(a.url))
       .filter((a) => a.url && (!KNOWN_HOSTS.includes(hostOf(a.url)) || !isHostRoot(a.url)))
       .filter((a) => hostOf(a.url) !== '' && !hostOf(a.url).endsWith('.localhost'))
       .map((a) => ({
@@ -232,7 +231,8 @@ function AppStore() {
         appId: a.url,
       }))
     setApps((prev) => (append ? [...prev, ...mapped] : mapped))
-    setTotal(typeof data.total === 'number' ? data.total : mapped.length)
+    setNextOffset(offset + page.length)
+    setTotal(typeof data.total === 'number' && page.length ? data.total : offset + page.length)
   }, [])
 
   useEffect(() => {
@@ -240,13 +240,12 @@ function AppStore() {
   }, [loadPage])
 
   const loadMore = () => {
-    if (loadingMore || apps.length >= total) return
+    if (loadingMore || nextOffset >= total) return
     setLoadingMore(true)
-    loadPage(apps.length, true).catch(() => {}).finally(() => setLoadingMore(false))
+    loadPage(nextOffset, true).catch(() => {}).finally(() => setLoadingMore(false))
   }
 
-  // First-party plug slots (curated). Their users_30d comes from the list
-  // when the app is registered; the importer is a marketing page (no metric).
+  // First-party cards use the live metrics when their registrations are loaded.
   const firstParty: StoreApp[] = useMemo(() => {
     // The flagship's real registration may live at a different host than the
     // canonical origin — match by display name first, then fall back to host.
@@ -279,7 +278,7 @@ function AppStore() {
         name: 'web10 hub',
         description: 'Login, consent, contracts, and the Studio — the operator surface every node runs.',
         href: AUTH_ORIGIN,
-        iconSrc: SOCIAL_CATALOG_ICON,
+        iconSrc: HUB_CATALOG_ICON,
         users_30d: consoleMetric?.users_30d ?? 0,
         visits: consoleMetric?.visits ?? 0,
         appId: consoleMetric?.appId,
@@ -294,34 +293,20 @@ function AppStore() {
     const flagship = firstParty.find((a) => a.flagship)
     if (!flagship) return []
     const plugs: PlugSlot[] = [{ ...flagship, badge: 'Flagship' }]
-    // CORE — web10 hub, the operator surface every node runs. The curated
-    // pair is the flagship product + the core management app (the first-party
-    // catalog, per the KB). Replaces the old "Most Popular" slot, which could
-    // surface a duplicate of the flagship when it was also registered. It
-    // carries its real user count — it registers like any app (the SDK
-    // auto-ping), so its metric is real web10 users, same as the flagship.
-    const core = firstParty.find((a) => a.href === AUTH_ORIGIN)
-    if (core) {
-      plugs.push({ name: core.name, description: core.description, href: core.href, iconSrc: core.iconSrc, users_30d: core.users_30d, visits: core.visits, badge: 'Core', appId: core.appId })
-    }
     return plugs
   }, [firstParty])
 
   // The grid shows first-party + registered apps, minus the plug slots. A
   // registered copy of the flagship product (same product, different URL) is
   // a duplicate — the flagship is curated above, so keep it out of the grid.
-  // Same for the node console (web10 hub): it registers itself (the SDK
-  // auto-ping) and would otherwise surface in the grid as its manifest name
-  // ("web10 hub") while ALSO being the curated Core plug slot — two cards for
-  // one app. The plug slot is curated above, so the registered copy stays out.
+  // Hub keeps one normal browse card, ranked using its registration's count.
   const gridApps = useMemo(
     () =>
       allApps.filter((app) => {
         if (plugSlots.some((p) => p.href === app.href)) return false
         if (app.name === FLAGSHIP_NAME) return false
-        if (hostOf(app.href) === hostOf(AUTH_ORIGIN)) return false
         return true
-      }),
+      }).sort((a, b) => b.users_30d - a.users_30d),
     [allApps, plugSlots],
   )
   const filteredGrid = useMemo(
@@ -438,7 +423,7 @@ function AppStore() {
           )}
 
           {/* Load more — the list is server-paginated (D49) */}
-          {!loading && !searchQuery && apps.length < total && (
+          {!loading && !searchQuery && nextOffset < total && (
             <div className="mt-7 flex justify-center sm:mt-8">
               <button
                 type="button"

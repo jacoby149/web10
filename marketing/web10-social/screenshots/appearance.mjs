@@ -98,12 +98,10 @@ try {
       assert.equal(colors.native, mode);
       assert.equal(colors.chrome, colors.background);
       assert.equal(colors.overflow, false);
-      const mark = page.locator('[data-testid="theme-key-mark"]:visible').first();
+      const mark = page.getByTestId('social-conversation-mark').filter({ visible: true });
       assert.equal((await mark.locator('..').textContent()).trim(), 'web10 social');
-      const activeMark = mark.locator(`[data-brand-variant="${mode === 'light' ? 'dark' : 'white'}"]`);
-      assert.equal(await activeMark.isVisible(), true);
-      assert.equal(await mark.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
-      assert.equal(await activeMark.evaluate(el => el.complete && el.naturalWidth > 0 && getComputedStyle(el).filter === 'none'), true);
+      assert.equal(await mark.getAttribute('src'), '/social-conversation.png');
+      assert.equal(await mark.evaluate(el => el.complete && el.naturalWidth === 256 && getComputedStyle(el).filter === 'none'), true);
       if (mode === 'light') {
         const ratios = await page.evaluate(() => {
           const css = getComputedStyle(document.documentElement);
