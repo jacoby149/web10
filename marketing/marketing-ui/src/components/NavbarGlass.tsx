@@ -1,14 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { navbarLensMap, supportsNavbarRefraction } from './navbarLens'
 
-export default function NavbarGlass({ interior }: { interior: boolean }) {
+export default function NavbarGlass({ enabled }: { enabled: boolean }) {
   const id = `marketing-lens-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const layer = useRef<HTMLSpanElement>(null)
   const [map, setMap] = useState<string>()
 
   useEffect(() => {
     const nav = layer.current?.parentElement
-    if (!interior || !nav || !supportsNavbarRefraction(navigator.userAgent) ||
+    if (!enabled || !nav || !supportsNavbarRefraction(navigator.userAgent) ||
         !CSS.supports('backdrop-filter', 'url("#lens")') || typeof ResizeObserver === 'undefined') return
 
     const reduced = window.matchMedia('(prefers-reduced-transparency: reduce)')
@@ -43,11 +43,11 @@ export default function NavbarGlass({ interior }: { interior: boolean }) {
       observer.disconnect()
       queries.forEach(query => query.removeEventListener('change', update))
     }
-  }, [interior])
+  }, [enabled])
 
   return <>
     <span ref={layer} className="marketing-nav-bed" aria-hidden="true" />
-    {interior && map && <>
+    {enabled && map && <>
       <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute h-0 w-0">
         <defs>
           <filter id={id} x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">

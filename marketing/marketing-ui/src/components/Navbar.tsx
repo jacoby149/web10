@@ -22,16 +22,17 @@ function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const isActive = (path: string) => location.pathname === path ||
     (path !== '/' && location.pathname.startsWith(`${path}/`))
-  const interior = navItems.some(item => item.path !== '/' && isActive(item.path))
+  const sharedBar = navItems.some(item => isActive(item.path))
 
   return (
     <nav
-      className="marketing-navbar classic-surface sticky top-0 z-40 bg-classic-ink"
+      className={`marketing-navbar classic-surface sticky top-0 z-40 bg-classic-ink${sharedBar ? ' marketing-navbar--shared' : ''}`}
       role="navigation"
       aria-label="main navigation"
       data-menu-open={mobileOpen}
+      data-home={classic || undefined}
     >
-      <NavbarGlass interior={interior} />
+      <NavbarGlass enabled={sharedBar} />
       <div className="marketing-nav-controls mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link to="/" className="flex shrink-0 items-center" onClick={() => setMobileOpen(false)}>
           <BrandLogo className="h-8" />

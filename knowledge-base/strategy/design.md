@@ -789,9 +789,9 @@ The classic "web10 Revolution" landing — the pre-D13 own-your-data page
 revived as the primary marketing surface (`homepage-classic-revival.md`)
 — uses a **fixed editorial palette** regardless of the visitor's D108 choice:
 a dark hero, paper content, and a charcoal footer. The rest of marketing uses the same visual
-language in its selected System/Light/Dark appearance. The marketing navbar
-uses Home's ink navy and white logo on Home. In both Light and Dark the shared
-interior pages use ice-blue (`#b5d4dc` as the solid fill),
+language in its selected System/Light/Dark appearance. Home and the shared
+interior pages use the same ice-blue navbar in Light and Dark (`#b5d4dc` as the
+solid fill),
 near-black type, and the dark logo. Desktop uses a plain full-width bar. On
 mobile, use the social dock's glass layer order: live backdrop refraction on
 the rim, a frosted center, then the edge and undistorted controls. The closed

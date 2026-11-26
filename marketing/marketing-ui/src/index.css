@@ -202,8 +202,8 @@
 .marketing-navbar [data-brand-variant="white"] { display: block; }
 .marketing-navbar [data-brand-variant="dark"] { display: none; }
 
-/* A shared ice-blue header for the interior pages in both appearances. */
-.marketing-navbar:has(+ .interior-theme) {
+/* One ice-blue header across the primary marketing pages in both appearances. */
+.marketing-navbar--shared {
   color-scheme: light;
   --color-background: #b5d4dc;
   --color-navbar-edge: #6a91a5;
@@ -237,9 +237,14 @@
   background: var(--color-interior-canvas);
 }
 
+#root:has(> .marketing-navbar[data-home="true"]) {
+  display: flow-root;
+  background: var(--color-classic-ink);
+}
+
 .marketing-nav-bed, .marketing-nav-rim { display: none; }
 
-.marketing-navbar:has(+ .interior-theme) :is(.marketing-nav-bed, .marketing-nav-rim) {
+.marketing-navbar--shared :is(.marketing-nav-bed, .marketing-nav-rim) {
   display: block;
   position: absolute;
   inset: 0;
@@ -247,12 +252,12 @@
   pointer-events: none;
 }
 
-.marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+.marketing-navbar--shared .marketing-nav-bed {
   z-index: 1;
   background: var(--color-background);
 }
 
-.marketing-navbar:has(+ .interior-theme) .marketing-nav-rim {
+.marketing-navbar--shared .marketing-nav-rim {
   z-index: 0;
   padding: 8px;
   background: color-mix(in srgb, var(--color-background) 24%, transparent);
@@ -260,12 +265,12 @@
   mask-composite: exclude;
 }
 
-.marketing-navbar:has(+ .interior-theme):has(.marketing-nav-rim) .marketing-nav-bed {
+.marketing-navbar--shared:has(.marketing-nav-rim) .marketing-nav-bed {
   clip-path: inset(8px round max(0px, calc(var(--marketing-nav-radius) - 8px)));
 }
 
 /* Draw the edge after the optical layers so it isn't itself refracted. */
-.marketing-navbar:has(+ .interior-theme)::after {
+.marketing-navbar--shared::after {
   content: '';
   position: absolute;
   inset: -1px;
@@ -276,20 +281,20 @@
   pointer-events: none;
 }
 
-.marketing-navbar:has(+ .interior-theme) .marketing-nav-controls {
+.marketing-navbar--shared .marketing-nav-controls {
   position: relative;
   z-index: 2;
 }
 
-.marketing-navbar:has(+ .interior-theme) :is(a[aria-current="page"], button) {
+.marketing-navbar--shared :is(a[aria-current="page"], button) {
   border-radius: var(--radius-full);
 }
 
 @media (width < 64rem) {
-  .marketing-navbar[data-menu-open="true"]:has(+ .interior-theme) {
+  .marketing-navbar--shared[data-menu-open="true"] {
     --marketing-nav-radius: var(--radius-lg);
   }
-  .marketing-navbar:has(+ .interior-theme) .marketing-nav-menu {
+  .marketing-navbar--shared .marketing-nav-menu {
     max-height: calc(100dvh - 5.5rem);
     overflow-y: auto;
   }
@@ -297,7 +302,7 @@
 
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   @media (prefers-reduced-transparency: no-preference) {
-    .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+    .marketing-navbar--shared .marketing-nav-bed {
       background: color-mix(in srgb, var(--color-background) 86%, transparent);
       -webkit-backdrop-filter: blur(12px) saturate(140%);
       backdrop-filter: blur(12px) saturate(140%);
@@ -306,32 +311,32 @@
 }
 
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
-  .marketing-navbar:has(+ .interior-theme) .marketing-nav-rim { display: none; }
-  .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+  .marketing-navbar--shared .marketing-nav-rim { display: none; }
+  .marketing-navbar--shared .marketing-nav-bed {
     background: var(--color-background);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  .marketing-navbar:has(+ .interior-theme):has(.marketing-nav-rim) .marketing-nav-bed { clip-path: none; }
+  .marketing-navbar--shared:has(.marketing-nav-rim) .marketing-nav-bed { clip-path: none; }
 }
 
 @media (forced-colors: active) {
-  .marketing-navbar:has(+ .interior-theme) .marketing-nav-bed {
+  .marketing-navbar--shared .marketing-nav-bed {
     background: Canvas;
   }
-  .marketing-navbar:has(+ .interior-theme)::after {
+  .marketing-navbar--shared::after {
     border: 0;
     box-shadow: none;
     outline: 1px solid CanvasText;
   }
-  .marketing-navbar:has(+ .interior-theme) a[aria-current="page"] {
+  .marketing-navbar--shared a[aria-current="page"] {
     background: Highlight;
     color: HighlightText;
   }
 }
 
 @media (width >= 64rem) {
-  .marketing-navbar:has(+ .interior-theme) {
+  .marketing-navbar--shared {
     top: 0;
     width: 100%;
     margin: 0;
@@ -339,20 +344,20 @@
     background: var(--color-background);
     box-shadow: inset 0 -1px 0 var(--color-navbar-edge);
   }
-  .marketing-navbar:has(+ .interior-theme) :is(.marketing-nav-bed, .marketing-nav-rim) { display: none; }
-  .marketing-navbar:has(+ .interior-theme)::after { content: none; }
+  .marketing-navbar--shared :is(.marketing-nav-bed, .marketing-nav-rim) { display: none; }
+  .marketing-navbar--shared::after { content: none; }
 }
 
 @media (width >= 64rem) and (forced-colors: active) {
-  .marketing-navbar:has(+ .interior-theme) {
+  .marketing-navbar--shared {
     background: Canvas;
     box-shadow: none;
     outline: 1px solid CanvasText;
   }
 }
 
-.marketing-navbar:has(+ .interior-theme) [data-brand-variant="white"] { display: none; }
-.marketing-navbar:has(+ .interior-theme) [data-brand-variant="dark"] { display: block; }
+.marketing-navbar--shared [data-brand-variant="white"] { display: none; }
+.marketing-navbar--shared [data-brand-variant="dark"] { display: block; }
 
 /* One illustrated chapter opener; the content below keeps the shared palette. */
 .interior-intro {
