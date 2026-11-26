@@ -132,7 +132,7 @@ Rules of use:
 | `ui/public/hub.png`, `ui/public/hub.jpg` | **Apple's App Store logo.** A trademark we have no right to ship, referenced as `apple-touch-icon` in `ui/index.html`. | Replace immediately with the keys mark. This is a legal fix, not an aesthetic one. |
 | `ui/public/home.png` | Clipart house. | Delete; use a Lucide icon. |
 | `*/public/favicon.ico` | Unverified boilerplate. | Regenerate all three from the square keys mark. |
-| `marketing/marketing-ui/public/layouts/images/*` (berk, cmu, mit, stan, gonzaga, thumbnail, back*.jpg, sky, mountains…) | The "web10 for education" era — old pitch, old fonts, old navy palette, university logos. | The marketing rebuild (§10) decides per file; default is delete. University logos are other people's trademarks — same rule as hub.png. **D125 exception:** `back2.jpg` (the electric-blue fractal with the keyhole at its center) is restored as `marketing/marketing-ui/public/hero-fractal.jpg` — the one permitted decorative flourish on the classic landing surface (§13 classic tokens). Everything else in the directory stays delete. |
+| `marketing/marketing-ui/public/layouts/images/*` (berk, cmu, mit, stan, gonzaga, thumbnail, back*.jpg, sky, mountains…) | The "web10 for education" era — old pitch, old fonts, old navy palette, university logos. | The marketing rebuild (§10) decides per file; default is delete. University logos are other people's trademarks — same rule as hub.png. **Classic landing exceptions:** `back2.jpg` returns as `public/hero-fractal.jpg`, `back3.jpg` as `public/stats-2022.webp`, and `sky.jpg` as `public/pledge-sky-2022.jpg`. |
 | `ui/public/YourOrgsLogo/*` (key_white/black, generic_school_logo) | Feature fixtures — placeholder art for a provider's own branding slot. Not web10 brand assets. | Keep, but they are white-label placeholders; label them as such where shown. |
 
 ### Asset debt (queued work, lane D unless noted)
@@ -649,9 +649,9 @@ the doc is wrong, fix the doc, then the code.
 
 Social, marketing and the authenticator default to System (`prefers-color-scheme`), follow live device
 changes, and offers explicit Light / Dark overrides in Settings and the
-public `/appearance` screen (More → Appearance; signed-out phones use the
-header's Appearance button). Marketing exposes the same choices at
-`/appearance` through Learn → Appearance. The authenticator exposes the same
+   public `/appearance` screen (More → Appearance; signed-out phones use the
+   header's Appearance button). Marketing exposes the same choices at
+   `/appearance` directly in its navigation. The authenticator exposes the same
 choices in Settings and on public `?mode=appearance`, linked from login; popup
 consent follows this origin's choice without navigating away from its request.
 Each preference belongs to
@@ -734,7 +734,7 @@ the missing steps.
   --color-glow-danger: rgba(239, 68, 68, 0.25);
 
   /* classic landing surface — D125, always-dark, scoped to the page root
-     via [data-classic="true"] (see the "Classic landing surface" note) */
+     via .classic-surface (see the "Classic landing surface" note) */
   --color-classic-background: #101648;
   --color-classic-surface: #161d5e;
   --color-classic-elevated: #1d2570;
@@ -787,10 +787,11 @@ ugly, it breaks phase-4 theming.
 
 The classic "web10 Revolution" landing — the pre-D13 own-your-data page
 revived as the primary marketing surface (`homepage-classic-revival.md`)
-— is an **always-dark, scoped** page: it renders in the classic palette
-regardless of the visitor's D108 theme choice; only `/` and its navbar
-use it. The docs, App Store, and `/audience` keep system/light/dark theming.
-The scope is a `data-classic="true"` attribute, which
+— uses a **fixed editorial palette** regardless of the visitor's D108 choice:
+a dark hero, paper content, and a charcoal footer. The rest of marketing uses the same visual
+language in its selected System/Light/Dark appearance. The shared marketing
+navbar is always ink navy, with the white logo and sky accents, in either mode.
+The scope is a `classic-surface` class, which
 remaps the standard utility namespaces onto the classic values (so
 `bg-background`, `text-muted-foreground`, `bg-brand`, … all resolve
 inside the page without any component knowing it is on the classic
@@ -811,27 +812,38 @@ primary foreground for prose over the scrim, and deep ink text on sky fill.
 | `--color-classic-brand-muted` | `#1a2260` | Brand-tinted background inside the scope (pills, selected fills). |
 
 In the `@theme` copy, `brand` and `ring` map to `sky`, the CTA hover
-maps to `sky-bright`, and its text maps to `ink`. Use `--font-classic-display`
-(Georgia, Times New Roman, Times, serif) at regular weight; render the
-hero and section headings uppercase, and use italics for the pledge.
-Use `--font-classic-body` (Jost, system-ui,
+maps to `sky-bright`, and its text maps to `ink`. On `/`, use
+`--font-classic-display` (Georgia, Times New Roman, Times, serif) at regular
+weight. Use mixed-case hero and section headings for readability, and italics
+for the pledge year. Use `--font-sans` (Jost, system-ui,
 sans-serif) for prose and navigation. The 2022 source (`f3d695394:home/`)
 used Georgia and Lineto Brown Pro; Jost is the self-hosted OFL stand-in,
 not a claim that the original used Jost. No third-party font requests.
 
 The hero asset (`public/hero-fractal.jpg`, 1332×850, ~258 KB, restored
-from `e01e4b6c3^`) is the one permitted decorative flourish on the
-surface (§4); a layered ink scrim shades the center for text and deepens
-at the bottom. Use a scroll background on touch, narrow, and reduced-motion
-viewports, retaining the art. The founder photo (`public/founder-2022.jpg`,
+from `e01e4b6c3^`) is the lead artwork on the
+surface; a dark scrim shades the center for text and deepens
+at the bottom. The hero and stats art stay fixed behind scrolling content on
+wide (≥1024px), fine-pointer desktops unless Reduced Motion is on; the scrims
+and the pledge scroll normally. Touch and narrow viewports keep the art with
+the section. The founder photo (`public/founder-2022.jpg`,
 640×640, ~109 KB, restored + cropped from `e01e4b6c3^`) is a real portrait,
 not decoration.
 
 **Section separation: color blocks, never hairlines.** The 2022 page
 separated sections by background blocks (navy band between lighter
 sections, navy footer) — no 1px divider lines anywhere. On the classic
-surface the features and team sit on `background`, the pledge on `surface`,
-and the header, stats and footer on `ink`. A 1px `border-border` line reads as a
+surface the sky-accented fractal sits under a dark scrim. Features and team
+use paper (`#fafafa`) with charcoal type, gray supporting text, and a readable
+blue accent. The flat, horizontal stats row restores the original `back3.jpg`
+image under a 65% black scrim, with no box. The pledge uses the
+archived `sky.jpg` from `f3d695394:home/layouts/images/sky.jpg` under the same
+scrim, correcting the old relative path. The sky layers over charcoal to
+retain the look of the archive's rendered fallback. After the Team section,
+the pledge is a left-aligned sign-off in body-sized type, with separate
+attribution and year, not a second display headline.
+Keep `ink` for the header and the archive's
+charcoal and light gray for the footer. A 1px `border-border` line reads as a
 "stretchy divider" (operator, 25.11.2026, against a first capture:
 "these dividers look stretchy … take some notes on the serious style
 that 2022 page did! i think it was using transparency different cool
@@ -840,3 +852,33 @@ shit") and is a review rejection on this surface.
 White-label note (D22) applies to the classic tokens too — they are
 override-able CSS variables, so a partner node can re-skin the landing
 by re-pointing the scope.
+
+### Marketing-wide Revolution styling
+
+The archive's paper and charcoal are the shared marketing canvases, including
+the App Store, app details, and docs. Light uses paper (`#fafafa`), white
+cards, pale blue raised surfaces (`#e3edf8`), charcoal text (`#232323`),
+gray secondary text (`#474747`), and deep blue links, buttons, and focus
+rings (`#174a76`, hover `#0e365b`). Dark uses the home footer's charcoal
+canvas (`#2b2f32`), archive slate cards (`#33363b`), raised slate (`#424950`),
+light gray secondary text (`#cbcbcb`), and the hero's sky accent (`#87ceeb`).
+The startup browser tint matches the resolved canvas. Keep the fractal on `/`
+only; interior pages use flat surfaces and mixed-case Jost headings. Shared
+marketing prose and controls use Jost; code keeps its mono face. The web10
+social and web10 hub listings and canonical app details share one marketing-only
+tile: the unredrawn white keys on saturated cobalt (`#1656d9`). Reserve that
+stronger blue for artwork, not page chrome.
+Other apps retain their artwork. Installed icons and the social, authenticator,
+and standalone demo interfaces do not inherit the marketing palette.
+
+Use one continuous canvas per screen, with a neighboring tone for grouped
+content and a stronger accent only for actions and focus. Type and spacing
+should separate sections before color does. The homepage is cinematic; the
+App Store uses this hierarchy as a catalog, not as a second landing page.
+
+The App Store uses the shared paper and charcoal tokens in Light and Dark.
+Keep the introduction centered and compact, align featured rows,
+search, and browse grid on one rail, and give the app artwork the strongest
+colors. Browse tiles stay icon-led: two columns on phones and five where
+space allows. On phones the featured description gets the full card width.
+Both appearances keep the same hierarchy.

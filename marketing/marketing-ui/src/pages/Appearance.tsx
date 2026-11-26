@@ -11,7 +11,7 @@ export default function Appearance() {
   const { preference, resolved, persistent, setPreference } = useTheme()
   return <main className="mx-auto min-h-[calc(100dvh-4rem)] max-w-2xl space-y-6 px-4 py-12 sm:px-6" data-testid="appearance-screen">
     <div className="space-y-2">
-      <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Appearance</h1>
+      <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Appearance</h1>
       <p id="appearance-description" className="text-sm text-muted-foreground">Follow your device, or choose your own look. This choice stays in this browser.</p>
     </div>
     <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:p-6">

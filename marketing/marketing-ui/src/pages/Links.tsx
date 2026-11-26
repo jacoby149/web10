@@ -61,7 +61,7 @@ export default function LinksPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24">
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
             web10
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">

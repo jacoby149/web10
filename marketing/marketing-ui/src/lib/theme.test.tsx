@@ -37,7 +37,7 @@ describe('marketing appearance', () => {
       expect(document.documentElement.dataset.theme).toBe(expected)
       expect(document.documentElement.style.colorScheme).toBe(expected)
       expect(store().getSnapshot().resolved).toBe(expected)
-      expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', expected === 'dark' ? '#09090b' : '#fafafa')
+      expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', expected === 'dark' ? '#2b2f32' : '#fafafa')
     }
   })
 

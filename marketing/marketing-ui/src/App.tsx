@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import { StarsProvider } from './components/GitHubStarsContext'
 import DeployStatus from './components/DeployStatus'
@@ -12,7 +12,6 @@ import AppDetail from './pages/AppDetail'
 import Freedom from './pages/Freedom'
 
 import Links from './pages/Links'
-import Everything from './pages/Everything'
 import Appearance from './pages/Appearance'
 
 // Marketing explains the product. Social owns discovery (D111).
@@ -28,7 +27,7 @@ function App() {
         <Route path="/appearance" element={<Appearance />} />
         <Route path="/trending/*" element={<SocialRedirect />} />
         <Route path="/links" element={<Links />} />
-        <Route path="/everything" element={<Everything />} />
+        <Route path="/everything" element={<Navigate to="/" replace />} />
         <Route path="/groups" element={<SocialRedirect />} />
         <Route path="/join" element={<Join />} />
         <Route path="/freedom" element={<Freedom />} />
