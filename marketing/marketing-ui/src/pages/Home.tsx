@@ -95,20 +95,27 @@ function StatsBand() {
     return () => { alive = false }
   }, [])
 
-  // The band is live evidence, not filler: no numbers, no band.
-  if (!stats || error) return null
+  // The band is live evidence: it paints immediately with placeholder
+  // numerals so the page holds its shape while the node answers, and drops
+  // quietly only if the node is unreachable.
+  if (error) return null
 
-  const storage = formatBytes(stats.storage)
-  const items: Array<{ value: number; unit?: string; label: string; icon: typeof Users }> = [
-    { value: stats.users, label: 'users', icon: Users },
-    { value: stats.app_count, label: 'apps in the store', icon: Layers },
-    ...(stats.app_visits === undefined ? [] : [{ value: stats.app_visits, label: 'total app visits', icon: Activity }]),
-    { value: storage.value, unit: storage.unit, label: 'data liberated', icon: HardDrive },
+  const storage = stats ? formatBytes(stats.storage) : undefined
+  const items: Array<{ value?: number; unit?: string; label: string; icon: typeof Users }> = [
+    { value: stats?.users, label: 'users', icon: Users },
+    { value: stats?.app_count, label: 'apps in the store', icon: Layers },
+    // Older nodes never return app visits: their band ends at three
+    // counters, but the tile keeps its placeholder until the answer says
+    // so — the common node lands on four counters with no reflow.
+    ...(stats === null || stats.app_visits !== undefined
+      ? [{ value: stats?.app_visits, label: 'total app visits', icon: Activity }]
+      : []),
+    { value: storage?.value, unit: storage?.unit, label: 'data liberated', icon: HardDrive },
   ]
 
   // The archive's second artwork is a full-width backdrop, not a boxed card.
   return (
-    <section aria-label="Network statistics" className="classic-stats px-6 py-14 sm:py-20 lg:py-24">
+    <section aria-label="Network statistics" aria-busy={stats === null} className="classic-stats px-6 py-14 sm:py-20 lg:py-24">
       <div className={`mx-auto grid max-w-6xl gap-x-3 gap-y-6 md:gap-x-8 ${items.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
         {items.map((item) => {
           const Icon = item.icon
@@ -117,11 +124,20 @@ function StatsBand() {
               <div className="flex items-center justify-center gap-2 sm:gap-3">
                 <Icon className="size-5 shrink-0 text-brand-300 sm:size-6" strokeWidth={1.5} aria-hidden="true" />
                 <span className="block font-sans text-2xl font-light leading-none text-foreground tabular-nums sm:text-4xl">
-                  <CountUp value={item.value} />
-                  {item.unit && (
-                    <span className="ml-1 text-[0.6em] font-medium text-muted-foreground">
-                      {item.unit}
+                  {item.value === undefined ? (
+                    // Placeholder numerals until the node's real counts land.
+                    <span aria-hidden="true" className="animate-pulse text-muted-foreground motion-reduce:animate-none">
+                      ···
                     </span>
+                  ) : (
+                    <>
+                      <CountUp value={item.value} />
+                      {item.unit && (
+                        <span className="ml-1 text-[0.6em] font-medium text-muted-foreground">
+                          {item.unit}
+                        </span>
+                      )}
+                    </>
                   )}
                 </span>
               </div>

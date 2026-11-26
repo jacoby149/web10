@@ -73,6 +73,35 @@ describe('classic landing (D125)', () => {
     },
   )
 
+  it('holds the stats band with placeholder numerals until the node answers', async () => {
+    let release: (value: unknown) => void
+    const pending = new Promise((resolve) => { release = resolve })
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending))
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    await act(async () => { render(<Home />) })
+
+    // The band paints from the outset — every counter slot with its label...
+    const band = screen.getByRole('region', { name: 'Network statistics' })
+    expect(band).toHaveAttribute('aria-busy', 'true')
+    for (const label of ['users', 'apps in the store', 'total app visits', 'data liberated']) {
+      expect(within(band).getByText(label)).toBeInTheDocument()
+    }
+    // ...with placeholder numerals in place.
+    expect(within(band).getAllByText('···')).toHaveLength(4)
+    expect(within(band).queryByText('4.3K')).not.toBeInTheDocument()
+
+    // ...and the real counts land in the same band when the node answers.
+    await act(async () => {
+      release({ ok: true, json: async () => ({ users: 4321, app_count: 77, storage: 1073741824 }) })
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(band).toHaveAttribute('aria-busy', 'false')
+    expect(within(band).queryByText('···')).not.toBeInTheDocument()
+    expect(within(band).getByText('4.3K')).toHaveAttribute('title', '4,321')
+    // An answer without app_visits (older nodes) still ends at three counters.
+    expect(within(band).queryByText('total app visits')).not.toBeInTheDocument()
+  })
+
   it('drops the stats band quietly when the node is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')))
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
