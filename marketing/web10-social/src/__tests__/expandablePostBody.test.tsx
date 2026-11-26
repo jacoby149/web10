@@ -31,6 +31,7 @@ vi.mock('@/data/v3', () => ({ getV3Client: () => client }));
 const heights = vi.hoisted(() => ({
   scroll: 0,
   client: 0,
+  clampedScroll: undefined as number | undefined,
 }));
 beforeEach(() => {
   const origSH = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight');
@@ -38,6 +39,9 @@ beforeEach(() => {
   Object.defineProperty(Element.prototype, 'scrollHeight', {
     configurable: true,
     get() {
+      if (this instanceof HTMLElement && this.style.display === '-webkit-box') {
+        return heights.clampedScroll ?? heights.scroll;
+      }
       return heights.scroll;
     },
   });
@@ -50,6 +54,7 @@ beforeEach(() => {
   // The trigger budget (20 lines × 22.75px) + 8px tolerance — a fitting body.
   heights.scroll = 300;
   heights.client = 300;
+  heights.clampedScroll = undefined;
   return () => {
     if (origSH) Object.defineProperty(Element.prototype, 'scrollHeight', origSH);
     if (origCH) Object.defineProperty(Element.prototype, 'clientHeight', origCH);
@@ -219,6 +224,42 @@ describe('PostCard — the feed card\'s essay gate (D125)', () => {
       </MemoryRouter>,
     );
   }
+
+  it('renders the signed-in feed when clamping hides the overflow from scrollHeight', () => {
+    heights.scroll = 900;
+    heights.clampedScroll = heights.client = 137;
+    renderCard();
+    const toggle = screen.getByTestId('post-card-see-more');
+    expect(toggle).toHaveTextContent('See more');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveTextContent('See less');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveTextContent('See more');
+  });
+
+  it('stays mounted when resize crosses the essay threshold with clipped scrollHeight', () => {
+    vi.useFakeTimers();
+    try {
+      heights.clampedScroll = 137;
+      renderCard();
+      const resize = (naturalHeight: number, visibleHeight: number) => {
+        heights.scroll = naturalHeight;
+        heights.client = visibleHeight;
+        act(() => {
+          fireEvent(window, new Event('resize'));
+          vi.advanceTimersByTime(200);
+        });
+      };
+      expect(screen.queryByTestId('post-card-see-more')).toBeNull();
+      resize(900, 137);
+      expect(screen.getByTestId('post-card-see-more')).toHaveTextContent('See more');
+      resize(300, 137);
+      expect(screen.queryByTestId('post-card-see-more')).toBeNull();
+      expect(screen.getByTestId('post-card')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it('shows a fitting card body with no toggle (the pre-D125 shape)', () => {
     render(<MemoryRouter>

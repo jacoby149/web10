@@ -24,8 +24,8 @@ import { cn } from '@/lib/utils';
  * the D99 unfurl cards are never cut by the clamp.
  *
  * **The measurement is real layout, before paint.** A `useLayoutEffect`
- * (synchronous, before the browser's first paint) measures the clamped
- * element's `scrollHeight` vs `clientHeight`; the toggle appears in the first
+ * (synchronous, before the browser's first paint) compares the unclamped
+ * `scrollHeight` against the collapsed `clientHeight`; the toggle appears in the first
  * frame — no flash, no layout jump. It re-measures on window resize
  * (debounced) and when the text or the budget changes, so a body that
  * overflows at 375px but fits at 1440px shows the toggle only where it
@@ -113,23 +113,18 @@ export function ExpandablePostBody({
     if (!el || !text) return;
     const measure = () => {
       if (expanded) return;
-      const full = el.scrollHeight; // the content's natural height (clamped or not)
-      if (!essay) {
-        // Unclamped render: the essay gate. Enter only when the content
-        // exceeds the trigger budget (a sync re-render, still before paint).
-        setEssay(full > TRIGGER_PX + OVERFLOW_TOLERANCE_PX);
-        return;
-      }
-      // Essay regime: a width change can make the content fit the trigger
-      // again (the scrollHeight is still the natural height) — exit the
-      // clamp entirely (back to the unclamped render, no button).
-      if (full <= TRIGGER_PX + OVERFLOW_TOLERANCE_PX) {
-        setEssay(false);
-        return;
-      }
-      // Clamped: the button shows while the content exceeds the resting
-      // budget (el.clientHeight = the collapsed clamp's box height).
-      setRestingOverflows(full > el.clientHeight + OVERFLOW_TOLERANCE_PX);
+      const collapsedHeight = clamped ? el.clientHeight : 0;
+      // This element's only inline styles are the clamp. Some layouts report
+      // a clipped scrollHeight with those styles on; reading it as natural
+      // height makes the layout effect switch the clamp on and off forever.
+      const clampStyle = clamped ? el.getAttribute('style') : null;
+      if (clampStyle !== null) el.removeAttribute('style');
+      const full = el.scrollHeight;
+      if (clampStyle !== null) el.setAttribute('style', clampStyle);
+
+      const nextEssay = full > TRIGGER_PX + OVERFLOW_TOLERANCE_PX;
+      if (nextEssay !== essay) setEssay(nextEssay);
+      if (clamped) setRestingOverflows(nextEssay && full > collapsedHeight + OVERFLOW_TOLERANCE_PX);
     };
     measure();
     let timer: number | undefined;
@@ -142,7 +137,7 @@ export function ExpandablePostBody({
       window.removeEventListener('resize', onResize);
       window.clearTimeout(timer);
     };
-  }, [text, expanded, essay, collapsedLines]);
+  }, [text, expanded, essay, clamped, collapsedLines]);
 
   if (!text) return null;
 
