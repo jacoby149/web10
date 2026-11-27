@@ -495,6 +495,15 @@ floating New post shortcut as the complementary scrolled-down entry.
 Align Discover's topic chips to the post column on desktop, including beside
 the Top 10 rail; retain the phone gutter and the video wall's own layout.
 
+**Social chrome follow-up (27.11.2026):** in Light mode, outline the Posts
+column (Discover and Following) as one surface around the composer and post
+stack; keep internal dividers, flat Dark styling, and the Video wall unchanged.
+On Watch, start the single video's comment thread open; a reader can collapse
+it with the Comment action, and the URL preserves that choice for that video.
+In the identity chooser, show the current posting identity above search. Put the
+always-available personal row first below search; when posting as a group, label
+it “Switch to personal identity” without skipping the confirmation step.
+
 
 ### Social navigation glass — first pass (11.11.2026)
 

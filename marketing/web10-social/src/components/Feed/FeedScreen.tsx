@@ -1295,7 +1295,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       {sourceControl.error && <div role="alert" className="px-4 py-3 text-sm text-muted-foreground">{sourceControl.error}<Button variant="ghost" onClick={sourceControl.reload}>Retry server settings</Button></div>}
       {Object.entries(sourceErrors).filter(([origin]) => sourceControl.ready && sourceControl.sources.some(row => row.origin === origin)).map(([origin, message]) => <div key={origin} role="alert" className="px-4 py-2 text-xs text-muted-foreground">{new URL(origin).host}: {message}<Button variant="ghost" onClick={() => retrySources(n => n + 1)}>Retry source reads</Button></div>)}
 
-      <div className="md:px-0">
+      <div className="posts-column-frame" data-testid="following-posts-column">
         <PostEntryPrompt />
         {loading && !visiblePosts.length ? <FeedSkeleton /> : loadFailed ? (
           <div role="alert" data-testid="feed-load-error" className="px-4 py-16 text-center">

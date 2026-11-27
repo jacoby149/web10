@@ -1,5 +1,6 @@
 6.32.54 || 27.11.2026
 social + marketing: use one keys-and-script web10 Social identity: horizontal in the Social and Join headers, stacked in the App Store and install icons, and keys alone in the favicon. Keep the conversation pair as Join illustration and refresh the PWA shell cache.
+social: outline the Light-mode Posts column, open comments by default on Watch with a URL-owned collapse state, and make switching back to personal identity explicit below chooser search without skipping confirmation.
 
 6.32.53 || 27.11.2026
 research: enforce the DAU run's 60-second completion-collapse stop during measured windows, counting actual successful in-window completions rather than offers or HTTP errors. Bank the stop trace without inferring a physical bottleneck from the completion counter alone.
