@@ -8,6 +8,7 @@ provider backstop is a failsafe, not a deadline.
 import argparse
 import asyncio
 import json
+import os
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +21,7 @@ import arm_f_http
 import arm_f_run as arm_run
 import arm_t
 import arm_satellite_sql as sql
+import dau_sustain_readers as readers
 import dau_sustain_workload as wl
 import engagement_billboards as ads
 import engagement_cells as cells
@@ -88,7 +90,7 @@ def admission_gate(approval):
         raise ValueError('budget-sized host class declared at admission required')
     derived = (host.get('cores') == 16 and host.get('threads') == 32 and host.get('ram_gb') == 32)
     note = host.get('class_note')
-    if not derived and not (type(note) is str and note.strip()):
+    if 'dau_reader_criterion' not in approval and not derived and not (type(note) is str and note.strip()):
         raise ValueError('derived host requirement (16 cores / 32 threads / 32 GB RAM) or a declared closest-class note required')
     envelope = approval.get('dau_envelope')
     if not (envelope and all(type(envelope.get(key)) is int and envelope[key] > 0
@@ -103,6 +105,8 @@ def admission_gate(approval):
         raise ValueError('task-mode admission required')
     if approval.get('hybrid_k20_projected_admitted') is not False:
         raise ValueError('sustained-DAU measures the indexed complete path only')
+    if 'dau_reader_criterion' in approval:
+        diverse_host_admission(approval)
     full_store.source_guard(approval)
 
 
@@ -759,7 +763,89 @@ def preload_expected(root, stored_steps, actions):
         actions.expected[name] = read(path)
 
 
+def diverse_host_admission(approval):
+    host, envelope = approval['dau_host'], approval['dau_envelope']
+    if host['size'] != 'c-32' or host.get('expected_guest_logical_cpus') != 32:
+        raise ValueError('diverse-reader admission requires c-32 with 32 guest-visible logical CPUs')
+    if (envelope['container_bytes'], envelope['server_bytes']) != (28 * 1024**3, 22 * 1024**3):
+        raise ValueError('diverse-reader admission retains the 28/22 GiB ClickHouse envelope')
+    if approval.get('dau_reader_criterion') != readers.CRITERION:
+        raise ValueError('explicit diverse-reader criterion binding required')
+
+
+def verify_diverse_guest():
+    online = os.cpu_count()
+    available = len(os.sched_getaffinity(0))
+    memory_kib = int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines()
+        if line.startswith('MemTotal:')))
+    if min(online or 0, available) < 32 or memory_kib < 32 * 1024**2:
+        raise ValueError('guest exposes fewer than 32 logical CPUs or less than 32 GiB RAM')
+    return dict(guest_logical_cpus=online, process_available_logical_cpus=available,
+        guest_memory_bytes=memory_kib * 1024, topology_claim='guest logical CPUs only')
+
+
+def reader_preflight(root, *, note=None):
+    """Bank selection over the verified Parquet restore, before fixture writes."""
+    root = Path(root).resolve()
+    approval = read(root / 'admission.json')
+    admission_gate(approval)
+    diverse_host_admission(approval)
+    sha = current.source_guard(approval)
+    if (root / 'costfn-task.json').exists():
+        raise ValueError('reader census must precede canonical fixture and load writes')
+    task = Task(root, approval, sha)
+    task.path = root / 'costfn-task-reader-preflight.json'
+    with task.attempt(note):
+        modern.install_sessions()
+        try:
+            guest = verify_diverse_guest()
+            restored = task.step('restore', lambda: restore_parquet(root, approval))
+            task.step('verify-input', lambda: verify_preflight_input(root),
+                validate=lambda stored: verify_preflight_binding(root, stored))
+            verify_envelope(root)
+            verified = verify_store(root)
+            session = modern.Session(root)
+            links, _ = session.rows('dau_restore_link_count', 'SELECT count() AS n FROM doc_groups')
+            link_count = int(links[0]['n'])
+            if link_count != input_manifest_counts(root)['doc_groups']:
+                raise ValueError('restored link count differs from the verified Parquet input')
+            selection = readers.freeze(root, session)
+            value = dict(status=selection['outcome'], host=approval['dau_host'], guest=guest,
+                restore=restored, store=verified, doc_groups=link_count, source_revision=sha,
+                qualifying_count=selection['qualifying_count'], selected_count=selection['readers_count'],
+                census_sha256=selection['census_sha256'],
+                selection_sha256=digest(root / 'dau-diverse-reader-selection.json'),
+                load_windows='NOT_RUN')
+            save(root / 'dau-diverse-reader-preflight.json', value)
+            return value
+        finally:
+            if (root / 'restore.json').exists():
+                cells.stop(root)
+
+
+def verify_preflight_input(root):
+    source = root / 'input'
+    restore.verified_input(source, source / 'validation.json', arm_t.DATASET, arm_t.VALIDATION)
+    return preflight_input_digests(root)
+
+
+def preflight_input_digests(root):
+    return dict(input_manifest_sha256=digest(root / 'input/manifest.json'),
+        validation_sha256=digest(root / 'input/validation.json'))
+
+
+def verify_preflight_binding(root, stored):
+    if preflight_input_digests(root) != stored:
+        raise ValueError('saved Parquet input binding changed')
+
+
 def run(root, *, note=None):
+    raise ValueError('sustained windows blocked: shared-oracle scheduler cannot execute the diverse-reader contract; '
+        'only --reader-preflight-only is implemented for the amendment')
+
+
+def _historical_run(root, *, note=None):
+    """Original measurement path kept for source comparison, not an entry point."""
     root = Path(root).resolve()
     approval = read(root / 'admission.json')
     admission_gate(approval)
@@ -831,5 +917,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path)
     parser.add_argument('--repair-note')
+    parser.add_argument('--reader-preflight-only', action='store_true')
     args = parser.parse_args()
-    run(args.root, note=args.repair_note)
+    (reader_preflight if args.reader_preflight_only else run)(args.root, note=args.repair_note)
