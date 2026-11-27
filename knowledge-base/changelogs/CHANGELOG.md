@@ -1,6 +1,8 @@
-6.32.56 || 27.11.2026
+6.32.57 || 27.11.2026
 fix(marketing): render the Quick links Social icon through the shared image component so it passes media ownership checks without changing the layout.
 test(social): drive the Shorts swipe test through the observer registered on the next slide, not an unrelated player or feed observer.
+
+6.32.56 || 27.11.2026
 research: allow the admitted 150-reader canonical DAU setup worker to finish beyond the old two-hour outer client timeout. Keep the per-reader packets, original oracle source binding, native statement limits, and owned lease unchanged.
 
 6.32.55 || 27.11.2026
