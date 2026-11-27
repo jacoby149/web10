@@ -1,3 +1,6 @@
+6.32.74 || 27.11.2026
+research: bank the diverse-reader DAU calibration resource stop on the single c-32. The restored input and retained fixture, 20,000-to-150 census, oracle packets and all 750 indexed checks verify; the single-worker API did not clear calibration. No measured windows, sustained capacity claim, or draft change. Private custody and owned cleanup verified; snapshot retained.
+
 6.32.73 || 27.11.2026
 research: avoid feed parser cascades for the server's precise batched DAU prepare lookups, retaining live certification and compiled native policy. Cache the tallied page SQL only after exact route and target checks. Follow-up calibration profiling, not timed capacity evidence.
 

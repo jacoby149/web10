@@ -28,7 +28,7 @@ logical read bytes, largest individual statement memory, summed native duration
 `255003176` remains retained. Verify private archives by SHA-256 before cleanup;
 report estimated compute separately from storage and the invoice.
 
-## Sustained-DAU load test — diverse-reader amendment, no new load result
+## Sustained-DAU load test — diverse-reader calibration stop, sustained not run
 
 The [sustained-DAU load test contract](DAU-SUSTAINED-LOAD.md) defines the
 right-sized receipt against the realism contract's load (15 reads/s peak,
@@ -53,6 +53,14 @@ source is not a native receipt, and the legacy serial, shared-oracle runner
 cannot start sustained windows. See the [task block](task-block-load-test-diverse-readers.md)
 for the pending measurement gates. Neither receipt replaces the full-store
 hybrid arm or Study L.
+
+The [diverse-reader calibration receipt](evidence/dau-sustain-diverse-20261127/RESULTS.md)
+banks the later c-32 run: verified Parquet plus retained fixture, 20,000
+eligible principals, 150 frozen readers, and all 750 reader-route tally
+checks. Calibration did not clear the single-worker API backlog; no sustained
+windows, measured writer stream, final drain, storage headroom proof, or draft
+v8 update. Private custody and owned cleanup were verified, and snapshot
+`255003176` was retained.
 
 ## D117 row-model proving cell — complete; maximal model rejected
 
