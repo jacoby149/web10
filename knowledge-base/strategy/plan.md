@@ -1,5 +1,9 @@
 # web10 v3 Plan
 
+- [✓ 6.32.61 local] **Responsive deployment badge** — keep tap handling, date formatting, and paint work lightweight while preserving the panel’s existing details and dismissal.
+
+- [✓ 6.32.60 local] **Keys-only Social app icon** — center pale blue keys without lettering on the pure-black field, leaving in-app branding unchanged.
+
 - [✓ 6.32.59 local] **Pure-black Social app icon** — replace the charcoal field on the catalog and install icons without changing the lockup, favicon, or in-app theme.
 
 - [✓ 6.32.58 local] **Quick links opens separately** — open the directory in a new tab from the desktop navbar and phone menu; preserve same-tab navigation inside it.

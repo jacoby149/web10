@@ -1,3 +1,9 @@
+6.32.61 || 27.11.2026
+fix(marketing): make the deployment badge respond directly to taps, remove its backdrop blur, and format the timestamp before opening the panel. Keep outside and Escape dismissal.
+
+6.32.60 || 27.11.2026
+fix(social): use centered pale-blue keys without lettering on the black App Store and install icons. Keep the favicon and in-app branding unchanged.
+
 6.32.59 || 27.11.2026
 fix(social): use pure black behind the existing blue keys and white lettering on the App Store and install icons. Refresh the PWA shell cache; leave the favicon and in-app theme unchanged.
 
