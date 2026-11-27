@@ -1,6 +1,7 @@
 """Admitted research-only indexed cell with scoped, journaled publication."""
 
 from contextvars import ContextVar
+from functools import lru_cache
 import hashlib
 import json
 import os
@@ -17,6 +18,7 @@ import dau_sustain_cell_policy as policy
 from dau_sustain_candidate import cached_candidate
 from dau_sustain_compiled_cache import memoize_sql
 from dau_sustain_scope_proof import checked_route
+from dau_serving_bundle import worker_route
 import engagement_composition_api as composition
 import engagement_tally_queries as tallies
 
@@ -51,6 +53,21 @@ inside_publication = ContextVar('dau_authorized_publication', default=False)
 render_tallied_main = memoize_sql(tallies.main)
 
 
+@lru_cache(maxsize=192)
+def followup_shape(compiled):
+    tree = sqlglot.parse_one(compiled, read='clickhouse')
+    source = tree.args.get('from_')
+    service = source.this.name if source and isinstance(source.this, exp.Table) else None
+    if service in ('reactions', 'comments') and any(list(x.find_all(exp.AggFunc)) for x in tree.expressions):
+        return service, tuple(e.queries.literal_targets(tree))
+    return None
+
+
+@memoize_sql
+def render_followup(compiled, service, route, ids, uniform):
+    return tallies.stored(sqlglot.parse_one(compiled, read='clickhouse'), service, route, ids, uniform=uniform)
+
+
 def certify(reader):
     if reader not in proof['routes']:
         return False, 'unbuilt_reader'
@@ -79,17 +96,15 @@ def main(compiled, pointers, profiles, scope):
 
 def compile_query(*args, **kwargs):
     compiled = p._compile(*args, **kwargs)
-    tree = sqlglot.parse_one(compiled, read='clickhouse')
-    source = tree.args.get('from_')
-    service = source.this.name if source and isinstance(source.this, exp.Table) else None
-    if service not in ('reactions', 'comments') or not any(list(x.find_all(exp.AggFunc)) for x in tree.expressions):
+    shape = followup_shape(compiled)
+    if shape is None:
         return ordinary_compile(*args, **kwargs)  # Canonical prepare subreads retain the existing compiler.
+    service, ids = shape
     reader = kwargs.get('member_key', args[2] if len(args) > 2 else 'anon')
     readable = args[1] if len(args) > 1 else kwargs['readable_groups_by_service']
-    ids = e.queries.literal_targets(tree)
     route = checked_route(proof, reader, service, readable, ids)[service]
     p.observer.current.get()['engagement_tally_scopes'] = [route]
-    return tallies.stored(tree, service, route, ids, uniform=e.uniform)
+    return render_followup(compiled, service, route, ids, e.uniform)
 
 
 def publish(request, data, real_author, client_id, **kwargs):
@@ -129,21 +144,35 @@ if f.admission.get('dau_calibration_utilization') is True:
     from dau_calibration_diagnostics import api_observer
 
     f.observation.FIELDS += ('phases_ms', 'unattributed_handler_ms')
-    observe_utilization = api_observer(f.ROOT, p.ch._get_client)
+    from dau_serving_bundle import local_worker_port
+
+    observe_utilization = api_observer(f._observation_root, p.ch._get_client, port=local_worker_port())
 
 
 async def application(scope, receive, send):
     if scope['type'] == 'http':
+        method, path = scope['method'], scope['path']
+        if not worker_route(os.environ.get('DAU_WORKER_ROLE'), method, path):
+            return await JSONResponse({'detail': 'route is outside this admitted DAU worker'}, status_code=403)(scope, receive, send)
         if observe_utilization is not None:
             observe_utilization()
-        method, path = scope['method'], scope['path']
         if method == 'POST' and path == '/v3/create':
             token = inside_publication.set(True)
             try:
                 return await f.application(scope, receive, send)
             finally:
                 inside_publication.reset(token)
-        if ((method == 'POST' and path not in ('/v3/query', '/v3/contentViews', '/v3/login'))
-                or (method != 'POST' and (method, path) != ('GET', '/docs'))):
-            return await JSONResponse({'detail': 'route is outside the admitted DAU workload'}, status_code=403)(scope, receive, send)
+    if scope['type'] == 'lifespan' and os.environ.get('DAU_BUNDLE_ACTIVE') == '1':
+        import anyio.to_thread
+        limiter = anyio.to_thread.current_default_thread_limiter()
+        limiter.total_tokens = int(os.environ['DAU_THREAD_TOKENS'])
+        if os.environ['DAU_WORKER_ROLE'] == 'read':
+            # Read workers install all serving/auth hooks at import. Only the
+            # publisher runs node startup DDL and background write workers.
+            for event in ('startup', 'shutdown'):
+                message = await receive()
+                if message['type'] != 'lifespan.' + event:
+                    raise RuntimeError('unexpected read-worker lifespan event')
+                await send({'type': 'lifespan.' + event + '.complete'})
+            return
     return await composition.application(scope, receive, send)

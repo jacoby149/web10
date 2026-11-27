@@ -34,3 +34,9 @@ same contract and admission. Preserve any new stopped calibration with the
 resource named. Require off-host archive verification and owned cleanup,
 then amend draft v8 with the verified ruling, never a capacity claim for a
 window that did not run.
+
+The operator's next instruction admits the
+[recorded serving bundle](DAU-SERVING-CONFIGURATION.md) before the diagnostic
+replay. This intentionally trades per-setting attribution for a named,
+reproducible configuration; keep the original failure separate. No
+serving-policy or read-query rewrite follows from the bundle.

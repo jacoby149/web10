@@ -37,12 +37,13 @@ def process_ticks(pid, proc=Path('/proc')):
     return dict(user=int(fields[11]), system=int(fields[12]), start_ticks=int(fields[19]))
 
 
-def host_probe(engine_pid, api_pid):
+def host_probe(engine_pid, api_pid, workers=None):
     return dict(clock_ns=time.monotonic_ns(), ticks_per_second=os.sysconf('SC_CLK_TCK'),
-        cpu=cpu_ticks(), engine_ticks=process_ticks(engine_pid), api_ticks=process_ticks(api_pid))
+        cpu=cpu_ticks(), engine_ticks=process_ticks(engine_pid), api_ticks=process_ticks(api_pid),
+        api_worker_ticks={port: process_ticks(pid) for port, pid in (workers or {}).items()})
 
 
-def inventory(session, output):
+def inventory(session, output, *, serving_bundle=False):
     settings, ids = {}, []
     for table, fields in (('server_settings', SERVER),):
         rows, identity = session.rows('dau_utilization_' + table, 'SELECT name,value,changed FROM system.' + table
@@ -50,7 +51,7 @@ def inventory(session, output):
         settings[table] = {'rows': rows, 'absent': sorted(set(fields) - {row['name'] for row in rows})}
         ids.append(identity)
     save(output / 'utilization-inventory.json', dict(settings=settings, native_finishes=native_finishes(session, ids),
-        measured_workload_settings_unchanged=True))
+        measured_workload_settings_unchanged=not serving_bundle))
 
 
 def engine_queue(session):
@@ -66,24 +67,25 @@ def append(path, row):
         stream.write(json.dumps(row, sort_keys=True) + '\n')
 
 
-def api_observer(root, client):
+def api_observer(root, client, *, port=None):
     """Sample the existing AnyIO queue and client pool from the serving process."""
     import anyio.to_thread
 
-    state = dict(last=0, inventory=False)
+    state = dict(last=0, inventory=False, backend=None)
     output = root / 'utilization-queues.jsonl'
 
     def observe():
         now = time.monotonic_ns()
-        if now - state['last'] < 1_000_000_000:
+        if state['inventory'] and now - state['last'] < 1_000_000_000:
             return
         state['last'] = now
         limiter = anyio.to_thread.current_default_thread_limiter().statistics()
         fields = dict(host_monotonic_ns=now, pid=os.getpid(), total_tokens=limiter.total_tokens,
-            borrowed_tokens=limiter.borrowed_tokens, tasks_waiting=limiter.tasks_waiting)
+            borrowed_tokens=limiter.borrowed_tokens, tasks_waiting=limiter.tasks_waiting, worker_port=port)
         if not state['inventory']:
             connection = client()
             backend = connection._backend
+            state['backend'] = backend
             kwargs = backend.connection_pool_kw
             fields['client_pool'] = {key: kwargs[key] for key in ('maxsize', 'block') if key in kwargs}
             fields['client_pool']['num_pools'] = backend.pools._maxsize
@@ -93,7 +95,28 @@ def api_observer(root, client):
             rows = list(connection.query(sql).named_results())
             fields['api_client_query_settings'] = dict(rows=rows,
                 absent=sorted(set(QUERY) - {row['name'] for row in rows}))
+            if port is not None:
+                from dau_serving_bundle import ENGINE_THREADS, POOL_KEEPALIVE, worker_layout
+
+                expected_tokens = {number: tokens for number, _, tokens in worker_layout()}[port]
+                actual_threads = next(row['value'] for row in rows if row['name'] == 'max_threads')
+                if (limiter.total_tokens != expected_tokens or int(actual_threads) != ENGINE_THREADS or
+                        kwargs.get('maxsize') != POOL_KEEPALIVE or kwargs.get('block') is not False):
+                    raise ValueError('effective DAU worker thread/connection configuration differs from the bundle')
             state['inventory'] = True
+        if port is not None:
+            pools = state['backend'].pools
+            with pools.lock:
+                current = [pools[key] for key in pools.keys()]
+            observations = []
+            for pool in current:
+                queue = pool.pool
+                if queue is not None:
+                    with queue.mutex:
+                        retained = sum(connection is not None for connection in queue.queue)
+                    observations.append(dict(idle_connections=retained, connections_created=pool.num_connections,
+                        requests_sent=pool.num_requests))
+            fields['engine_pool_counters'] = observations
         append(output, fields)
 
     return observe

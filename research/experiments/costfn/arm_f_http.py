@@ -51,7 +51,12 @@ class HTTP:
         if setup_group:
             row.update(setup_only=True, request_timeout_seconds=options['timeout'])
         try:
-            response = await self.client.post(path, json=body, headers=headers, **options)
+            from dau_serving_bundle import READ_PATHS, READ_PORTS, read_port
+            port = read_port.get()
+            if port is not None and (port not in READ_PORTS or path not in READ_PATHS):
+                raise ValueError('DAU reader transport cannot route mutation or non-workload paths')
+            destination = f'http://127.0.0.1:{port}{path}' if port is not None else path
+            response = await self.client.post(destination, json=body, headers=headers, **options)
             row.update(status=response.status_code, elapsed_ms=(time.perf_counter() - begin) * 1000,
                        stop=response.headers.get('x-arm-p-stop') == '1', path_mode=response.headers.get('x-fanout-path'))
             if response.headers.get('x-research-id') != request_id or row['stop']:
