@@ -1,3 +1,6 @@
+6.32.64 || 27.11.2026
+research: reuse each DAU tally write's already-durable native receipt and collect paired read-verification receipts with one flush. Validate every exact native identity and do not repeat checks for identical frozen scope keys and targets.
+
 6.32.63 || 27.11.2026
 fix(social): replace the Light-mode ice-blue top bar with a white surface, neutral controls, and a thin divider on desktop and phones. Keep the blue wordmark accent and Dark chrome unchanged.
 fix(hub, marketing): extend the white Light-mode header treatment to Hub, sign-in, and the shared marketing navbar. Use Social’s charcoal and matching light artwork for the Dark Hub, sign-in, and Home headers; keep the Home hero, Dark interior marketing palette, and mobile glass behavior.

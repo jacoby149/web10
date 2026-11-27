@@ -757,6 +757,17 @@ class DiverseReference(unittest.TestCase):
 
 
 class DiverseNativeAudit(unittest.TestCase):
+    def test_native_read_receipts_share_one_flush_but_verify_each_identity(self):
+        session = Mock()
+        rows = [dict(query_id=key, type='QueryFinish', exception_code=0) for key in ('a', 'b')]
+        session.rows.return_value = (rows, 'observed')
+        self.assertEqual(set(native_audit.native_finishes(session, ['a', 'b'])), {'a', 'b'})
+        session.query.assert_called_once_with('dau_native_batch_flush', 'SYSTEM FLUSH LOGS')
+        for result in (rows[:1], rows + rows[:1], [rows[0], dict(rows[1], exception_code=241)]):
+            session.rows.return_value = (result, 'observed')
+            with self.assertRaisesRegex(ValueError, 'missing, duplicated or unsuccessful'):
+                native_audit.native_finishes(session, ['a', 'b'])
+
     def test_publication_audit_separates_only_the_verified_bootstrap_intent(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'intents.sqlite'
