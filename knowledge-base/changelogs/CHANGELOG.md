@@ -1,3 +1,6 @@
+6.32.56 || 27.11.2026
+research: allow the admitted 150-reader canonical DAU setup worker to finish beyond the old two-hour outer client timeout. Keep the per-reader packets, original oracle source binding, native statement limits, and owned lease unchanged.
+
 6.32.55 || 27.11.2026
 social + marketing: use blue keys beside upright white lowercase `social` for the square catalog and install icon. Use one upright `web10 social` line in Social and Join headers, retaining the theme-aware keys and blue `10`. Keep the keys-only favicon and refresh the PWA shell cache.
 social: add What is web10 and Rate us on the App Store to desktop and phone More, with the rating link pointing directly to Social's listing.

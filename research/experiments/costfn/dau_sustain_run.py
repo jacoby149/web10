@@ -957,7 +957,13 @@ def prepare_mixed_cell(root, session, settled_ledger):
         raise ValueError('indexed composition must be certified on this host before DAU preparation')
     for name, value in composition['gates'].items():
         contract.gate(name, value)
-    index = references.prepare(root, session, settled_ledger)
+    if approval.get('dau_overnight') is not True:
+        raise ValueError('mixed-cell preparation requires the admitted overnight driver')
+    session.env['DAU_ORACLE_BATCH_UNTIMED'] = '1'
+    try:
+        index = references.prepare(root, session, settled_ledger)
+    finally:
+        session.env.pop('DAU_ORACLE_BATCH_UNTIMED', None)
     proof = scope_proof.prepare(root, session, index)
     writers = writer_population(root, session, selection)
     validate_cell(approval, proof, writers)
