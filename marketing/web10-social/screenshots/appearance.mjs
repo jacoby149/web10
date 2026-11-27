@@ -23,6 +23,18 @@ async function capture(page, name, fullPage = true) {
   await page.screenshot({ path: path.join(output, `${name}.png`), fullPage, animations: 'disabled' });
 }
 
+async function verifyAboutLinks(panel) {
+  const links = panel.getByRole('group', { name: 'About web10' }).locator('a');
+  assert.deepEqual(await links.evaluateAll(rows => rows.map(link => [link.getAttribute('href'), link.target])), [
+    ['https://web10.app', '_blank'],
+    ['https://web10.app/app-store/app/https%3A%2F%2Fsocial.web10.app%2F', '_blank'],
+  ]);
+  for (const link of await links.all()) {
+    await link.scrollIntoViewIfNeeded();
+    assert.ok((await link.boundingBox()).height >= 44, 'About links keep phone touch target size');
+  }
+}
+
 async function verifyPersonalSwitch(page, chooser, change, name) {
   const confirm = chooser.getByRole('button', { name: 'Use identity' });
   await chooser.getByRole('button', { name: /^Northstar Studio\s+(Group|Recent)$/ }).click();
@@ -126,6 +138,13 @@ try {
       assert.equal(await wordmark.getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color),
          mode === 'dark' ? 'rgb(168, 206, 255)' : 'rgb(6, 78, 174)');
       assert.equal(await page.getByTestId('social-header-mark').count(), 0);
+      if (width >= 768) {
+        const trigger = page.getByTestId('nav-more-desktop');
+        await trigger.click();
+        await verifyAboutLinks(page.getByTestId('more-menu'));
+        await capture(page, `more-links-${mode}-${label}`, false);
+        await trigger.click();
+      }
       {
         const ratios = await page.evaluate(() => {
           const css = getComputedStyle(document.documentElement);
@@ -181,6 +200,9 @@ try {
         assert.equal(await change.getByText('Change identity', { exact: true }).count(), 1);
         assert.doesNotMatch(await change.innerText(), /Acting as|Nova/);
         await change.locator('img').waitFor();
+        await verifyAboutLinks(feed.getByTestId('more-sheet'));
+        await capture(feed, `more-links-${mode}-${label}`, false);
+        await change.scrollIntoViewIfNeeded();
         await capture(feed, `more-${mode}-${label}`, false);
         await change.click();
         const chooser = feed.getByRole('dialog', { name: 'Choose acting identity' });

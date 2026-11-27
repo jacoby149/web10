@@ -1023,6 +1023,28 @@ describe('Layout', () => {
     expect(profileCard.compareDocumentPosition(appearance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it.each([false, true])('offers public About and rating links in desktop and phone More (signed out: %s)', async (isAnon) => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(<MemoryRouter initialEntries={['/feed']}><Layout isAnon={isAnon} onLogout={() => {}} onReportBug={() => {}} /></MemoryRouter>);
+    expect(screen.queryByText('What is web10')).not.toBeInTheDocument();
+    for (const [trigger, panel, role] of [
+      ['nav-more-desktop', 'more-menu', 'menuitem'],
+      ['nav-more-mobile', 'more-sheet', 'link'],
+    ] as const) {
+      fireEvent.click(screen.getByTestId(trigger));
+      const group = within(screen.getByTestId(panel)).getByRole('group', { name: 'About web10' });
+      const [about, rate] = within(group).getAllByRole(role);
+      expect(about).toHaveAccessibleName(/^What is web10/);
+      expect(about).toHaveAttribute('href', 'https://web10.app');
+      expect(rate).toHaveAccessibleName(/^Rate us on the App Store/);
+      expect(rate).toHaveAttribute('href', 'https://web10.app/app-store/app/https%3A%2F%2Fsocial.web10.app%2F');
+      for (const link of [about, rate]) {
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      }
+    }
+  });
+
   it('mobile bottom nav holds 4 core tabs + a More tab; coming-soon live in the More sheet, not the bar', async () => {
     // Operator, 30.08.2026: the mobile bottom bar was too crammed — a "More"
     // tab (the 5th icon) opens a sheet with Settings + the coming-soon

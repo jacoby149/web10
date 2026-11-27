@@ -542,6 +542,10 @@ applying a draft choice.
 Below the profile card, More's action order is People, Messages, Appearance,
 Settings, Monetization, then admin-only Node Settings. Keep the card premier;
 People is the first ordinary navigation row.
+Both phone and desktop More include public ecosystem links before Coming soon:
+“What is web10” opens the marketing homepage and “Rate us on the App Store”
+immediately below opens Social's canonical listing. Open both in a new tab so
+the reader can return to the current Social view; keep role gates unchanged.
 
 Social's top bar stays ice blue in Light mode. On desktop and phones in
 Dark mode it uses the desktop sidebar charcoal, with light ink and raised control

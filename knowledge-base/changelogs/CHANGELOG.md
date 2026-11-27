@@ -1,5 +1,6 @@
 6.32.55 || 27.11.2026
 social + marketing: use blue keys beside upright white lowercase `social` for the square catalog and install icon. Use one upright `web10 social` line in Social and Join headers, retaining the theme-aware keys and blue `10`. Keep the keys-only favicon and refresh the PWA shell cache.
+social: add What is web10 and Rate us on the App Store to desktop and phone More, with the rating link pointing directly to Social's listing.
 
 6.32.54 || 27.11.2026
 social + marketing: use one keys-and-script web10 Social identity: horizontal in the Social and Join headers, stacked in the App Store and install icons, and keys alone in the favicon. Keep the conversation pair as Join illustration and refresh the PWA shell cache.
