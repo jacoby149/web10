@@ -821,6 +821,20 @@ class DiverseNativeAudit(unittest.TestCase):
 
 
 class DiverseCellPolicy(unittest.TestCase):
+    def test_batched_membership_counts_preserve_recipient_sets_and_required_readers(self):
+        groups = ['a', 'b']
+        expected = {'a': {'reader'}, 'b': {'other'}}
+        rows = [dict(group_id='a', member_key='reader'), dict(group_id='a', member_key='also'),
+            dict(group_id='b', member_key='other')]
+        self.assertEqual(arm_f_native.verified_group_counts(groups, expected, rows), {'a': 2, 'b': 1})
+        for malformed in (rows[:-1], rows + rows[:1], rows + [dict(group_id='outside', member_key='reader')]):
+            with self.assertRaises(ValueError):
+                arm_f_native.verified_group_counts(groups, expected, malformed)
+        sql = arm_f_native.batch_members_sql(groups)
+        self.assertIn('PARTITION BY group_id,member_key ORDER BY updated_at DESC,deleted DESC', sql)
+        self.assertIn("WHERE rn=1 AND deleted=0 AND member_key NOT IN ('anyone','authenticated','anon')", sql)
+        self.assertNotIn('LIMIT', sql)
+
     def test_fanout_classification_checks_each_reader_only_on_their_groups(self):
         profile = dict(reader='ordinary', groups=['a', 'b'], dau_group_readers={'a': ['ordinary'], 'b': ['selected']})
         admitted = dict(purpose='DAU_SUSTAINED_CONTRACT_RATE', dau_overnight=True)

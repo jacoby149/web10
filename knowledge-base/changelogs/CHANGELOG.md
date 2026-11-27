@@ -1,3 +1,6 @@
+6.32.49 || 27.11.2026
+research: batch the DAU bootstrap's exact canonical membership census in groups of 32, retaining every recipient and the frozen reader requirements. Leave historical F builds and all timed workload semantics unchanged.
+
 6.32.48 || 27.11.2026
 research: reuse the exact already-created empty fanout table when repairing DAU setup. Verify the original successful DDL receipt, current SHOW CREATE and zero rows, preserving the native duplicate-table refusal rather than dropping or repeating DDL.
 
