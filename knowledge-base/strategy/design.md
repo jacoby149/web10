@@ -498,9 +498,9 @@ the Top 10 rail; retain the phone gutter and the video wall's own layout.
 
 ### Social navigation glass — first pass (11.11.2026)
 
-Social uses the blue-backed two-person conversation PNG with rounded corners
-next to `web10 social` on desktop and phone, in both themes. Join uses the
-same artwork; the separate catalog and install exports are unchanged.
+Social’s desktop brand strip and phone top bar use the `web10 social` wordmark
+alone, with the `10` in the theme’s blue accent. The two-person illustration
+stays on Join, the App Store, and the installed app, where it has room to read.
 
 Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
 mute choice across Posts/Video/Shorts and shared video renderers. Never persist
@@ -939,7 +939,7 @@ only; interior reading surfaces use flat colors. Shared marketing prose and
 controls use Jost; code keeps its mono face. Social's listing and canonical
 detail use the pink-and-blue pair on a solid blue tile in both themes. The
 tile crops through both figures below the waist, before the woman's legs
-show. Social's top bar uses the transparent crop directly on ice blue. Hub keeps the original
+show. Social’s top bar is wordmark-only. Hub keeps the original
 `/brand/icon-192.png`: white keys on near-black (`#09090b`), not cobalt.
 Other apps retain their artwork. App icons and the social, authenticator, and
 standalone demo interfaces do not inherit the marketing palette.

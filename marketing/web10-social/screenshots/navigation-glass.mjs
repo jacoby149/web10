@@ -77,9 +77,10 @@ try {
       const header = page.getByTestId(mobile ? 'topbar-mobile' : 'topbar-desktop');
       assert.equal(await header.isVisible(), true);
       assert.equal((await header.boundingBox()).height, mobile ? 60 : 64);
-      const mark = page.getByTestId('social-header-mark').filter({ visible: true });
-      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair-blue.png');
-      assert.equal(await mark.evaluate(el => getComputedStyle(el).borderTopLeftRadius), '8px');
+      const brand = mobile ? header : page.getByTestId('sidebar-brand-strip');
+      const wordmark = brand.getByTestId('social-header-wordmark');
+      assert.equal(await wordmark.innerText(), 'web10 social');
+      assert.equal(await brand.getByTestId('social-header-mark').count(), 0);
       assert.deepEqual(await header.evaluate(el => {
         const css = getComputedStyle(el);
         return [css.backgroundColor, css.backdropFilter, css.borderTopWidth, css.borderBottomWidth];
@@ -253,6 +254,14 @@ try {
       assert.deepEqual(await dockItems(), expectedDock, 'signed-out dock matches signed-in order');
       if (mobile) {
         assert.equal(await page.getByTestId('nav-appearance-anon').isVisible(), true);
+        await page.setViewportSize({ width: 320, height: 900 });
+        assert.equal(await wordmark.innerText(), 'web10 social');
+        const wordmarkBounds = await wordmark.boundingBox();
+        const appearanceBounds = await page.getByTestId('nav-appearance-anon').boundingBox();
+        const signInBounds = await page.getByTestId('sign-in-button-mobile').boundingBox();
+        assert.ok(wordmarkBounds.width > 1 && wordmarkBounds.x + wordmarkBounds.width <= appearanceBounds.x &&
+          signInBounds.x + signInBounds.width <= 320, 'the signed-out 320px header fits the wordmark and controls');
+        await page.setViewportSize({ width, height: 900 });
         for (const id of ['nav-feed-mobile', 'nav-video-mobile', 'nav-shorts-mobile', 'nav-music-mobile']) {
           const button = page.getByTestId(id);
           await button.click();

@@ -98,15 +98,11 @@ try {
       assert.equal(colors.native, mode);
       assert.equal(colors.chrome, colors.background);
       assert.equal(colors.overflow, false);
-      const mark = page.getByTestId('social-header-mark').filter({ visible: true });
-      assert.equal((await mark.locator('..').textContent()).trim(), 'web10 social');
-      assert.equal(await mark.locator('..').getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color),
-        mode === 'dark' ? 'rgb(168, 206, 255)' : 'rgb(6, 78, 174)');
-      assert.equal(await mark.getAttribute('src'), '/social-conversation-pair-blue.png');
-      assert.deepEqual(await mark.evaluate(el => {
-        const css = getComputedStyle(el);
-        return [el.naturalWidth, css.width, css.height, css.borderTopLeftRadius];
-      }), [192, '32px', '32px', '8px']);
+      const wordmark = page.getByTestId('social-header-wordmark').filter({ visible: true });
+      assert.equal(await wordmark.innerText(), 'web10 social');
+      assert.equal(await wordmark.getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color),
+         mode === 'dark' ? 'rgb(168, 206, 255)' : 'rgb(6, 78, 174)');
+      assert.equal(await page.getByTestId('social-header-mark').count(), 0);
       {
         const ratios = await page.evaluate(() => {
           const css = getComputedStyle(document.documentElement);
@@ -147,7 +143,7 @@ try {
       if (width < 768) {
         const header = feed.getByTestId('topbar-mobile');
         assert.equal(await header.getByTestId('acting-identity-trigger').count(), 0);
-        assert.equal(await header.locator('.wordmark-label').evaluate(el => {
+        assert.equal(await header.getByTestId('social-header-wordmark').evaluate(el => {
           const rect = el.getBoundingClientRect();
           return getComputedStyle(el).fontSize === '16px' && rect.right <= el.closest('header').lastElementChild.getBoundingClientRect().left;
         }), true, 'full-size wordmark fits beside header controls');
