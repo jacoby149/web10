@@ -1366,7 +1366,7 @@ describe('Layout', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 
-  it('pairs the Social name with the rounded blue conversation icon', async () => {
+  it('uses only the Social wordmark with an accented 10 in both headers', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1375,15 +1375,12 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    const marks = screen.getAllByTestId('social-header-mark');
-    expect(marks).toHaveLength(2);
-    for (const mark of marks) {
-      expect(mark).toHaveAttribute('src', '/social-conversation-pair-blue.png');
-      expect(mark).toHaveAttribute('alt', '');
-      expect(mark).toHaveClass('size-8');
-      expect(mark).toHaveClass('rounded-sm');
+    for (const id of ['sidebar-brand-strip', 'topbar-mobile']) {
+      const header = within(screen.getByTestId(id));
+      expect(header.getByTestId('social-header-wordmark')).toHaveTextContent(/^web10 social$/);
+      expect(header.getByText('10', { exact: true })).toHaveClass('text-social-header-accent');
+      expect(header.queryByTestId('social-header-mark')).not.toBeInTheDocument();
     }
-    expect(screen.getAllByText('social')).toHaveLength(2);
   });
 
   it('notifications bell is in the desktop top bar (not the sidebar)', async () => {
@@ -1401,24 +1398,6 @@ describe('Layout', () => {
     // It's inside the top bar (the desktop top bar testid).
     const topbar = screen.getByTestId('topbar-desktop');
     expect(topbar.contains(bell)).toBe(true);
-  });
-
-  it('the desktop sidebar shows the full web10 wordmark (keys mark + text)', async () => {
-    const { default: Layout } = await import('@/components/Social/Layout');
-    render(
-      <MemoryRouter initialEntries={['/feed']}>
-        <Layout onLogout={() => {}} onReportBug={() => {}}>
-          <div>Content</div>
-        </Layout>
-      </MemoryRouter>,
-    );
-    // The 29.09.2026 pass restored the wordmark to the sidebar (the
-    // mark-only Facebook-style variant was retired with the sidebar search).
-    // The full lockup: "web" + "10" (the "10" in brand violet) next to the
-    // keys mark. The mark-only variant is gone.
-    expect(screen.queryByTestId('wordmark-mark')).not.toBeInTheDocument();
-    expect(screen.getAllByText('web').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
   });
 
   it('the desktop search field is in the top bar, not the sidebar', async () => {

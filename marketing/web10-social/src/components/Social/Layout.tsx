@@ -17,7 +17,6 @@ import { NewPostFab } from '@/components/Feed/NewPostFab';
 import ActingIdentitySwitcher from './ActingIdentitySwitcher';
 import { useActingAuthor } from '@/data/actingIdentity';
 import { PersonalProfileContext } from '@/context/PersonalProfileContext';
-import { SocialMark } from '@/components/shared/ThemeMark';
 import DockGlass from './DockGlass';
 import { SignInPrompt } from '@/components/shared/SignInPrompt';
 
@@ -85,16 +84,9 @@ const comingSoonItems = [
 ];
 
 function Wordmark({ className }: { className?: string }) {
-  // The Social mark and wordmark on the ice-blue header.
-  // The sidebar top row (desktop) and the mobile header both carry it — the
-  // 29.09.2026 pass restored the wordmark to the sidebar (the mark-only
-  // Facebook-style variant was retired with the sidebar search).
   return (
-    <span className={cn('flex items-center gap-2 text-social-header-ink', className)}>
-      <SocialMark className="size-8" />
-      <span className="wordmark-label whitespace-nowrap font-display text-lg font-bold tracking-tight">
-        web<span className="text-social-header-accent">10</span> <span>social</span>
-      </span>
+    <span data-testid="social-header-wordmark" className={cn('whitespace-nowrap font-display text-lg font-bold tracking-tight text-social-header-ink', className)}>
+      web<span className="text-social-header-accent">10</span> <span>social</span>
     </span>
   );
 }
@@ -424,7 +416,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
         <header data-testid="topbar-mobile" className="md:hidden flex shrink-0 items-center justify-between px-3 h-15 bg-social-header sticky top-0 z-20 gap-1">
-          <Wordmark className={cn('shrink-0 [&_.wordmark-label]:text-base', isAnon && 'max-[359px]:[&_.wordmark-label]:sr-only')} />
+          <Wordmark className="shrink-0 text-base" />
           <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
               onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-social-header-ink hover:bg-social-header-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-social-header-ink">
