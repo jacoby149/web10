@@ -1,3 +1,6 @@
+6.32.57 || 27.11.2026
+research: make one independent raw-history key scan for the complete DAU oracle target set, then check each certified reader's full tally counts under their own canonical history and policy. Keep this verification separate from the indexed pairs candidates used by the treatment.
+
 6.32.56 || 27.11.2026
 research: allow the admitted 150-reader canonical DAU setup worker to finish beyond the old two-hour outer client timeout. Keep the per-reader packets, original oracle source binding, native statement limits, and owned lease unchanged.
 
