@@ -1,8 +1,11 @@
-6.32.41 || 27.11.2026
+6.32.42 || 27.11.2026
 research: batch quiescent canonical DAU oracle setup by frozen reader, add explicit grouped follow-up order and a phased HTTP dispatch adapter, and bind the overnight 24-hour failsafe separately from the original admission. Mixed-load certification and native delivery reconciliation are still required; no run or measured result.
 
-6.32.40 || 27.11.2026
+6.32.41 || 27.11.2026
 research: add offline controls for concurrent DAU arrivals, reader-bound ordered comparison and publication reconciliation, and non-overlapping host-memory accounting. The indexed mixed-load serving cell and end-to-end runner remain open; no provisioning or sustained result.
+
+6.32.40 || 27.11.2026
+style(social): enlarge the `web10 social` wordmark on phones and desktop and pair it with the original keys mark in both themes. Keep the mobile controls on one line and leave Join and installed app artwork unchanged.
 
 6.32.39 || 27.11.2026
 research: amend sustained DAU to census 150 already-authorized, non-empty Following scopes on the verified Parquet input; bind the c-32 guest requirement and retain the 28/22 GiB ClickHouse envelope. Source preflight only: stop the legacy serial/shared-oracle entry point; no provision, native result or draft change.
