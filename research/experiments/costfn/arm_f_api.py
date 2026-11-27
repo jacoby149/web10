@@ -43,6 +43,11 @@ if os.environ.get('FANOUT_CONFIG_F') != '1':
     raise RuntimeError('explicit isolated F opt-in required')
 ROOT = Path(os.environ['FANOUT_STATE'])
 admission = json.loads((ROOT / 'admission.json').read_bytes())
+_read_shard = os.environ.get('DAU_WORKER_ROLE') == 'read'
+if _read_shard and (os.environ.get('DAU_BUNDLE_ACTIVE') != '1' or
+        admission.get('purpose') != 'DAU_SUSTAINED_CONTRACT_RATE' or admission.get('dau_calibration_utilization') is not True):
+    raise RuntimeError('read shard is limited to the admitted DAU bundle')
+_observation_root = Path(os.environ['DAU_OBSERVATION_ROOT']) if _read_shard else ROOT
 start, deadline = (datetime.fromisoformat(admission[key]) for key in ('approved_utc', 'deadline_utc'))
 if (admission.get('configuration') != 'F' or admission.get('droplet_id') != p.host
         or admission.get('approved_by') != 'Jacob'
@@ -176,7 +181,7 @@ p.ch.client.query = query
 
 def active():
     admitted(admission, p.host)
-    if fatal.is_set() or (ROOT / 'F.stop').exists():
+    if fatal.is_set() or (_observation_root / 'F.stop').exists():
         raise HTTPException(503, 'research admission closed')
 
 
@@ -187,7 +192,7 @@ def fail(reason, error=None):
         operation=reason, request_id=(current or {}).get('request_id'),
         operation_id=(context.get() or {}).get('operation_id'))
     fatal.set()
-    (ROOT / 'F.stop').write_text(reason + '\n')
+    (_observation_root / 'F.stop').write_text(reason + '\n')
     if current is not None:
         current['arm_p_native_failure'] = reason
 
@@ -577,8 +582,9 @@ def trim_loop():
             failure.current.reset(diagnostic_token)
 
 
-threading.Thread(target=trim_loop, daemon=True).start()
-rebuild_stop = arm_f_online_rebuild.start(ROOT, p, journal, fence, admission, active, fail)
+if not _read_shard:
+    threading.Thread(target=trim_loop, daemon=True).start()
+    rebuild_stop = arm_f_online_rebuild.start(ROOT, p, journal, fence, admission, active, fail)
 
 
 async def application(scope, receive, send):
@@ -616,7 +622,7 @@ async def request_application(scope, receive, send):
             current = p.observer.current.get()
             if dict(message.get('headers', [])).get(b'x-arm-p-stop') == b'1':
                 fail('native_or_canonical_resolution_stop')
-            observation.request(ROOT, current)
+            observation.request(_observation_root, current)
             path = (current or {}).get('fanout', {}).get('path')
             if path in ('canonical_fallback', 'F_DOCUMENT_STREAM_V1', 'P_DOCUMENT_STREAM_V1'):
                 message = {**message, 'headers': [*message.get('headers', []), (b'x-fanout-path', path.encode())]}

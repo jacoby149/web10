@@ -80,8 +80,11 @@ def query(sql, *args, **kwargs):
         if request_id and request_id != 'unlabelled':
             # Only known synthetic query text, never bound credential/HTTP bodies.
             target = DIRECTORY / (row['sql_sha256'] + '.sql')
-            if not target.exists():
+            try:
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            except FileExistsError:
+                pass  # Another worker can win creation of the exact same SQL digest.
+            else:
                 with os.fdopen(fd, 'w') as stream:
                     stream.write(sql)
             fd = os.open(DIRECTORY / (request_id + '.jsonl'), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)

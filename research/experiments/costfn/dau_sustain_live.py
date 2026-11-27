@@ -20,6 +20,7 @@ import dau_sustain_parity as parity
 import dau_sustain_scope_transport as transport
 import dau_sustain_timed as timed
 import dau_sustain_workload as wl
+import dau_serving_bundle as serving
 import engagement_cells as cells
 import engagement_modern as modern
 import restore_realism as restore
@@ -304,9 +305,19 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     writers = bundle['writers']['actors']
     session = modern.Session(root)
     preserve_precalibration_cell(root, session)
+    bundle_active = serving.enabled(approval)
+    if bundle_active:
+        driver_fds = serving.driver_limit()
+        serving.configure_engine(root, session)
     cell = cells.boot(root, 'dau-sustain', 'ordinary', 'uniform', aggregate=True, dau=True)
     output = cell / 'live'
     output.mkdir(mode=0o700)
+    if bundle_active:
+        save(output / 'serving-bundle.json', dict(read_processes=len(serving.READ_PORTS), publication_processes=1,
+            read_thread_tokens=serving.READ_TOKENS, publication_thread_tokens=serving.WRITE_TOKENS,
+            query_threads=serving.ENGINE_THREADS, server_concurrent_queries=serving.ENGINE_CONCURRENCY,
+            merge_pool=serving.MERGE_POOL, retained_connections_per_process=serving.POOL_KEEPALIVE,
+            api_nofile=memory.DAU_API_NOFILE, engine_nofile=serving.ENGINE_NOFILE, driver_nofile=driver_fds))
     http = HTTP(cell, session, cell / 'http')
     envelope = approval['dau_envelope']
     pids = service_pid(session, 'clickhouse'), service_pid(session, 'api')
@@ -314,6 +325,14 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     if any((row['soft'], row['hard']) != (memory.DAU_API_NOFILE, memory.DAU_API_NOFILE) for row in limits):
         raise ValueError('live API descriptor limits differ from the DAU calibration setup')
     save(output / 'api-descriptor-preflight.json', limits)
+    worker_processes = {}
+    if bundle_active:
+        worker_processes = serving.worker_pids(limits)
+        save(output / 'api-worker-pids.json', worker_processes)
+        native_limits = memory.api_descriptors(pids[0])
+        if any((row['soft'], row['hard']) != (serving.ENGINE_NOFILE, serving.ENGINE_NOFILE) for row in native_limits):
+            raise ValueError('live ClickHouse descriptor limits differ from the DAU bundle')
+        save(output / 'engine-descriptor-preflight.json', native_limits)
     abort = asyncio.Event()
     read_sink = record_to(output / 'reads.jsonl')
     observed_reads = []
@@ -339,8 +358,8 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
             elapsed = loop.time() - origin
             resources(dict(phase=phase, elapsed_s=elapsed, debt=values, memory=host, api_descriptors=descriptors,
                 guest_cpu=Path('/proc/stat').read_text().splitlines()[0]))
-            if utilization and phase in ('CAL', 'CAL-BURST'):
-                point = diagnostics.host_probe(*pids)
+            if utilization and (bundle_active or phase in ('CAL', 'CAL-BURST')):
+                point = diagnostics.host_probe(*pids, workers=worker_processes)
                 point['engine_queue'] = await asyncio.to_thread(diagnostics.engine_queue, direct)
                 diagnostics.append(output / 'utilization-samples.jsonl', dict(phase=phase, elapsed_s=elapsed,
                     **point, host_memory=host, io=values['io'], debt=values['values'], api_descriptors=descriptors))
@@ -364,17 +383,21 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     try:
         if utilization:
             direct = probe_stack.enter_context(transport.connect(session))
-            diagnostics.inventory(direct, output)
+            diagnostics.inventory(direct, output, serving_bundle=bundle_active)
         journal_path = cell / 'fanout-state/journal/intents.sqlite'
         first_write_sequence = native.bootstrap_sequence(journal_path)
         save(output / 'publication-boundary.json', dict(first_excluded_sequence=first_write_sequence,
             reason='verified derived-cache bootstrap, not scheduled publication'))
         tokens = await credentials(http, selected, writers)
         driver = timed.HTTPWorkload(http, output, run_id=bundle['run_id'], reader_tokens=tokens,
-            writers=writers, writer_tokens=tokens)
+            writers=writers, writer_tokens=tokens, read_ports=serving.READ_PORTS if bundle_active else ())
         idle = []
         for actor in selected[:3]:
-            value = await http.sequence(tokens[actor['reader']], actor['groups'], phase='idle')
+            routed = serving.read_port.set(serving.READ_PORTS[actor['index'] % len(serving.READ_PORTS)] if bundle_active else None)
+            try:
+                value = await http.sequence(tokens[actor['reader']], actor['groups'], phase='idle')
+            finally:
+                serving.read_port.reset(routed)
             if value['path_mode'] != 'F_DOCUMENT_STREAM_V1':
                 raise ValueError('idle baseline did not use certified indexed path')
             idle.append(value['elapsed_ms'])

@@ -15,8 +15,8 @@ class StartupFailure(RuntimeError):
     pass
 
 
-def verify_hooks(root, boot_id):
-    receipt = json.loads((Path(root) / 'fanout-state/hook-install.json').read_bytes())
+def verify_hooks(root, boot_id, *, receipt_path='fanout-state/hook-install.json'):
+    receipt = json.loads((Path(root) / receipt_path).read_bytes())
     if (receipt.get('boot_id') != boot_id or not boot_id
             or set(receipt.get('authorized_membership_routes', [])) != hooks.MEMBERSHIP_PATHS
             or set(receipt.get('authorized_document_routes', [])) != set(hooks.DOCUMENT_PATHS)

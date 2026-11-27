@@ -5,6 +5,7 @@ import math
 import uuid
 
 from arm_f_native import save
+from dau_serving_bundle import read_port
 from dau_sustain_dispatch import Dispatch
 from dau_sustain_reference import ordered_capture
 import dau_sustain_workload as wl
@@ -14,10 +15,11 @@ from engagement_queries import capture as uniform_capture
 class HTTPWorkload:
     """The real HTTP request seam; only a certified serving cell may supply it."""
 
-    def __init__(self, http, output, *, run_id, reader_tokens, writers, writer_tokens):
+    def __init__(self, http, output, *, run_id, reader_tokens, writers, writer_tokens, read_ports=()):
         self.http, self.output = http, output
         self.run_id = uuid.UUID(run_id)
         self.reader_tokens, self.writers, self.writer_tokens = reader_tokens, writers, writer_tokens
+        self.read_ports = read_ports
         self.http.capture = ordered_capture(uniform_capture(self.http.capture, True))
         for name in ('responses', 'publication-acks'):
             (output / name).mkdir(mode=0o700, exist_ok=False)
@@ -25,7 +27,12 @@ class HTTPWorkload:
     async def read(self, entry, actor):
         if entry['reader_index'] != actor['index'] or entry['phase'] not in ('CAL', 'CAL-BURST', 'W', 'A', 'B'):
             raise ValueError('request does not bind to a frozen reader and phase')
-        page = await self.http.sequence(self.reader_tokens[actor['reader']], actor['groups'], phase=entry['phase'])
+        port = self.read_ports[actor['index'] % len(self.read_ports)] if self.read_ports else None
+        token = read_port.set(port)
+        try:
+            page = await self.http.sequence(self.reader_tokens[actor['reader']], actor['groups'], phase=entry['phase'])
+        finally:
+            read_port.reset(token)
         if page['path_mode'] != 'F_DOCUMENT_STREAM_V1':
             raise ValueError('timed read did not exercise the declared indexed path')
         path = self.output / 'responses' / f"{entry['phase']}-{entry['slot']:06d}.json"

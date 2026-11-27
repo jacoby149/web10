@@ -66,6 +66,8 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
          hybrid=False, dau=False):
     parent = Path(parent)
     approval = json.loads((parent / 'admission.json').read_bytes())
+    import dau_serving_bundle as serving
+    bundle_active = dau and serving.enabled(approval)
     completion = approval.get('engagement_completion_admitted') is True
     if dau:
         from dau_sustain_cell_policy import validate
@@ -120,12 +122,22 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
     if dau:
         from dau_sustain_memory import DAU_API_NOFILE
         settings['ulimits'] = {'nofile': {'soft': DAU_API_NOFILE, 'hard': DAU_API_NOFILE}}
+    if bundle_active:
+        settings['command'] = ['uv', 'run', 'python', '/research/dau_serving_workers.py']
+        settings['ports'] = [f'127.0.0.1:{port}:{index}' for index, port in enumerate(serving.READ_PORTS, 81)]
+        settings['stop_grace_period'] = '610s'
     save(overlay, {'services': {'api': settings}})
     here = Path(__file__).parent
     compose = session.compose[:-2] + ['-f', str(here / 'arm_satellite_serve.compose.yml'), '-f', str(overlay), *session.compose[-2:]]
     environment = {**session.env, 'SATELLITE_SERVE_STATE': str(cell / 'serve-state')}
     restore.command(compose, environment, 'up', '-d', '--no-deps', 'api', timeout=180)
     arm_f_startup.ready(cell, compose, environment, boot_id)
+    if bundle_active:
+        from restore_dataset import wait_for
+        for index, port in enumerate(serving.READ_PORTS, 1):
+            wait_for(lambda port=port: urllib.request.urlopen(f'http://127.0.0.1:{port}/docs', timeout=3).status == 200,
+                f'owned DAU read worker {index}')
+            arm_f_startup.verify_hooks(cell, boot_id, receipt_path=f'fanout-state/read-workers/{index}/hook-install.json')
     if completion:
         verify(parent)
     return cell

@@ -1,3 +1,6 @@
+6.32.76 || 27.11.2026
+research: declare the DAU utilization replay's c-32 configuration bundle: four read processes and one publication owner, bounded thread/connection settings, a native merge allocation, and explicit descriptor limits. Keep the frozen workload and live permissions unchanged; effective calibration and resource results remain pending.
+
 6.32.75 || 27.11.2026
 research: add opt-in per-core and queue utilization observations for the DAU calibration replay, capture the existing request phase timings, and reuse the exact banked reader oracles only after a matching fresh native census. No serving-policy or concurrency configuration change.
 

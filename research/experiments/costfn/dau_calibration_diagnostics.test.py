@@ -1,14 +1,30 @@
 """No-engine controls for utilization observations and banked oracle transfer."""
 
 from pathlib import Path
+import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import dau_calibration_diagnostics as diag
 from dau_calibration_oracle_reuse import selection_domain
+import dau_serving_bundle as bundle
+import engagement_limits
 
 
 class Diagnostics(unittest.TestCase):
+    def test_bundle_has_one_publication_owner_and_deliberate_native_thread_budget(self):
+        roles = bundle.worker_layout()
+        self.assertEqual([port for port, role, _ in roles if role == 'write'], [80])
+        self.assertEqual(len([port for port, role, _ in roles if role == 'read']), len(bundle.READ_PORTS))
+        self.assertEqual(sum(tokens for _, _, tokens in roles) * bundle.ENGINE_THREADS + bundle.MERGE_POOL, 32)
+        self.assertIn('<max_concurrent_queries>40</max_concurrent_queries>', bundle.engine_xml())
+        with patch.dict(os.environ, {'DAU_BUNDLE_ACTIVE': '1'}):
+            settings = engagement_limits.settings({'max_threads': 32})
+            self.assertEqual(settings['max_threads'], 1)
+            self.assertEqual(settings['max_memory_usage'], 22 * 1024**3)
+        self.assertNotIn('max_threads', engagement_limits.settings())
+
     def test_cpu_rows_keep_each_core_and_exclude_double_accounted_guest_ticks(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -17,6 +33,27 @@ class Diagnostics(unittest.TestCase):
             rows = diag.cpu_ticks(root)
             self.assertEqual(set(rows), {'cpu', 'cpu0', 'cpu1'})
             self.assertEqual(rows['cpu0'], [4, 0, 1, 6, 1, 0, 0, 0])
+
+    def test_workers_partition_the_http_entrypoints_and_require_all_five_real_pids(self):
+        self.assertTrue(bundle.worker_route('write', 'POST', '/v3/create'))
+        self.assertTrue(bundle.worker_route('write', 'POST', '/v3/login'))
+        for path in ('/v3/create', '/v3/login', '/v3/addGroupMember'):
+            self.assertFalse(bundle.worker_route('read', 'POST', path))
+        for path in bundle.READ_PATHS:
+            self.assertFalse(bundle.worker_route('write', 'POST', path))
+            self.assertTrue(bundle.worker_route('read', 'POST', path))
+        with tempfile.TemporaryDirectory() as directory:
+            proc = Path(directory)
+            expected = {}
+            for port, _, _ in bundle.worker_layout():
+                pid = port + 100
+                (proc / str(pid)).mkdir()
+                (proc / str(pid) / 'cmdline').write_bytes(f'python\0-m\0uvicorn\0dau_sustain_cell:application\0--port\0{port}\0'.encode())
+                expected[port] = pid
+            rows = [{'pid': pid} for pid in expected.values()]
+            self.assertEqual(bundle.worker_pids(rows, proc=proc), expected)
+            with self.assertRaisesRegex(ValueError, 'worker layout'):
+                bundle.worker_pids(rows[:-1], proc=proc)
 
     def test_process_ticks_are_bound_to_pid_start_identity(self):
         with tempfile.TemporaryDirectory() as directory:
