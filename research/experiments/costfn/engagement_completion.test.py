@@ -29,6 +29,7 @@ import arm_satellite_counts as counts
 def function(file, name, namespace):
     if (file, name) == ('engagement_api.py', 'checked_query'):
         function(file, 'use_uniform_copy', namespace)
+        function(file, 'uniform_sql', namespace)
     node = next(node for node in ast.parse(Path(__file__).with_name(file).read_text()).body
         if isinstance(node, ast.FunctionDef) and node.name == name)
     exec(compile(ast.Module(body=[node], type_ignores=[]), file, 'exec'), namespace)

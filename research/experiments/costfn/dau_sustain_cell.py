@@ -15,6 +15,7 @@ import arm_f_infrastructure as infrastructure
 from arm_satellite_sql import literal as q
 import dau_sustain_cell_policy as policy
 from dau_sustain_candidate import cached_candidate
+from dau_sustain_compiled_cache import memoize_sql
 from dau_sustain_scope_proof import checked_route
 import engagement_composition_api as composition
 import engagement_tally_queries as tallies
@@ -115,6 +116,8 @@ def publish(request, data, real_author, client_id, **kwargs):
 f.read_certificate = certify
 f.candidate = cached_candidate(f.candidate)
 e.use_uniform_copy = lambda: e.uniform and not inside_publication.get()
+p._compile = memoize_sql(p._compile)
+e.uniform_sql = memoize_sql(e.uniform_sql)
 p.scope_for = scope_for
 p.serve.main_sql = main
 p.compile_query = compile_query

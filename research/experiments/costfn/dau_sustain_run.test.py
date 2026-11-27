@@ -18,6 +18,7 @@ import arm_f_native
 import arm_f_prepare
 import arm_satellite_serve
 from dau_sustain_candidate import cached_candidate
+from dau_sustain_compiled_cache import memoize_sql
 import dau_sustain_admission as binding
 import dau_sustain_cell_policy as cell_policy
 import dau_sustain_fixture_transfer as transfer
@@ -932,6 +933,22 @@ class DiverseNativeAudit(unittest.TestCase):
 
 
 class DiverseCellPolicy(unittest.TestCase):
+    def test_sql_memo_does_not_mix_live_readers_scopes_or_narrowed_ids(self):
+        renderer = Mock(side_effect=['reader-one', 'reader-two', 'different-groups', 'different-ids', ValueError('denied'), 'later'])
+        cached = memoize_sql(renderer)
+        def compile_for(reader, group, doc):
+            return cached('SELECT x', {'posts': [group]}, member_key=reader, allowed_services=frozenset({'posts'}),
+                document_ids_by_service={'posts': [doc]})
+        self.assertEqual(compile_for('one', 'a', 'doc'), 'reader-one')
+        self.assertEqual(compile_for('one', 'a', 'doc'), 'reader-one')
+        self.assertEqual(compile_for('two', 'a', 'doc'), 'reader-two')
+        self.assertEqual(compile_for('one', 'b', 'doc'), 'different-groups')
+        self.assertEqual(compile_for('one', 'a', 'other-doc'), 'different-ids')
+        with self.assertRaisesRegex(ValueError, 'denied'):
+            compile_for('unknown', 'a', 'doc')
+        self.assertEqual(compile_for('unknown', 'a', 'doc'), 'later')
+        self.assertEqual(renderer.call_count, 6)
+
     def test_candidate_template_is_byte_identical_to_the_existing_renderer(self):
         sql = "SELECT p.doc_id FROM posts p WHERE NOT has(p.tags,'ad') ORDER BY p.created_at DESC LIMIT 21"
         original = Mock(side_effect=arm_satellite_serve.candidate_sql)
