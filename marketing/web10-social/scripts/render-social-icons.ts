@@ -1,7 +1,6 @@
 // Run from marketing/web10-social: bun scripts/render-social-icons.ts
 import { readFile, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { SOCIAL_SIGNATURE_PATH, SOCIAL_SIGNATURE_VIEW_BOX } from '../src/lib/socialSignature';
 
 async function dataUrl(path: string, type: string) {
   return `data:${type};base64,${(await readFile(path)).toString('base64')}`;
@@ -10,9 +9,10 @@ async function dataUrl(path: string, type: string) {
 const keys = await dataUrl('public/keys-mark.png', 'image/png');
 const displayFont = await dataUrl('node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2', 'font/woff2');
 const charcoal = '#1b2026';
+const accent = '#a8ceff'; // Dark --color-brand-300, also the header's blue 10.
 const browser = await chromium.launch();
 
-async function render(size: number, variant: 'stacked' | 'maskable' | 'keys') {
+async function render(size: number, variant: 'social' | 'maskable' | 'keys') {
   const page = await browser.newPage({ viewport: { width: 512, height: 512 }, deviceScaleFactor: size / 512 });
   try {
     // A 448×192 lockup at 0.76 scale fits wholly within the 409.6px maskable safe circle.
@@ -20,16 +20,12 @@ async function render(size: number, variant: 'stacked' | 'maskable' | 'keys') {
     await page.setContent(`<!doctype html><style>
       @font-face { font-family: Space; src: url(${displayFont}); font-weight: 300 700; }
       body { margin: 0; height: 512px; display: grid; place-items: center; background: ${charcoal}; color: #fafafa; }
-      .lockup { display: flex; width: 448px; height: 192px; align-items: center; justify-content: center; gap: 16px; transform: scale(${scale}); }
-      .keys { width: 168px; height: 176px; object-fit: contain; }
+      .lockup { display: flex; width: 448px; height: 192px; align-items: center; justify-content: center; gap: 20px; transform: scale(${scale}); }
+      .keys { width: 168px; height: 176px; flex-shrink: 0; background: ${accent}; mask: url(${keys}) center / contain no-repeat; }
       .favicon { width: 380px; height: 380px; object-fit: contain; }
-      .words { display: grid; justify-items: start; gap: 14px; font: 700 88px/.85 Space, sans-serif; letter-spacing: -.05em; }
-      b { color: #a8ceff; font-weight: inherit; }
-      svg { width: 254px; height: auto; fill: currentColor; }
+      .word { font: 700 98px/1 Space, sans-serif; letter-spacing: -.05em; }
     </style>${variant === 'keys' ? `<img class="favicon" src="${keys}" alt="">` : `
-      <div class="lockup"><img class="keys" src="${keys}" alt=""><div class="words">
-        <span>web<b>10</b></span><svg width="216.31" height="64.5" viewBox="${SOCIAL_SIGNATURE_VIEW_BOX}"><path d="${SOCIAL_SIGNATURE_PATH}"/></svg>
-      </div></div>`}`);
+      <div class="lockup"><span class="keys"></span><span class="word">social</span></div>`}`);
     await page.evaluate(async () => {
       await document.fonts.ready;
       await Promise.all(Array.from(document.images, (image) => image.decode()));
@@ -58,11 +54,11 @@ function ico(frames: { size: number; png: Buffer }[]) {
 }
 
 try {
-  const stacked = await render(512, 'stacked');
-  await writeFile('public/logo512.png', stacked);
-  await writeFile('../marketing-ui/public/brand/social-app-icon.png', stacked);
-  await writeFile('public/logo192.png', await render(192, 'stacked'));
-  await writeFile('public/apple-touch-icon.png', await render(180, 'stacked'));
+  const social = await render(512, 'social');
+  await writeFile('public/logo512.png', social);
+  await writeFile('../marketing-ui/public/brand/social-app-icon.png', social);
+  await writeFile('public/logo192.png', await render(192, 'social'));
+  await writeFile('public/apple-touch-icon.png', await render(180, 'social'));
   await writeFile('public/logo-maskable-crisp-512.png', await render(512, 'maskable'));
   const frames = await Promise.all([16, 32].map(async (size) => ({ size, png: await render(size, 'keys') })));
   await writeFile('public/favicon.ico', ico(frames));

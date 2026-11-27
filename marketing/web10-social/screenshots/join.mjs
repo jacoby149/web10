@@ -76,8 +76,8 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.equal(await page.locator('html').getAttribute('data-theme'), mode);
       const brand = page.getByRole('link', { name: 'web10 social home' });
-      assert.equal(await brand.getByTestId('social-header-wordmark').textContent(), 'web10 Social');
-      assert.equal(await brand.getByTestId('social-wordmark-signature').isVisible(), true);
+      assert.equal(await brand.getByTestId('social-header-wordmark').textContent(), 'web10 social');
+      assert.equal(await brand.getByText('social', { exact: true }).isVisible(), true);
       assert.equal(await brand.locator(`[data-brand-variant="${mode === 'dark' ? 'white' : 'dark'}"]`).isVisible(), true);
       const mark = page.getByTestId('social-conversation-illustration');
       assert.equal(await mark.getAttribute('src'), '/social-conversation-pair-blue.png');

@@ -34,10 +34,12 @@ try {
     await page.goto(`${base}?screen=posts&signin-prompts=1&feed-player-repair=1&video-sound=1`, { waitUntil: 'networkidle' });
     const clip = page.locator('[data-media-session-title="A studio video"]');
     await clip.locator('video').waitFor({ state: 'attached' });
-    assert.equal(await clip.locator('video').evaluate(el => el.muted), false, 'fresh visit starts sound-on');
+    assert.equal(await clip.locator('video').evaluate(el => el.muted), true, 'fresh visit starts muted');
     await clip.getByRole('button', { name: 'Play video', exact: true }).first().click();
     await page.waitForFunction(() => !document.querySelector('[data-media-session-title="A studio video"] video').paused);
     await clip.hover();
+    await clip.getByTestId('volume-toggle').click();
+    await page.waitForFunction(() => !document.querySelector('[data-media-session-title="A studio video"] video').muted);
     await clip.getByTestId('volume-toggle').click();
     await page.waitForFunction(() => document.querySelector('[data-media-session-title="A studio video"] video').muted);
     await nav('music').click();
@@ -80,12 +82,11 @@ try {
     assert.equal(await page.getByTestId('short-video-0').locator('video').evaluate(el => el.muted), true, 'Shorts lens inherits preview mute');
     await page.getByTestId('short-mute-0').click();
     await page.waitForFunction(() => [...document.querySelectorAll('[data-testid^="short-video-"] video')].every(el => !el.muted));
-    await page.getByTestId('short-mute-0').click();
     await page.reload({ waitUntil: 'networkidle' });
     await clip.locator('video').waitFor({ state: 'attached' });
-    assert.equal(await clip.locator('video').evaluate(el => el.muted), false, 'reload resets to sound-on, not a saved preference');
+    assert.equal(await clip.locator('video').evaluate(el => el.muted), true, 'reload resets to muted after an explicit unmute');
     assert.deepEqual(errors, []);
-    receipts.push({ width, theme, default: 'sound-on', carry: 'Posts → Video → Shorts', music: 'independent', reload: 'sound-on', duplicatePreviewMarker: 'hidden' });
+    receipts.push({ width, theme, default: 'muted', carry: 'Posts → Video → Shorts', music: 'independent', reload: 'muted', duplicatePreviewMarker: 'hidden' });
     await page.close();
   }
   await writeFile(path.join(output, 'receipt.json'), JSON.stringify(receipts, null, 2));

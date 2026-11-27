@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video, Music, Palette } from 'lucide-react';
+import { User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video, Music, Palette, Sparkles, Star, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -91,6 +91,27 @@ function HeaderBrand() {
       <ThemeMark className="size-5 min-[360px]:size-6 md:size-7" />
       <SocialWordmark className="text-base text-social-header-ink min-[360px]:text-xl md:text-2xl" accentClassName="text-social-header-accent" />
     </span>
+  );
+}
+
+const aboutLinks = [
+  { label: 'What is web10', href: 'https://web10.app', icon: Sparkles },
+  { label: 'Rate us on the App Store', href: 'https://web10.app/app-store/app/https%3A%2F%2Fsocial.web10.app%2F', icon: Star },
+];
+
+function MoreAboutLinks({ menu = false }: { menu?: boolean }) {
+  return (
+    <div role="group" aria-label="About web10" className="my-2 border-t border-border/60 pt-2">
+      {aboutLinks.map(({ href, label, icon: Icon }) => (
+        <a key={href} href={href} target="_blank" rel="noopener noreferrer" role={menu ? 'menuitem' : undefined}
+          className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
+          <Icon aria-hidden="true" className="size-5 shrink-0" strokeWidth={1.75} />
+          <span className="flex-1">{label}</span>
+          <ExternalLink aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" />
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -393,7 +414,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                     {nodeSettingsItem.label}
                   </button>
                 )}
-                {isNodeAdmin && <div className="my-1 h-px bg-border" aria-hidden="true" />}
+                <MoreAboutLinks menu />
                 <p className="px-3 py-1.5 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
                   Coming soon
                 </p>
@@ -807,6 +828,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 </>}
               </div>
 
+              <MoreAboutLinks />
               <div className="mt-4 pt-3 border-t border-border/60">
                 <p className="px-3 pb-1 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground/50">
                   Coming soon

@@ -177,7 +177,7 @@ layers:
 
 **Featured (above the grid).** web10 social is the only featured app and
 keeps its **Flagship** badge. The featured card and canonical detail use the
-bundled stacked keys/`web10 Social` icon, matching the install artwork.
+bundled blue-keys-and-white-`social` icon, matching the install artwork.
 Its count comes from its registration, matched
 by display name first, then canonical host. Its registered copy is omitted
 from Browse to avoid duplication. **web10 hub** appears once in Browse with

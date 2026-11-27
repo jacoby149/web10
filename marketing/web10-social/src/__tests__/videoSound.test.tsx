@@ -5,6 +5,8 @@ import { HlsVideoPlayer } from '../../../shared/discover/src/HlsVideoPlayer';
 import { getVideoMuted, setVideoMuted } from '../../../shared/discover/src/videoSound';
 import { mayStartPreview } from '../../../shared/discover/src/mediaRecovery';
 
+const initialMuted = getVideoMuted();
+
 class FakeHls {
   static isSupported = () => true;
   static Events = { MANIFEST_PARSED: 'manifestParsed', LEVEL_SWITCHED: 'levelSwitched', ERROR: 'error' };
@@ -51,15 +53,13 @@ describe('one in-memory video sound choice', () => {
     expect(getVideoMuted()).toBe(false);
   });
 
-  it('starts sound-on and propagates a mute between inline, native and HLS video', async () => {
+  it('starts muted and propagates an explicit unmute between inline, native and HLS video', async () => {
+    expect(initialMuted).toBe(true);
+    setVideoMuted(initialMuted);
     render(<><InlineVideo url="https://media.test/file.mp4" testId="inline" /><VideoPlayer source={{ type: 'file', url: 'https://media.test/native.mp4' }} mode="full" testId="native" /><HlsVideoPlayer manifestUrl="https://media.test/master.m3u8" /></>);
     const inline = screen.getByTestId('inline').querySelector('video')!;
     const native = screen.getByTestId('native') as HTMLVideoElement;
     const hls = screen.getByTestId('hls-video') as HTMLVideoElement;
-    expect(inline.muted).toBe(false);
-    expect(native.muted).toBe(false);
-    expect(hls.muted).toBe(false);
-    act(() => setVideoMuted(true));
     expect(inline.muted).toBe(true);
     expect(native.muted).toBe(true);
     expect(hls.muted).toBe(true);
