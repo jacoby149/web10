@@ -67,6 +67,14 @@ def use_uniform_copy():
     return uniform
 
 
+def uniform_sql(literal):
+    tree = sqlglot.parse_one(literal, read='clickhouse')
+    for node in tree.find_all(exp.Table):
+        if node.name == 'documents':
+            node.set('this', exp.to_identifier(table))
+    return tree.sql(dialect='clickhouse')
+
+
 def main_sql(compiled, pointers, profile_pairs, scope):
     if MODE == 'baseline':
         return old_main(compiled, pointers, profile_pairs, scope)
@@ -115,11 +123,7 @@ def checked_query(sql=None, *args, **kwargs):
     if use_uniform_copy() and current is not None and current.get('request_id') != 'unlabelled':
         from clickhouse_connect.driver.binding import bind_query
         literal = bind_query(sql, params)[0] if params else sql
-        tree = sqlglot.parse_one(literal, read='clickhouse')
-        for node in tree.find_all(exp.Table):
-            if node.name == 'documents':
-                node.set('this', exp.to_identifier(table))
-        bound.arguments['query'] = tree.sql(dialect='clickhouse')
+        bound.arguments['query'] = uniform_sql(literal)
         bound.arguments['parameters'] = params if p._inventory.get() else None
         # The outer F adapter adds a keyword settings tag. Do not turn its
         # existing settings into a positional argument during copy rewriting.

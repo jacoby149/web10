@@ -30,6 +30,7 @@ class ModernTests(unittest.TestCase):
     def function(self, file, name, namespace):
         if (file, name) == ('engagement_api.py', 'checked_query'):
             self.function(file, 'use_uniform_copy', namespace)
+            self.function(file, 'uniform_sql', namespace)
         node = next(node for node in ast.parse(Path(__file__).with_name(file).read_text()).body
             if isinstance(node, ast.FunctionDef) and node.name == name)
         exec(compile(ast.Module(body=[node], type_ignores=[]), file, 'exec'), namespace)

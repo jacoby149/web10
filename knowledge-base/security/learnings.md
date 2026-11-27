@@ -45,6 +45,12 @@ selector after the existing permission/history SQL; same-ID collisions keep
 the author partitions and missing authority is still refused. This is scoped
 research optimization, not a production permission or assurance change.
 
+The isolated compiler and copy-rewrite caches retain exact structural inputs
+including the current principal, readable groups, service set, and requested
+IDs. They cache neither permission decisions nor rows; a different input
+recompiles, rejection is not cached, and native history and policy SQL still
+execute on every served read.
+
 ### 2026-11-27: Isolated benchmark read certificates do not authorize writes
 
 The opt-in sustained DAU cell checks the live resolved reader scope against

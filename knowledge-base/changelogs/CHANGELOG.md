@@ -1,3 +1,6 @@
+6.32.72 || 27.11.2026
+research: bound reuse of deterministic SQL generation within the isolated DAU cell. Key canonical compile on the complete live-authorized inputs and cache the read-copy rewrite only for exact bound SQL. Keep native authorization, query execution and response contents uncached.
+
 6.32.71 || 27.11.2026
 research: after a DAU calibration API CPU profile showed repeated SQL parsing, reuse an exact validated candidate SQL template and batch canonical prepare for unique page IDs. Keep live policy checks, full-key selectors and collision handling; historical F arms and the DAU offered workload are unchanged.
 
