@@ -40,7 +40,7 @@ class HTTPWorkload:
             raise ValueError('writer requires its own followers group and Discover')
         slot = entry['slot']
         operation = str(uuid.uuid5(self.run_id, f'publication:{slot}'))
-        page, request = await self.http.post('/v3/documents/create', dict(token=self.writer_tokens[actor['reader']],
+        page, request = await self.http.post('/v3/create', dict(token=self.writer_tokens[actor['reader']],
             service='posts', body=dict(text=f'dau sustain {slot}', status='active'), groups=groups), operation=operation)
         if page['author_key'] != actor['reader'] or set(page['groups']) != set(groups):
             raise ValueError('HTTP create did not preserve the scheduled actor and exact target groups')

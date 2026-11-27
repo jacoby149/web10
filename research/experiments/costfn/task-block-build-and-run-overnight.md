@@ -62,5 +62,11 @@ and derive views from raw delivery bookends when the interval is proven
 append-only with no relevant TTL expiry or change in the raw counts. Equal
 bookends without that proof are not parity. If delivery state changes during
 the measured interval, a per-request native visibility replay is required.
-These helpers do not authorize mixed-mode serving or change the existing
-single-reader runtime fence.
+The opt-in mixed-load Compose entry now binds the frozen scope certificates
+and the 100 existing writers to the owned host/task. Its only write route is
+the node's existing `/v3/create`: exact targets and deterministic slot identity
+are checked before the normal authorization and journal, with canonical reads
+for the write/reconcile path. Indexed reads still use live authorization and
+the original frozen-copy, tally and pin fences. Never start timed traffic from
+an unverified bundle. The controller still needs end-to-end calibration and
+receipt integration and a real admitted-guest check before use.

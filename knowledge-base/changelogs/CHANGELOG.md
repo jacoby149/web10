@@ -1,3 +1,6 @@
+6.32.44 || 27.11.2026
+research: add an opt-in diverse-reader indexed DAU cell, a frozen existing writer population, exact-target publication through the native journal, and certified group classification. Correct the workload's create route to `/v3/create`. Timed execution, native proof and draft update remain open.
+
 6.32.43 || 27.11.2026
 research: add per-reader indexed tally certificate preparation, strict route lookup, and native journal/attachment and raw delivery audit helpers for sustained DAU. Keep timed entry closed pending mixed-load integration; no certified native run, capacity finding, or draft update.
 

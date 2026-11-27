@@ -80,7 +80,7 @@ def presence(root, epoch, session, name, profile, generation, targets):
     save(root / ('presence-' + name + '.json'), result)
 
 
-def infrastructure(root, name, *, initial=False, settle=True):
+def infrastructure(root, name, *, initial=False, settle=True, additional_groups=()):
     root = Path(root)
     cells.stop(root)
     session = modern.Session(root)
@@ -117,15 +117,15 @@ def infrastructure(root, name, *, initial=False, settle=True):
     save(epoch / 'epoch.json', dict(canonical_generation=generation, parts=parts,
         retained_prior_counter_scopes=not initial, initial=initial))
     if initial:
-        build_fanout(root, profile, paired)
+        build_fanout(root, profile, paired, additional_groups=additional_groups)
     return generation
 
 
-def build_fanout(root, ordinary, paired):
+def build_fanout(root, ordinary, paired, *, additional_groups=()):
     build_root = cells.root(root, 'fanout-bootstrap')
     (build_root / 'profile').mkdir()
     combined = deepcopy(ordinary)
-    combined['groups'] = sorted(set(ordinary['groups']) | set(paired['groups']))
+    combined['groups'] = sorted(set(ordinary['groups']) | set(paired['groups']) | set(additional_groups))
     save(build_root / 'profile/inventory.json', combined)
     arm_f_native.build(build_root)
     shutil.copytree(build_root / 'fanout-state', root / 'fanout-template')
