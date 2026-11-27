@@ -49,6 +49,13 @@ def commands(project, port, overlay):
 
 
 def command(compose, env, *args, data=None, timeout=900):
+    if (env and env.get('DAU_ORACLE_BATCH_UNTIMED') == '1' and timeout == 7200
+            and args[:4] == ('run', '--rm', '-T', '--no-deps')
+            and args[-2:] == ('/research/dau_sustain_reference.py', '/dau-reader-oracles')):
+        # The complete, quiescent 150-reader setup is checkpointed per reader;
+        # this outer client must not abandon it at two hours. Native query
+        # bounds, the owned lease/host failsafe, and measurement clocks stay.
+        timeout = None
     result = subprocess.run(compose + list(args), input=data, env=env,
                             capture_output=True, check=False, timeout=timeout)
     if result.returncode:
