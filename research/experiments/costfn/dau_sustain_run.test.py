@@ -13,7 +13,9 @@ from unittest.mock import AsyncMock, Mock, patch
 import sqlglot
 
 import costfn_task
+import dau_sustain_admission as binding
 import dau_sustain_cell_policy as cell_policy
+import dau_sustain_fixture_transfer as transfer
 import dau_sustain_live as live
 from dau_sustain_dispatch import Dispatch
 import dau_sustain_memory as memory
@@ -870,6 +872,51 @@ class DiverseLiveReceipt(unittest.TestCase):
         data[-1]['debt']['io']['device'] = 'other'
         with self.assertRaisesRegex(ValueError, 'device changed'):
             live.debt_summary(data)
+
+
+class RetainedFixtureTransfer(unittest.TestCase):
+    def test_only_retained_fixture_namespace_and_original_consent_origin_are_exported(self):
+        result = transfer.source_queries(dict(groups=['first', 'second', 'large'], sizes=[3, 3, 2000],
+            collision_authors=['writer', 'other'], writer='writer'))
+        self.assertEqual(set(result), set(transfer.SCHEMAS))
+        self.assertIn('FROM doc_groups WHERE group_id IN', result['documents'])
+        self.assertIn(transfer.q('https://fanout.research.invalid'), result['app_contracts'])
+        self.assertNotIn(transfer.q('https://costfn.research.invalid'), result['app_contracts'])
+        with self.assertRaisesRegex(ValueError, 'route shape'):
+            transfer.source_queries(dict(groups=['first', 'first', 'large'], sizes=[3, 3, 2000]))
+
+    def test_manifest_refuses_a_modified_retained_authority_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture = root / 'fixture.json'
+            fixture.write_bytes(b'{}')
+            entries = {}
+            for table, rows in dict(documents=63, doc_groups=93, group_contracts=3, group_members=2006, app_contracts=2).items():
+                path = root / (table + '.parquet')
+                path.write_bytes(b'PAR1dataPAR1')
+                entries[table] = dict(rows=rows, bytes=path.stat().st_size, sha256=run.digest(path))
+            with patch.object(transfer, 'FIXTURE_SHA', run.digest(fixture)):
+                manifest = dict(snapshot_id=transfer.SNAPSHOT, source_restore_sha256=transfer.RESTORE_SHA,
+                    fixture_sha256=transfer.FIXTURE_SHA, input_manifest_sha256='input', files=entries)
+                run.save(root / 'manifest.json', manifest)
+                self.assertEqual(transfer.validate_directory(root, 'input'), manifest)
+                (root / 'group_members.parquet').write_bytes(b'PAR1fakePAR1')
+                with self.assertRaisesRegex(ValueError, 'group_members'):
+                    transfer.validate_directory(root, 'input')
+
+    def test_owned_guest_timer_and_c32_are_required_for_binding(self):
+        name = 'web10-fanout-f-0123456789ab'
+        lease = dict(dau_overnight=True, name=name, tag=name, configuration='F', size='c-32', region='nyc1',
+            account_uuid='account', max_usd=25, hourly_usd=1, snapshot_id='255003176', restored_snapshot_id='255003176',
+            droplet_id=100, created_epoch=1000, deadline=87400, costfn_task_id='dau-test', costfn_run_rules=window.TASK_RULES)
+        guest = dict(droplet_id=100, logical_cpus=32, memory_bytes=64 * 1024**3, timer_active=True, timer_deadline_epoch=87400)
+        result = binding.bind(lease, guest, 'b' * 40)
+        self.assertEqual(result['budget_usd'], 25)
+        self.assertTrue(result['host_self_kill_verified'])
+        with self.assertRaisesRegex(ValueError, 'armed deadline'):
+            binding.bind(lease, dict(guest, timer_deadline_epoch=87401), 'b' * 40)
+        with self.assertRaisesRegex(ValueError, 'exact owned'):
+            binding.bind(dict(lease, size='c-16'), guest, 'b' * 40)
 
 
 if __name__ == '__main__':

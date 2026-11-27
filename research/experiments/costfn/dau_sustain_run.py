@@ -16,6 +16,7 @@ import time
 import uuid
 
 from arm_f_native import save
+from arm_f_banked import ARCHIVE_SHA256 as BANKED_P_SHA256
 from arm_f_reads import rowset
 from costfn_task import Task, read, digest, exact, ParityDivergence
 import arm_f_http
@@ -23,6 +24,7 @@ import arm_f_run as arm_run
 import arm_t
 import arm_satellite_sql as sql
 import dau_sustain_readers as readers
+import dau_sustain_fixture_transfer as fixture_transfer
 from dau_sustain_cell_policy import validate as validate_cell, writer_population
 import dau_sustain_reference as references
 import dau_sustain_scope_proof as scope_proof
@@ -33,6 +35,7 @@ import engagement_cells as cells
 import engagement_certificates as certificates
 import engagement_composition as contract
 import engagement_modern as modern
+import engagement_restore as retained
 import engagement_setup as setup
 import engagement_window as window
 import hybrid_k20_full_store as full_store
@@ -209,6 +212,11 @@ def apply_envelope_overlay(root, approval):
         '../../../clickhouse-init:/docker-entrypoint-initdb.d:ro',
         {**input_bind},
         f'{memory_path}:/etc/clickhouse-server/config.d/costfn-memory.xml:ro']
+    fixture_dir = Path(root) / 'retained-paired-fixture'
+    if approval.get('dau_overnight') is True and (fixture_dir / 'manifest.json').is_file():
+        fixture_transfer.validate_directory(fixture_dir, digest(Path(root) / 'input/manifest.json'))
+        clickhouse['volumes'].append({'type': 'bind', 'source': str(fixture_dir.resolve()),
+            'target': '/var/lib/clickhouse/user_files/retained-paired-fixture', 'read_only': True})
     overlay['services']['api']['mem_limit'] = str(envelope['api_bytes'])
     overlay['services']['minio']['mem_limit'] = str(envelope['minio_bytes'])
     overlay_path.write_bytes(json.dumps(overlay, indent=1).encode())
@@ -811,6 +819,9 @@ def reader_preflight(root, *, note=None):
         modern.install_sessions()
         try:
             guest = verify_diverse_guest()
+            if approval.get('dau_overnight') is True:
+                task.step('retained-fixture-extract', lambda: extract_retained_fixture(root),
+                    validate=lambda stored: verify_fixture_extract(root, stored))
             restored = task.step('restore', lambda: restore_parquet(root, approval))
             task.step('verify-input', lambda: verify_preflight_input(root),
                 validate=lambda stored: verify_preflight_binding(root, stored))
@@ -833,6 +844,50 @@ def reader_preflight(root, *, note=None):
         finally:
             if (root / 'restore.json').exists():
                 cells.stop(root)
+
+
+def verify_fixture_extract(root, stored):
+    manifest = fixture_transfer.validate_directory(root / 'retained-paired-fixture', digest(root / 'input/manifest.json'))
+    if manifest != stored:
+        raise ValueError('retained source fixture differs from its extraction receipt')
+
+
+def extract_retained_fixture(root):
+    """Use the snapshot copy on this same c-32, then stop its old engine."""
+    source = root / 'retained-source'
+    bundle = root / 'retained-paired-fixture'
+    data = (retained.SNAPSHOT_ROOT / 'input').resolve()
+    restore.verified_input(data, data / 'validation.json', arm_t.DATASET, arm_t.VALIDATION)
+    target_input = root / 'input'
+    if target_input.exists() or target_input.is_symlink():
+        if target_input.resolve() != data:
+            raise ValueError('prepared input does not point to the exact verified snapshot Parquet')
+    else:
+        target_input.symlink_to(data, target_is_directory=True)
+    archive = root / 'banked-P.tar.gz'
+    if not archive.exists():
+        candidates = (retained.SNAPSHOT_ROOT / 'banked-P.tar.gz', retained.SNAPSHOT_ROOT.parent.parent / 'banked-P.tar.gz')
+        original = next((path for path in candidates if path.is_file() and digest(path) == BANKED_P_SHA256), None)
+        if original is None:
+            raise ValueError('retained snapshot lacks the exact cited P evidence bundle')
+        shutil.copyfile(original, archive)
+    if digest(archive) != BANKED_P_SHA256:
+        raise ValueError('banked P evidence differs from the cited archive')
+    if (bundle / 'manifest.json').exists():
+        retained.stop_snapshot_processes()
+        return fixture_transfer.validate_directory(bundle, digest(data / 'manifest.json'))
+    source.mkdir(mode=0o700, exist_ok=True)
+    shutil.copyfile(root / 'admission.json', source / 'admission.json')
+    modern.operation(source)
+    try:
+        origin = retained.snapshot(source)
+        save(source / 'source-receipt.json', origin)
+        session = modern.Session(source)
+        for table in fixture_transfer.SCHEMAS:
+            session.query('dau_fixture_export_freeze_' + table, 'SYSTEM STOP MERGES ' + table)
+        return fixture_transfer.export(bundle, session, retained.SNAPSHOT_ROOT, data)
+    finally:
+        retained.stop_snapshot_processes()
 
 
 def verify_preflight_input(root):
@@ -932,8 +987,6 @@ def prepare_only(root, *, note=None):
     if (preflight['status'] != 'SELECTED' or preflight['selected_count'] != wl.READERS
             or preflight['selection_sha256'] != digest(root / 'dau-diverse-reader-selection.json')):
         raise ValueError('frozen reader preflight does not match the owned setup')
-    if not read(root / 'modern-restore.json').get('fixture'):
-        raise ValueError('no validated retained paired fixture; do not synthesize new grants on DAU input')
     task = Task(root, approval, sha)
     task.path = root / 'costfn-task-indexed-prep.json'
     with task.attempt(note):
@@ -942,6 +995,13 @@ def prepare_only(root, *, note=None):
         preload_expected(root, task.state['steps'], actions)
         try:
             verify_envelope(root)
+            fixture = task.step('retained-fixture-import', lambda: fixture_transfer.import_tables(root, modern.Session(root)))
+            restored = read(root / 'modern-restore.json')
+            if restored.get('fixture') not in (None, fixture['fixture']):
+                raise ValueError('restored paired fixture authority drifted')
+            restored['fixture'] = fixture['fixture']
+            restored['retained_transfer'] = fixture
+            save(root / 'modern-restore.json', restored)
             task.step('steady-state', lambda: full_store.steady_state(root))
             for name in ('read-setup', 'migrate', 'billboard-fixtures'):
                 task.step(name, lambda name=name: actions.stage(name, {}))
