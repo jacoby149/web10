@@ -1,3 +1,6 @@
+6.32.48 || 27.11.2026
+research: reuse the exact already-created empty fanout table when repairing DAU setup. Verify the original successful DDL receipt, current SHOW CREATE and zero rows, preserving the native duplicate-table refusal rather than dropping or repeating DDL.
+
 6.32.47 || 27.11.2026
 research: repair the indexed DAU bootstrap to verify current recipients against each frozen reader's own Following memberships. Reuse completed same-generation metadata and keep the original membership refusal, rather than rebuilding the restored store or requiring one reader to belong to all groups.
 

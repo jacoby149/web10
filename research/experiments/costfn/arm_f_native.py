@@ -49,7 +49,7 @@ def authorized_sources(*, closure=None):
     return {name: expected for expected, name in entries}
 
 
-def build(root, *, step0_root=None):
+def build(root, *, step0_root=None, retained_empty_ddl=None):
     root = Path(root)
     session = Session(root)
     baseline = Path(step0_root) if step0_root is not None else root
@@ -96,8 +96,18 @@ def build(root, *, step0_root=None):
     try:
         result['envelope'] = session.verify_envelope()
         before, _ = counts.generation(session)
-        query('F_ddl', f.DDL)
-        result['actual_ddl'] = query('F_show_create', 'SHOW CREATE TABLE fanout')
+        if retained_empty_ddl is None:
+            query('F_ddl', f.DDL)
+            result['actual_ddl'] = query('F_show_create', 'SHOW CREATE TABLE fanout')
+        else:
+            if (session.operation.get('purpose') != 'DAU_SUSTAINED_CONTRACT_RATE'
+                    or session.operation.get('dau_overnight') is not True):
+                raise ValueError('retained empty fanout is only admitted for the owned DAU repair')
+            actual_ddl = query('F_show_create_retained', 'SHOW CREATE TABLE fanout')
+            native_count = json.loads(query('F_empty_retained', 'SELECT count() AS n FROM fanout FORMAT JSON'))['data']
+            if actual_ddl != retained_empty_ddl or len(native_count) != 1 or int(native_count[0]['n']) != 0:
+                raise ValueError('retained fanout changed or is not empty')
+            result.update(actual_ddl=actual_ddl, ddl_reused=True)
         for index, group in enumerate(profile['groups']):
             # Read count and recipient set together even when the lane is seek.
             sql = f.MEMBERS.replace('{group_id:String}', q(group)) + ' FORMAT JSON'

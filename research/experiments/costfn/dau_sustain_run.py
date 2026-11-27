@@ -100,10 +100,10 @@ class Actions(full_store.Actions):
     def resume_fanout_setup(self, epoch, stop, groups, reader_groups):
         """Retain verified derived metadata and repair only the failed bootstrap."""
         failed, saved = read(stop), read(epoch)
-        if (failed.get('outcome'), failed.get('failure_message')) != (
-                'STOP', 'canonical reader membership/recipient set differs'):
-            raise ValueError('saved bootstrap stop is not the diverse membership failure')
         session = modern.Session(self.root)
+        if (failed.get('outcome'), failed.get('failure_message')) != (
+                'STOP', 'canonical reader membership/recipient set differs') or failed.get('droplet_id') != session.host_id:
+            raise ValueError('saved bootstrap stop is not the diverse membership failure')
         generation = certificates.fingerprint(session)['canonical_generation']
         if generation != saved['canonical_generation']:
             raise ValueError('canonical generation changed since the completed metadata preparation')
@@ -116,8 +116,15 @@ class Actions(full_store.Actions):
         rows, _ = session.rows('dau_failed_bootstrap_empty', 'SELECT count() AS n FROM fanout')
         if int(rows[0]['n']):
             raise ValueError('failed membership bootstrap has written pointers; refuse adoption')
+        import arm_f
+        if (failed.get('DDL_sha256') != __import__('hashlib').sha256(arm_f.DDL.encode()).hexdigest()
+                or not failed.get('actual_ddl') or not any(row['label'] == 'F_ddl' and
+                    row['native'].get('type') == 'QueryFinish' and int(row['native']['exception_code']) == 0
+                    for row in failed.get('queries', []))):
+            raise ValueError('exact prior native fanout DDL receipt required')
         setup.build_fanout(self.root, read(self.root / 'profile-ordinary.json'),
-            read(self.root / 'profile-fixture.json'), additional_groups=groups, reader_groups=reader_groups, repair=True)
+            read(self.root / 'profile-fixture.json'), additional_groups=groups, reader_groups=reader_groups, repair=True,
+            retained_empty_ddl=failed['actual_ddl'])
         return generation
 
 
