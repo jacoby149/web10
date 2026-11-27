@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.59 local] **Pure-black Social app icon** — replace the charcoal field on the catalog and install icons without changing the lockup, favicon, or in-app theme.
+
 - [✓ 6.32.58 local] **Quick links opens separately** — open the directory in a new tab from the desktop navbar and phone menu; preserve same-tab navigation inside it.
 
 - [✓ 6.32.57 local] **Quick-links image ownership** — use the shared image component without changing the Social tile size, artwork, or destination.
