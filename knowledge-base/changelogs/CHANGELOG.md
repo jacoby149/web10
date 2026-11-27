@@ -1,3 +1,6 @@
+6.32.68 || 27.11.2026
+research: use the live ClickHouse compressed merge-size and progress fields in DAU calibration. Preserve the original refused calibration and drain submitted requests on an observer error before any same-host calibration-only retry; do not rerun measured windows.
+
 6.32.67 || 27.11.2026
 research: reuse one private host-to-ClickHouse connection for untimed DAU reader-scope setup. Keep exact native IDs, existing execution caps, durable write checkpoints, frozen inputs and independent query parity. Do not alter the measured HTTP transport.
 

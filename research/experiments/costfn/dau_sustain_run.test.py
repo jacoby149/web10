@@ -586,6 +586,27 @@ class DiverseReaderPreflight(unittest.TestCase):
 
 
 class DiverseDispatch(unittest.IsolatedAsyncioTestCase):
+    async def test_calibration_drains_submitted_read_before_propagating_observer_failure(self):
+        began = asyncio.Event()
+        abort = asyncio.Event()
+        saved = []
+        driver = Mock()
+
+        async def read(entry, actor):
+            began.set()
+            await asyncio.sleep(0.03)
+
+        async def observe(phase, dispatch, origin, stop):
+            await began.wait()
+            abort.set()
+            raise ValueError('metric refused')
+
+        driver.read = read
+        with self.assertRaisesRegex(ValueError, 'metric refused'):
+            await live.calibration(driver, [{'reader': 'r', 'index': 0}], saved.append, observe, abort, 1)
+        self.assertEqual(len(saved), 1)
+        self.assertIsNone(saved[0]['error_class'])
+
     async def test_http_workload_uses_each_reader_token_and_banks_only_private_response(self):
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder)
@@ -961,6 +982,23 @@ class DiverseCellPolicy(unittest.TestCase):
 
 
 class DiverseLiveReceipt(unittest.TestCase):
+    def test_calibration_retry_preserves_old_cell_and_refuses_measured_arrivals(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            live_output = root / 'cells/dau-sustain/live'
+            live_output.mkdir(parents=True)
+            records = live_output / 'reads.jsonl'
+            records.write_text('{"phase":"A"}\n')
+            session = Mock()
+            with self.assertRaisesRegex(ValueError, 'measured or warm-up'):
+                live.preserve_precalibration_cell(root, session)
+            session.rows.assert_not_called()
+            records.write_text('{"phase":"CAL"}\n')
+            session.rows.return_value = ([{'n': 0}], 'native')
+            prior = live.preserve_precalibration_cell(root, session)
+            self.assertFalse(live_output.exists())
+            self.assertEqual((prior / 'live/reads.jsonl').read_text(), '{"phase":"CAL"}\n')
+
     def test_saturation_uses_successful_completions_after_a_full_sixty_seconds(self):
         rows = [dict(phase='A', finished_s=30, error_class=None)] * 449 + [
             dict(phase='W', finished_s=10, error_class=None), dict(phase='A', finished_s=45, error_class='http_429')]
