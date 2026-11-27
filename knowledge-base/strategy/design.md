@@ -416,7 +416,9 @@ web10 are compact secondary rows. Group Developer docs and API reference
 under For developers. Use present-day app-permissions language, drop the old
 protocol tagline and keep same-tab navigation with normal Back behavior.
 In the marketing navbar, use a labeled “Quick links” entry with a list icon,
-not an unlabeled chain icon. Keep the Social call to action higher emphasis.
+not an unlabeled chain icon. Open the directory in a new tab from that entry
+on desktop and phone; keep the original page open and the Social call to
+action higher emphasis.
 
 The job: a creator's manager lands here and in 30 seconds believes
 this is a company, not a weekend project. **Bulma comes out entirely**
