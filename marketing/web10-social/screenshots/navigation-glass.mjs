@@ -17,6 +17,21 @@ const server = spawn('bunx', ['vite', '--config', 'screenshots/vite.config.ts'],
 const receipts = [];
 let browser;
 const capture = (page, name) => page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' });
+async function checkHeaderBrand(brand, mode, fontSize, markSize) {
+  const wordmark = brand.getByTestId('social-header-wordmark');
+  const keys = brand.getByTestId('theme-key-mark');
+  const shown = keys.locator(`img[data-brand-variant="${mode === 'dark' ? 'white' : 'dark'}"]`);
+  assert.equal(await wordmark.innerText(), 'web10 social');
+  assert.equal(await wordmark.evaluate(el => getComputedStyle(el).fontSize), `${fontSize}px`);
+  assert.equal(await brand.getByTestId('social-header-mark').count(), 0);
+  assert.equal(await keys.locator('img:visible').count(), 1);
+  assert.ok(await shown.evaluate(img => img.complete && img.naturalWidth > 0), 'the theme-correct keys PNG loads');
+  const [mark, text, container] = await Promise.all([shown.boundingBox(), wordmark.boundingBox(), brand.boundingBox()]);
+  assert.deepEqual([mark.width, mark.height], [markSize, markSize]);
+  assert.ok(mark.x >= container.x && mark.x + mark.width < text.x && text.x + text.width <= container.x + container.width,
+    'the keys sit to the left of the full wordmark inside the header');
+  return text.x + text.width;
+}
 try {
   const deadline = Date.now() + 30000;
   for (;;) {
@@ -78,15 +93,14 @@ try {
       assert.equal(await header.isVisible(), true);
       assert.equal((await header.boundingBox()).height, mobile ? 60 : 64);
       const brand = mobile ? header : page.getByTestId('sidebar-brand-strip');
-      const wordmark = brand.getByTestId('social-header-wordmark');
-      assert.equal(await wordmark.innerText(), 'web10 social');
-      assert.equal(await brand.getByTestId('social-header-mark').count(), 0);
+      const brandRight = await checkHeaderBrand(brand, mode, mobile ? 20 : 24, mobile ? 24 : 28);
       assert.deepEqual(await header.evaluate(el => {
         const css = getComputedStyle(el);
         return [css.backgroundColor, css.backdropFilter, css.borderTopWidth, css.borderBottomWidth];
       }), [headerFill, 'none', '0px', dividerWidth], 'Dark uses a charcoal header, with a bottom divider only on desktop');
       const search = header.getByRole(mobile ? 'button' : 'textbox', { name: 'Search', exact: true });
       assert.equal(await search.evaluate(el => getComputedStyle(el).color), headerInk, 'search uses ink for the header palette');
+      assert.ok(brandRight < (await search.boundingBox()).x, 'the lockup clears search');
       const bell = header.getByRole('button', { name: /^Notifications\b/ });
       if (!mobile) {
         const bellBounds = await bell.boundingBox();
@@ -253,14 +267,18 @@ try {
       await page.goto(`${base}?screen=appearance&anon=1`, { waitUntil: 'networkidle' });
       assert.deepEqual(await dockItems(), expectedDock, 'signed-out dock matches signed-in order');
       if (mobile) {
-        assert.equal(await page.getByTestId('nav-appearance-anon').isVisible(), true);
+        const appearance = page.getByTestId('nav-appearance-anon');
+        assert.ok(await checkHeaderBrand(header, mode, 20, 24) < (await appearance.boundingBox()).x,
+          'the full-size signed-out lockup clears Appearance');
+        await page.setViewportSize({ width: 360, height: 900 });
+        assert.ok(await checkHeaderBrand(header, mode, 20, 24) < (await appearance.boundingBox()).x,
+          'the full-size signed-out lockup fits at the 360px breakpoint');
         await page.setViewportSize({ width: 320, height: 900 });
-        assert.equal(await wordmark.innerText(), 'web10 social');
-        const wordmarkBounds = await wordmark.boundingBox();
-        const appearanceBounds = await page.getByTestId('nav-appearance-anon').boundingBox();
+        const compactBrandRight = await checkHeaderBrand(header, mode, 16, 20);
+        const appearanceBounds = await appearance.boundingBox();
         const signInBounds = await page.getByTestId('sign-in-button-mobile').boundingBox();
-        assert.ok(wordmarkBounds.width > 1 && wordmarkBounds.x + wordmarkBounds.width <= appearanceBounds.x &&
-          signInBounds.x + signInBounds.width <= 320, 'the signed-out 320px header fits the wordmark and controls');
+        assert.ok(compactBrandRight < appearanceBounds.x && signInBounds.x + signInBounds.width <= 320 &&
+          signInBounds.height >= 44, `signed-out 320px fit: ${JSON.stringify({ compactBrandRight, appearanceBounds, signInBounds })}`);
         await page.setViewportSize({ width, height: 900 });
         for (const id of ['nav-feed-mobile', 'nav-video-mobile', 'nav-shorts-mobile', 'nav-music-mobile']) {
           const button = page.getByTestId(id);
