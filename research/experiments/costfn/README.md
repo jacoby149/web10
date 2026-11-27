@@ -28,7 +28,7 @@ logical read bytes, largest individual statement memory, summed native duration
 `255003176` remains retained. Verify private archives by SHA-256 before cleanup;
 report estimated compute separately from storage and the invoice.
 
-## Sustained-DAU load test — contract only
+## Sustained-DAU load test — preflight refused, no sizing or load result
 
 The [sustained-DAU load test contract](DAU-SUSTAINED-LOAD.md) defines the
 right-sized receipt against the realism contract's load (15 reads/s peak,
@@ -43,8 +43,11 @@ shrinking at the contract peak is the strong claim, a sustained positive
 slope names the debt and banks time-to-bind, and the drain must empty. The paper's claim is the derived budget plus the
 software proof, not a server model; production hardware (R630) is an ops
 matter, out of scope.
-Planning contract only: no runner, no host, no admission and no measurement.
-It does not replace the full-store hybrid arm or Study L.
+The [banked preflight receipt](evidence/dau-sustain-20261127/RESULTS.md)
+records a verified Parquet restore and native reader-authority census on the
+closest c-16 host. One principal could read all 21 requested groups, not the
+150 distinct readers the contract requires. Calibration and sustained windows
+did not run. This receipt does not replace the full-store hybrid arm or Study L.
 
 ## D117 row-model proving cell — complete; maximal model rejected
 

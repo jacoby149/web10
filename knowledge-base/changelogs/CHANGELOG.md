@@ -1,3 +1,6 @@
+6.32.34 || 27.11.2026
+research: bank the sustained-DAU authority preflight on the verified million-account Parquet store. The exact K20-plus-self request has one qualifying principal, not 150; calibration and all load windows are NOT RUN. Off-host hashes and owned cleanup verified, snapshot retained. No hardware or throughput verdict.
+
 6.32.33 || 27.11.2026
 research: build and certify DAU derived metadata from the verified Parquet store rather than adopting files that only exist on the prepared snapshot host. Preserve saved preparation, including the billboard-applied oracle when fixture setup already passed. No workload or gate change.
 
