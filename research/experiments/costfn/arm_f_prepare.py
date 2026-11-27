@@ -13,13 +13,19 @@ from fastapi import HTTPException
 from sqlglot import exp
 
 
-def install(endpoint, *, project=None):
+def install(endpoint, *, project=None, batch_unique_ids=False):
     canonical = endpoint._canonical_prepare_docs
     execute = endpoint.ch.execute_query
     selected_author = ContextVar('F_canonical_prepare_author', default=None)
+    selected_pairs = ContextVar('F_canonical_prepare_pairs', default=None)
 
     @wraps(execute)
     def exact_lookup(sql, *args, **kwargs):
+        pairs = selected_pairs.get()
+        if pairs is not None:
+            values = ','.join('(' + ','.join(exp.Literal.string(item).sql(dialect='clickhouse') for item in pair) + ')'
+                for pair in pairs)
+            sql = 'SELECT * FROM (' + sql + ') AS f_full_key_lookup WHERE (author_key,doc_id) IN (' + values + ')'
         author = selected_author.get()
         if author is not None:
             if project is not None:
@@ -38,6 +44,17 @@ def install(endpoint, *, project=None):
             if not isinstance(author, str) or not author:
                 raise HTTPException(403, 'research prepare requires an explicit full document key')
             partitions.setdefault(author, []).append((index, row))
+        ids = [row.get('doc_id') for row in rows]
+        if (batch_unique_ids and project is None and ids and all(isinstance(doc, str) and doc for doc in ids)
+                and len(set(ids)) == len(ids)):
+            # Unique doc IDs allow the original binder to process one batch.
+            # Its server-built permission SQL still runs before the full-key
+            # narrowing, and its missing/ambiguous authority checks still run.
+            token = selected_pairs.set(sorted((row['author_key'], row['doc_id']) for row in rows))
+            try:
+                return canonical(rows, reader, readable)
+            finally:
+                selected_pairs.reset(token)
         result = [None] * len(rows)
         for author, indexed in partitions.items():
             token = selected_author.set(author)

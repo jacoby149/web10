@@ -35,6 +35,16 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-27: Reuse compiled candidate syntax, not authorization
+
+The DAU-only candidate template is keyed by the full trusted compiled SQL
+after the live authorization gate. The original renderer still validates it,
+and cursor and group literals match the old output. Canonical prepare can
+batch unique document IDs only with an outer exact `(author_key, doc_id)`
+selector after the existing permission/history SQL; same-ID collisions keep
+the author partitions and missing authority is still refused. This is scoped
+research optimization, not a production permission or assurance change.
+
 ### 2026-11-27: Isolated benchmark read certificates do not authorize writes
 
 The opt-in sustained DAU cell checks the live resolved reader scope against

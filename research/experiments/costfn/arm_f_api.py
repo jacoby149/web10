@@ -525,7 +525,8 @@ if os.environ.get('HYBRID_K20_PROJECTED') == '1':
         raise ValueError('K20 projection requires separate admission')
     install_full_key_prepare(query_endpoint, project=k20.preparation)
 else:
-    install_full_key_prepare(query_endpoint)
+    install_full_key_prepare(query_endpoint, batch_unique_ids=bool(os.environ.get('DAU_CELL_BUNDLE'))
+        and admission.get('purpose') == 'DAU_SUSTAINED_CONTRACT_RATE' and admission.get('dau_overnight') is True)
 
 
 def inventory():
