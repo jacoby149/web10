@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.37 local] **Sharpen the Android PWA startup splash** — render from the full-bleed source without changing the conversation pair, blue tile, or bottom crop. Physical-device refresh remains unverified.
+
 - [✓ 6.32.35 local] **Social launcher icon bottom bleed** — intentionally crop both lower silhouettes at the bottom while keeping the upper artwork mask-safe.
 
 - [✓ 6.32.31 local] **Social mobile Dark header and Android icon** — share the desktop Dark palette on phones and add a full-bleed blue maskable icon. Keep Light, the dock, and the iOS icon unchanged.
