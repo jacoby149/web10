@@ -1,3 +1,6 @@
+6.32.50 || 27.11.2026
+research: pin the DAU publication audit boundary to the exact completed bootstrap journal entry before issuing traffic. Do not count cache setup as a publication or conceal any later partial or unexpected write.
+
 6.32.49 || 27.11.2026
 research: batch the DAU bootstrap's exact canonical membership census in groups of 32, retaining every recipient and the frozen reader requirements. Leave historical F builds and all timed workload semantics unchanged.
 

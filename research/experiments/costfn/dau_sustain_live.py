@@ -271,6 +271,10 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
                 pass
 
     try:
+        journal_path = cell / 'fanout-state/journal/intents.sqlite'
+        first_write_sequence = native.bootstrap_sequence(journal_path)
+        save(output / 'publication-boundary.json', dict(first_excluded_sequence=first_write_sequence,
+            reason='verified derived-cache bootstrap, not scheduled publication'))
         tokens = await credentials(http, selected, writers)
         driver = timed.HTTPWorkload(http, output, run_id=bundle['run_id'], reader_tokens=tokens,
             writers=writers, writer_tokens=tokens)
@@ -315,7 +319,7 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
             for index, value in packets.items()}
         issued = [read(path) for path in sorted((output / 'publication-acks').glob('*.json'))]
         ledger = await asyncio.to_thread(native.reconcile_publications, session,
-            cell / 'fanout-state/journal/intents.sqlite', 0, issued,
+            journal_path, first_write_sequence, issued,
             {row['reader']: row['groups'] for row in writers}, {row['reader']: row['groups'] for row in selected})
         save(output / 'publication-reconciliation.json', ledger)
         responses = [read(path) for path in sorted((output / 'responses').glob('*.json')) if path.name.startswith(('A-', 'B-'))]

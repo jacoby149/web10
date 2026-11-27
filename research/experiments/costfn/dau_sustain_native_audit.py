@@ -39,6 +39,16 @@ def committed_publications(path, first_sequence, issued):
     return rows
 
 
+def bootstrap_sequence(path):
+    """Bind the exact non-traffic boundary before accepting any publication."""
+    path = Path(path).resolve()
+    with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as source:
+        rows = source.execute('SELECT sequence,operation_id,actor_key,operation,state FROM intents ORDER BY sequence').fetchall()
+    if len(rows) != 1 or rows[0][1:] != ('canonical-bootstrap', '__derived_setup__', 'bootstrap', 'complete'):
+        raise ValueError('a fresh measurement cell requires its single completed bootstrap journal entry')
+    return int(rows[0][0])
+
+
 def attachment_sql(rows):
     keys = ','.join('(' + q(row['actor']) + ',' + q(row['doc_id']) + ')' for row in rows)
     return ('SELECT d.author_key,d.doc_id,d.collection_name, arraySort(groupUniqArray(g.group_id)) AS groups '

@@ -757,6 +757,24 @@ class DiverseReference(unittest.TestCase):
 
 
 class DiverseNativeAudit(unittest.TestCase):
+    def test_publication_audit_separates_only_the_verified_bootstrap_intent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'intents.sqlite'
+            with sqlite3.connect(path) as source:
+                source.execute('CREATE TABLE intents (sequence,operation_id,actor_key,operation,state,result_json)')
+                source.execute('INSERT INTO intents VALUES (?,?,?,?,?,?)',
+                    (1, 'canonical-bootstrap', '__derived_setup__', 'bootstrap', 'complete', '{}'))
+            boundary = native_audit.bootstrap_sequence(path)
+            self.assertEqual(boundary, 1)
+            self.assertEqual(native_audit.committed_publications(path, boundary, []), [])
+            with sqlite3.connect(path) as source:
+                source.execute('INSERT INTO intents VALUES (?,?,?,?,?,?)',
+                    (2, 'unaudited', 'writer', 'publish', 'pending', None))
+            with self.assertRaisesRegex(ValueError, 'single completed bootstrap'):
+                native_audit.bootstrap_sequence(path)
+            with self.assertRaisesRegex(ValueError, 'unresolved'):
+                native_audit.committed_publications(path, boundary, [])
+
     def test_native_intents_and_attachment_heads_reconcile_to_issued_write(self):
         operation = '00000000-0000-0000-0000-000000000001'
         groups = ['discover', 'writer/followers']
