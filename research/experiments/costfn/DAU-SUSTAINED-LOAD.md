@@ -45,7 +45,7 @@ Three-receipt map, no substitution between them:
 
 | Receipt | Machine | Line it upgrades |
 |---|---|---|
-| **This test** — sustained contract rate, mixed load, clog criterion | a DigitalOcean host at the derived budget requirement (16 cores / 32 threads / 32 GB RAM, §10), frozen store | clogging / steady state / CPU / memory at the contract rate — the software lines; the disk *demand* line stands as derived arithmetic, met or not by a given production array |
+| **This test** — sustained contract rate, mixed load, clog criterion | DigitalOcean c-32, 32 guest-visible logical CPUs, 64 GiB provider RAM, unchanged engine envelope (§2), frozen store | clogging / steady state / CPU / memory at the contract rate — the software lines; the disk *demand* line stands as derived arithmetic, met or not by a given production array |
 | R630 on-array run (seventh-draft README, pending hardware) | assembled R630 | production disk-supply check — an ops matter, not part of the paper's claim structure |
 | Full-store hybrid run (separate admission) | admitted host, frozen store + built satellite | hybrid band (0.54 GB/s ratio-transfer → measured) |
 
@@ -72,10 +72,14 @@ Three-receipt map, no substitution between them:
   flight — and no programme measurement made RAM the binding quantity
   (every full-store experiment ran inside a 32 GB envelope; the largest
   measured read statement peaked near 110 MB) — so the derived requirement
-  is **16 cores / 32 threads, 32 GB RAM, a DigitalOcean dedicated-CPU class
-  (or the closest class the provider offers at those resources), with local
-  storage as the class provides it** (region verified at admission; any
-  closest-class substitution is stated in the admission note). Class storage
+   is **32 guest-visible logical CPUs and at least 32 GiB RAM**, with local
+   storage as the class provides it. Use the DigitalOcean CPU-Optimized
+   **c-32**, which pairs 32 vCPUs with 64 GiB RAM. The earlier c-16 exposed
+   only 16 vCPUs and is not a substitute. Keep the **28 GiB ClickHouse
+   container / 22 GiB ClickHouse server** limits; report the API, OS and cache
+   separately. A measured engine plateau within those limits is not by itself
+   proof that the whole node fits on a 32 GiB guest. Report observed logical
+   CPUs and memory, not inferred physical cores or SMT topology. Class storage
   plus calibration-measured headroom against the ~1.85 GB/s peak read demand
   removes disk as a candidate binding line (§8 step 4). The actual provisioned
   SKU, price, region and shape are verified at admission and into the receipt,
@@ -98,16 +102,26 @@ Three-receipt map, no substitution between them:
   authorized SQL; the engine executes it. The load test exercises that
   boundary under concurrency; it adds no node surface, no policy-bypass flag,
   no raw-table access, and no app-specific endpoint (D60).
-- **Reader identity:** the exact frozen uniform K20 request and authority of
-  the banked runs, extended to a pool of **150 distinct prepared reader
-  tokens** — above the ~105 peak in-flight expectation, so no token refreshes
-  inside the timed windows. Freshness is maintained outside timing, never by
-  disabling checks. Deterministic staggered round-robin schedule, recorded and
-  persisted before execution.
+- **Reader identity (diverse-reader amendment):** select **150 distinct
+  principals** from the verified frozen input, each using its own authenticated
+  Following scope and existing app read authority. The minimum scope is **one
+  current non-self followers-group membership with at least one current
+  ordinary post** (not an ad or product). The reader's own followers group
+  alone does not qualify. Use the complete current Following group set, including
+  self where already present; do not truncate groups or require that they match
+  another reader's. K20 retains the banked first-page request and look-ahead,
+  not a requirement to have exactly 20 follows. Select by deterministic reader-key
+  order. Bank the qualifying count, input and census hashes, and the selected
+  principals and exact groups in a private frozen manifest. If fewer than 150
+  qualify, bank a preflight refusal and stop; no threshold fallback, app grants,
+  memberships or other reader-selection writes. Maintain token freshness outside
+  the timed windows and persist the staggered round-robin schedule before execution.
 - **Fixture caveats, carried into the claim boundary:** the frozen store is
   the hot shared-audience, text-only, single-version microbenchmark fixture
-  (all readers over the same followed span; no profiles, reactions, comments
-  or media). The receipt makes no audience-diversity, media or app-page
+  basis for the historical single-read costs; the amended run uses diverse
+  Following scopes on the same synthetic input. Distinct reader scopes do not
+  establish representativeness of production audience graphs. The receipt makes no
+  media or app-page
   claim. The app's four-call page core is out of scope on this store by
   construction (STUDY.md §3: empty joins on V1) and belongs to Study L on the
   V2 relational datasets.
@@ -115,13 +129,15 @@ Three-receipt map, no substitution between them:
 ## 3. Frozen workload
 
 **Reader arm (the measured unit).** One virtual read = one complete uniform
-K20 response through the public API, exactly as banked — same request, same
-authority, same prepare flags — including its delivery-implication work
+K20 first-page response through the public API, with the banked request shape
+and prepare flags, scoped to the scheduled reader under that reader's existing
+authority — including its delivery-implication work
 (`log_content_deliveries` dedupe read and possible insert, 24-hour dedupe
 window). The workload is therefore not strictly read-only, and that is
 declared, not hidden.
 
-**Offered-load profile** (all rates node-level, pre-declared, frozen):
+**Offered-load profile** (all rates are aggregate across the 150 readers,
+not per-reader; pre-declared, frozen):
 
 | Phase | Duration | Offered rate | Role |
 |---|---|---|---|
@@ -159,8 +175,14 @@ Every response in every measured window is compared, offline and
 asynchronously, against the **independent complete-response oracle** frozen
 per reader identity from the frozen input — exact ordered complete-response
 parity including policy, versions and payloads, the standing house rule. The
-oracle is computed offline from the frozen store; it is not a second live
-run. Any exact ordered divergence **stops the task immediately and publishes
+oracle is computed offline from the frozen store for that reader's own scope;
+it is not a second live run. Preserve the concurrent writer log and reconcile
+committed writes against the reader-specific expectations. Where writer actors
+are kept outside the union of selected Following groups, prove exclusion and
+reconcile their actual write targets before treating the page as invariant.
+Views remain part of exact parity: reconcile delivery changes across all readers,
+not just the reader whose response is being checked. Any exact ordered divergence
+**stops the task immediately and publishes
 no comparison costs** (24 November directive). Correctness is never waived by
 a performance failure, and a performance stop banks the curve **without** a
 capacity claim.
@@ -191,7 +213,8 @@ Banked under `evidence/dau-sustain-YYYYMMDD/`:
   summed native duration per statement class — kept distinct from CPU time
   and from complete HTTP wall time (18 November statement-level policy).
 - **Identity receipt:** source revision, runner SHA-256, engine version,
-  snapshot ID, dataset ID, schedule hash, host SKU/region/price/dates,
+  snapshot ID, dataset ID, selection census and manifest hashes, schedule hash,
+  host SKU/region/price/dates and exposed CPU topology (no physical-topology inference),
   admission ID and window.
 - **Cost receipt:** estimated compute (seconds × the admitted rate,
   verified at admission), **not an invoice**, separate from storage;
@@ -273,9 +296,11 @@ break" into "where it actually broke."
 
 **Established, if the gates pass with a clean G1 outcome:** the software
 sustains the realism contract's peak offered rate (15 complete uniform K20
-reads/s) and its daily-average rate (2.9 reads/s) against the frozen
-one-million-author store, under mixed load, on a host at the derived budget
-requirement (16 cores / 32 threads / 32 GB RAM class, §2):
+reads/s) and its daily-average rate (2.9 reads/s), aggregate across 150
+principals each reading its own Following scope, against the frozen
+one-million-author store under mixed load, on the measured host as exposed
+(c-32, nominal 64 GiB, at least 32 guest-visible logical CPUs, ClickHouse
+container/server bounded to 28/22 GiB; no physical-topology inference):
 at the contract peak, every quantity that could turn into debt was flat or
 shrinking (start/end/slope banked in the calibration and both windows), and
 when the load stops the backlog drains to baseline — with measured headroom
@@ -303,8 +328,8 @@ line for the contract load is retired on the software side.
   one measured.
 - Full-store hybrid savings — the 0.54 GB/s remains ratio-transfer arithmetic
   until the full-store hybrid arm runs.
-- Audience diversity, media, engagement and the app's four-call page — the
-  frozen store's fixture caveats, §2.
+- Production audience representativeness, media, broader engagement workloads
+  and the app's four-call page — the fixture caveats in §2.
 
 ## 8. Sequence (each step a separate gate; no step implies the next)
 
@@ -347,7 +372,7 @@ line for the contract load is retired on the software side.
    the result, banked with the binding resource named; a larger host is not
    silently substituted (26 November task block).
 5. **Sustained run:** phase W → A → B → D per §3, under the task-mode
-   admission, agent supervision at ~300 s intervals and the provider
+   admission, agent supervision at ~600 s intervals for the diverse-reader run and the provider
    backstop (24 November directive: the poweroff timer is a failsafe, not a
    deadline).
 6. **Receipt, verification, cleanup:** §5 artifacts, off-host SHA-256
@@ -358,12 +383,12 @@ line for the contract load is retired on the software side.
 
 | Parameter | Value |
 |---|---|
-| Host | DigitalOcean droplet at the derived requirement: 16 cores / 32 threads, 32 GB RAM, dedicated-CPU class (or the closest class the provider offers at those resources, stated in the admission note), local storage as the class provides it; SKU/price verified at admission, provisioned shape verified into the receipt |
+| Host | DigitalOcean CPU-Optimized c-32 with at least 32 guest-visible logical CPUs and 32 GiB RAM (provider packaging: 64 GiB); local storage as provided; SKU, region and price verified at admission, guest observations banked; no upsizing |
 | Storage headroom | calibration-measured before the sustained window; must exceed the contract-peak read demand (~1.85 GB/s logical aggregate, planning arithmetic from the banked single-read cost) |
-| Engine / envelope | ClickHouse 26.10.4.207; memory envelope declared at admission, recorded in the receipt |
+| Engine / envelope | ClickHouse 26.10.4.207; 28 GiB engine container / 22 GiB server; separate API, OS and cache accounting |
 | Store | snapshot `255003176`, generation fingerprint and receipts checked before reuse |
 | Provider backstop | 12 h poweroff failsafe |
-| Compute ceiling | **$25.00** total task (class rate verified at admission; storage/egress separate, reported separately; not an invoice); the ceiling binds |
+| Compute ceiling | **$25.00** fresh for the diverse-reader task, separate from the prior preflight (class rate verified at admission; storage/egress separate, reported separately; not an invoice); the ceiling binds |
 | Admission mode | task-mode (`costfn_run_rules` + `costfn_task_id`); one admission covers the task; routine repairs re-admit nothing but each repair is bound to its executing source |
 | Workload | §3 exactly as frozen; any rate change is a new admission, not a parameter tweak |
 | Stops | §6 as pre-declared; the operator's cancellation always wins |
@@ -371,6 +396,11 @@ line for the contract load is retired on the software side.
 Issuance requires: step 1 merged, step 2 green, and an explicit operator
 admission of this packet. This document, and any merge of it, grants none of
 those three.
+
+The original identical-authority specification refused at preflight (#1706):
+one principal could read all 21 requested groups. That remains a method-history
+receipt, not a host-sizing or load result. This amendment replaces only that
+population and shared-oracle assumption; it does not reclassify the old run.
 
 ## 10. Design note: sized to the derived requirement, run on DigitalOcean
 

@@ -1,3 +1,6 @@
+6.32.37 || 27.11.2026
+research: amend sustained DAU to census 150 already-authorized, non-empty Following scopes on the verified Parquet input; bind the c-32 guest requirement and retain the 28/22 GiB ClickHouse envelope. Source preflight only: stop the legacy serial/shared-oracle entry point; no provision, native result or draft change.
+
 6.32.36 || 27.11.2026
 research: draft v8 retains the sixth draft's title and structure, brings the programme evidence and full-store hybrid result into the paper, and records the DAU authority preflight as a refusal, not capacity evidence. Rebuilt the named working PDF; no submission or production claim.
 

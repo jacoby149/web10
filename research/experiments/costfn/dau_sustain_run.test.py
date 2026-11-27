@@ -6,7 +6,10 @@ from pathlib import Path
 import tempfile
 from unittest.mock import Mock, patch
 
+import sqlglot
+
 import costfn_task
+import dau_sustain_readers as readers
 import dau_sustain_run as run
 import dau_sustain_workload as wl
 import engagement_window as window
@@ -484,6 +487,71 @@ class ReaderPool(unittest.TestCase):
                 pool = run.reader_pool(root, Mock())
             self.assertEqual(pool['readers_count'], wl.READERS)
             self.assertEqual(pool['shared_span'], banked['groups'])
+
+
+class DiverseReaderPreflight(unittest.TestCase):
+    @staticmethod
+    def rows(n):
+        return [dict(reader=f'reader-{i:03d}', groups=[f'p/groups/users/followed-{i:03d}/followers',
+            f'p/groups/users/reader-{i:03d}/followers'], nonself_with_posts=1) for i in range(n)]
+
+    def test_selection_is_ordered_distinct_and_refuses_without_relaxing_threshold(self):
+        self.assertEqual(readers.selection(self.rows(149)), [])
+        selection = readers.selection(self.rows(152))
+        self.assertEqual(len(selection), 150)
+        self.assertEqual(selection[149]['reader'], 'reader-149')
+        self.assertNotEqual(selection[0]['groups'], selection[1]['groups'])
+        with self.assertRaisesRegex(ValueError, 'distinct principals'):
+            readers.selection(self.rows(149) + self.rows(1))
+        with self.assertRaisesRegex(ValueError, 'invalid reader census'):
+            readers.selection([dict(self.rows(1)[0], nonself_with_posts=0)])
+
+    def test_census_query_is_read_only_and_uses_current_authority_and_post_heads(self):
+        query = readers.census_sql('https://social.test', 'api.test')
+        self.assertEqual(len(sqlglot.parse(query, read='clickhouse')), 1)
+        self.assertEqual(sqlglot.parse_one(query, read='clickhouse').key, 'select')
+        for seam in ('FROM users', 'FROM app_contracts', 'FROM group_members', 'FROM doc_groups',
+                     'FROM documents', '(updated_at,deleted)', 'HAVING nonself_with_posts>=1',
+                     "group_id != concat(", ",member_key,'/followers')"):
+            self.assertIn(seam, query)
+
+    def test_banks_native_census_and_reuses_exact_selection_without_requerying(self):
+        for count, outcome in ((149, readers.REFUSED), (151, 'SELECTED')):
+            with self.subTest(count=count), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                (root / 'input').mkdir()
+                manifest = root / 'input/manifest.json'
+                run.save(manifest, dict(origin='https://social.test', provider='api.test', dataset_id='dataset'))
+                session = Mock()
+                query_id = 'fanout-f-reader-census'
+                session.rows.return_value = self.rows(count), query_id
+                session.native.return_value = dict(query_id=query_id, type='QueryFinish', exception_code=0)
+                frozen = readers.freeze(root, session)
+                self.assertEqual(frozen['qualifying_count'], count)
+                self.assertEqual(frozen['outcome'], outcome)
+                self.assertEqual(frozen['readers_count'], 150 if count >= 150 else 0)
+                self.assertEqual(frozen['census_sha256'], costfn_task.digest(root / 'dau-diverse-reader-census.json'))
+                self.assertEqual(readers.freeze(root, session), frozen)
+                session.rows.assert_called_once()
+                session.native.assert_called_once_with(query_id)
+                run.save(manifest, dict(origin='https://social.test', provider='api.test', dataset_id='different'))
+                with self.assertRaisesRegex(ValueError, 'does not match'):
+                    readers.freeze(root, session)
+
+    def test_host_amendment_refuses_c16_and_engine_memory_inflation(self):
+        value = approval(dau_reader_criterion=readers.CRITERION)
+        with self.assertRaisesRegex(ValueError, 'requires c-32'):
+            run.diverse_host_admission(value)
+        value['dau_host'].update(size='c-32', expected_guest_logical_cpus=32)
+        value['dau_envelope'].update(container_bytes=28 * 1024**3, server_bytes=22 * 1024**3)
+        run.diverse_host_admission(value)
+        value['dau_envelope']['server_bytes'] += 1
+        with self.assertRaisesRegex(ValueError, '28/22 GiB'):
+            run.diverse_host_admission(value)
+
+    def test_legacy_serial_shared_oracle_cannot_start_a_measurement(self):
+        with self.assertRaisesRegex(ValueError, 'sustained windows blocked'):
+            run.run('/does/not/exist')
 
 
 if __name__ == '__main__':
