@@ -442,6 +442,27 @@ try {
           assert.equal(new URL(page.url()).pathname, '/docs/terms');
         }
       }
+      await page.goto(`${origin}/links`, { waitUntil: 'networkidle' });
+      const quickLinks = page.getByTestId('quick-links');
+      await quickLinks.getByRole('heading', { name: 'Explore web10', exact: true }).waitFor();
+      assert.equal(await page.getByRole('navigation', { name: 'main navigation', exact: true }).count(), 0);
+      await verifyLogo(page, mode === 'dark' ? 'white' : 'dark');
+      assert.deepEqual(await readInteriorPalette(page), interiorPalette);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      const actions = quickLinks.getByRole('region', { name: 'Apps and information' }).getByRole('link');
+      assert.equal(await actions.first().getAttribute('href'), process.env.VITE_SOCIAL_URL || 'https://social.web10.app');
+      assert.equal(await actions.nth(2).getAttribute('href'), process.env.VITE_AUTH_URL || 'https://auth.web10.app');
+      for (const action of await quickLinks.getByRole('link').all()) {
+        assert.ok((await action.boundingBox()).height >= 44);
+      }
+      await capture(page, `quick-links-${mode}-${label}`);
+      await quickLinks.getByRole('link', { name: /^App Store/ }).click();
+      await page.waitForURL(`${origin}/app-store`);
+      await page.getByRole('navigation', { name: 'main navigation', exact: true }).waitFor();
+      await page.goBack();
+      await quickLinks.waitFor();
+      receipts.push({ width, mode, quickLinks: 'standalone, same-tab, Back and theme verified' });
+      await page.goto(`${origin}/appearance`, { waitUntil: 'networkidle' });
     }
     assert.deepEqual(errors, []);
     receipts.push({ width, realNavigation: true, keyboardRadios: true, liveDevice: true, overrideReload: true, crossTab: true, paletteAndChrome: true, interiorTextAA: true, transparentThemeLogo: true, errors });

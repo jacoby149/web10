@@ -409,6 +409,13 @@ player parity obligation. Orphaned marketing group browsing is removed too,
 including `/groups/:id`, without a compatibility redirect. Preserve the pitch,
 docs and App Store.
 
+**Quick links (27.11.2026):** `/links` is a standalone launch page, not a
+second homepage. Use the theme-aware keys lockup without the full marketing
+navbar. Social is the primary destination; App Store, web10 Hub and What is
+web10 are compact secondary rows. Group Developer docs and API reference
+under For developers. Use present-day app-permissions language, drop the old
+protocol tagline and keep same-tab navigation with normal Back behavior.
+
 The job: a creator's manager lands here and in 30 seconds believes
 this is a company, not a weekend project. **Bulma comes out entirely**
 (D22 already rejected it) — Tailwind v4 + tokens + the shadcn idiom.

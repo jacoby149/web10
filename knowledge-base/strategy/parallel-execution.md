@@ -278,6 +278,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 - [✓ 6.32.10 local] **Hub in App Store Browse** — one searchable, unbadged Hub card; Social alone is featured. Preserve Hub's keys icon, registration count and link.
 
+- [✓ 6.32.55 local] **Marketing quick-links page** — update the six destinations' hierarchy and wording without changing configured origins or the marketing navbar's entry point. Verify standalone desktop/375px Light and Dark, plus same-tab navigation and Back.
+
 - [✓ 6.32.11 local] **Social conversation pair** — use the lower two-person crop on white for the featured listing and canonical detail, and transparent for Social and Join chrome. Leave Hub and installed icons alone.
 - [✓ 6.31.1 local] **MK-REVOLUTION-STORE-ART** — three distinct app windows connect to one data key. Keep the shared intro layout, catalog, and other page illustrations unchanged.
 - [ ] **MK-CLASSIC-03 — observation window (Phase 3)** — 2–4 weeks, no flag: PostHog funnel comparison `/revolution` vs `/` (views, CTA clicks, signups), recorded against the Phase 0 baseline. Exit: `/revolution` signups ≥ `/` at equal-or-lower traffic → Phase 4; clearly worse → one copy/CTA iteration + one more window; too thin → extend once, then observational-only (stated plainly, no fake significance).
