@@ -883,9 +883,9 @@ revived as the primary marketing surface (`homepage-classic-revival.md`)
 a dark hero, paper content, and a charcoal footer. The rest of marketing uses the same visual
 language in its selected System/Light/Dark appearance. Home and the shared
 interior pages use a white navbar with neutral edges, near-black type and the
-dark logo in Light. In Dark, Home uses Social’s charcoal (`#1b2026`), light
-type and the white logo without changing the navy hero; interior pages retain
-their ice-blue (`#b5d4dc`) navbar. Desktop uses a plain full-width bar. On
+dark logo in Light. In Dark, both use Social’s charcoal (`#1b2026`), light type
+and the white logo. The navbar palette does not change the navy Home hero or
+the interior canvases. Desktop uses a plain full-width bar. On
 mobile, use the social dock's glass layer order: live backdrop refraction on
 the rim, a frosted center, then the edge and undistorted controls. The closed
 capsule and expanded rounded menu both use the 18-unit displacement and 8px
