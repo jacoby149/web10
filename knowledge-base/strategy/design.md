@@ -93,8 +93,8 @@ a wrong logo is worse than no logo.
 | Asset | File (today) | What it is | Use |
 |---|---|---|---|
 | **Full lockup** | `marketing/marketing-ui/public/brand/logo-lockup.png` (1200×400, moved from `layouts/images/logo_white.png` by D13) | Keys-on-keyring mark + lowercase thin-outline "web10" wordmark, white on transparent | Navbars, footers, hero, og-image. Dark backgrounds ONLY (it is white). Min height 24px; keep clear space ≥ the height of the "w" on all sides. |
-| **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Platform avatars, favicons, PWA icons and app-store tiles. Dark backgrounds only. Social's app icon is the exception below. |
-| **Social app icon** | `marketing/marketing-ui/public/brand/social-conversation-pair.png` (catalog); `marketing/web10-social/public/{logo192.png,logo512.png,logo-maskable-crisp-512.png,apple-touch-icon.png,favicon.ico}` (browser and install) | Pink-and-blue conversation pair on solid `#0467f2`. The Android maskable export uses the full-bleed artwork directly for a sharp startup splash, keeps the upper artwork within the safe circle, and lets the launcher crop the characters at the bottom. | Social's App Store listing, app detail, install prompt, startup splash, home-screen and browser icons. Not a theme token or a replacement for the platform keys. |
+| **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Platform avatars and small surfaces such as Social's browser favicon. Dark backgrounds only. |
+| **Social app icon** | `marketing/marketing-ui/public/brand/social-app-icon.png` (catalog); `marketing/web10-social/public/{logo192.png,logo512.png,logo-maskable-crisp-512.png,apple-touch-icon.png}` (install) | The original white keys beside stacked `web10` (blue `10`) and connected capital‑S `Social` on charcoal. Android uses an opaque full-bleed charcoal field with the entire lockup inside the maskable safe circle. | Social's listing, app detail, install prompt, startup splash and home screen. Use only the keys for the tiny favicon. The conversation pair is illustration, not a second logo. |
 | **Dark counterparts (D108)** | `marketing/marketing-ui/public/brand/logo-lockup-dark.png`, `marketing/web10-social/public/keys-mark-dark.png` | Zinc-900 copies with exactly the original dimensions/alpha | Light-mode lockup and square mark; never put a dark backing behind them. White originals remain unchanged. |
 | **Share-card images (D109)** | `marketing/web10-social/public/og-image.png` (1200×1200, keys mark on `#09090b` + subtle violet glow), `marketing/marketing-ui/public/brand/og-image.png` (1200×630, lockup on `#09090b` + subtle glow; the shared copy is `.context/brand-assets/og-image.png`) | Opaque `og:image` assets for link previews | Share surfaces only (the app-root static tags + the social crawler card's brand fallback). Opaque ON PURPOSE: the receiving app composites `og:image` onto its own (white) card frame, so the image bakes in its own dark background — a transparent white mark is invisible there. Never use them in-app (in chrome, the transparent marks + the page's background are correct). |
 
@@ -147,7 +147,7 @@ existing files (do not invent a new mark):
    zinc-900 transparent PNGs preserve original alpha/size. Print/vector
    counterparts still follow the original geometry.
 3. **Icon set**: favicon.ico + 192/512 PNG + apple-touch-icon per app,
-   from the square mark on `#09090b` except for Social's blue icon above.
+   from the square mark on `#09090b` except for Social's stacked lockup above.
 4. **One shared og-image** (1200×630): full lockup on `#09090b` with
    the violet glow treatment (§4), used by all three apps.
    *Paid (D109, 10.11.2026):* the marketing share surface is that asset —
@@ -495,14 +495,24 @@ floating New post shortcut as the complementary scrolled-down entry.
 Align Discover's topic chips to the post column on desktop, including beside
 the Top 10 rail; retain the phone gutter and the video wall's own layout.
 
+**Social chrome follow-up (27.11.2026):** in Light mode, outline the Posts
+column (Discover and Following) as one surface around the composer and post
+stack; keep internal dividers, flat Dark styling, and the Video wall unchanged.
+On Watch, start the single video's comment thread open; a reader can collapse
+it with the Comment action, and the URL preserves that choice for that video.
+In the identity chooser, show the current posting identity above search. Put the
+always-available personal row first below search; when posting as a group, label
+it “Switch to personal identity” without skipping the confirmation step.
+
 
 ### Social navigation glass — first pass (11.11.2026)
 
-Social’s desktop brand strip and phone top bar pair the canonical keys mark
-(white on Dark, dark ink on Light) with a larger `web10 social` wordmark. Keep
-the `10` in the theme’s blue accent and use a compact lockup on narrow phones
-so the full name and header controls fit on one line. The two-person illustration
-stays on Join, the App Store, and the installed app, where it has room to read.
+Social’s desktop brand strip, phone top bar and Join header use one horizontal
+lockup: canonical keys (white on Dark, dark ink on Light), `web10` with the
+theme’s blue `10`, then a connected capital‑S `Social` outline in current ink.
+Keep the lockup and all controls on one line on narrow phones. The square
+catalog/install icon stacks the two words next to the same keys; the two-person
+artwork remains an illustration on Join.
 
 Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
 mute choice across Posts/Video/Shorts and shared video renderers. Never persist
@@ -816,7 +826,7 @@ ugly, it breaks phase-4 theming.
 
 D127 overrides the shared violet brand steps in `marketing/web10-social/`
 only. Keep the zinc canvases, System / Light / Dark behavior, semantic colors,
-and authored media or text-tile colors. Use the icon's blue for solid actions
+and authored media or text-tile colors. Use Social's blue for solid actions
 with `#fafafa` labels, and the theme-specific text steps for links and labels.
 Media islands retain dark background and text steps even in Light mode.
 

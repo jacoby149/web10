@@ -22,6 +22,25 @@ async function capture(page, name, fullPage = true) {
   await page.mouse.move(0, 0);
   await page.screenshot({ path: path.join(output, `${name}.png`), fullPage, animations: 'disabled' });
 }
+
+async function verifyPersonalSwitch(page, chooser, change, name) {
+  const confirm = chooser.getByRole('button', { name: 'Use identity' });
+  await chooser.getByRole('button', { name: /^Northstar Studio\s+(Group|Recent)$/ }).click();
+  await confirm.click();
+  await chooser.waitFor({ state: 'hidden' });
+  await change.click();
+  await chooser.getByText('Northstar Studio', { exact: true }).first().waitFor();
+  const personal = chooser.getByTestId('personal-identity-option');
+  await personal.getByText('Switch to personal identity', { exact: true }).waitFor();
+  assert.equal(await personal.evaluate(el => el.previousElementSibling.tagName), 'INPUT');
+  await capture(page, name, false);
+  await personal.click();
+  assert.equal(await personal.getAttribute('aria-pressed'), 'true');
+  assert.match(await change.getAttribute('aria-describedby').then(id => page.locator(`[id="${id}"]`).textContent()), /Northstar Studio/);
+  await confirm.click();
+  await chooser.waitFor({ state: 'hidden' });
+  await change.click();
+}
 try {
   const deadline = Date.now() + 30000;
   for (;;) {
@@ -99,7 +118,11 @@ try {
       assert.equal(colors.chrome, colors.background);
       assert.equal(colors.overflow, false);
       const wordmark = page.getByTestId('social-header-wordmark').filter({ visible: true });
-      assert.equal(await wordmark.innerText(), 'web10 social');
+      assert.equal(await wordmark.textContent(), 'web10 Social');
+      const signature = wordmark.getByTestId('social-wordmark-signature');
+      assert.ok((await signature.boundingBox()).width > 40);
+      assert.equal(await signature.locator('path').evaluate(el => getComputedStyle(el).fill),
+        mode === 'dark' ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)');
       assert.equal(await wordmark.getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color),
          mode === 'dark' ? 'rgb(168, 206, 255)' : 'rgb(6, 78, 174)');
       assert.equal(await page.getByTestId('social-header-mark').count(), 0);
@@ -139,13 +162,17 @@ try {
       await theme(feed, mode);
       const create = feed.getByRole('button', { name: 'Create a post', exact: true });
       await create.waitFor();
+      assert.equal(await feed.getByTestId('discover-grid').evaluate(el => {
+        const css = getComputedStyle(el);
+        return css.outlineStyle === 'none' ? 0 : parseFloat(css.outlineWidth);
+      }), mode === 'light' ? 1 : 0);
       await capture(feed, `feed-${mode}-${label}`, false);
       if (width < 768) {
         const header = feed.getByTestId('topbar-mobile');
         assert.equal(await header.getByTestId('acting-identity-trigger').count(), 0);
         assert.equal(await header.getByTestId('social-header-wordmark').evaluate(el => {
           const rect = el.getBoundingClientRect();
-          return getComputedStyle(el).fontSize === '16px' && rect.right <= el.closest('header').lastElementChild.getBoundingClientRect().left;
+          return rect.right <= el.closest('header').lastElementChild.getBoundingClientRect().left;
         }), true, 'full-size wordmark fits beside header controls');
         await feed.getByTestId('nav-more-mobile').click();
         const profile = feed.getByTestId('more-profile-card');
@@ -157,6 +184,7 @@ try {
         await capture(feed, `more-${mode}-${label}`, false);
         await change.click();
         const chooser = feed.getByRole('dialog', { name: 'Choose acting identity' });
+        await verifyPersonalSwitch(feed, chooser, change, `identity-${mode}-${label}`);
         await chooser.getByRole('button', { name: 'Close identities' }).click();
         await change.evaluate(el => { if (document.activeElement !== el) throw new Error('Focus did not return to Change identity'); });
         await feed.getByRole('dialog', { name: 'More', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
@@ -170,6 +198,8 @@ try {
         await capture(feed, `account-${mode}-${label}`, false);
         await change.click();
         const chooser = feed.getByRole('dialog', { name: 'Choose acting identity' });
+        await chooser.waitFor();
+        await verifyPersonalSwitch(feed, chooser, change, `identity-${mode}-${label}`);
         await chooser.waitFor();
         const bounds = await chooser.boundingBox();
         assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width, 'chooser stays inside the desktop viewport');
@@ -196,7 +226,11 @@ try {
       assert.ok((await page.locator('main').innerText()).length > 20, `${screen} rendered`);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, screen);
       await theme(page, 'light');
+      if (screen === 'posts-following') {
+        assert.equal(await page.getByTestId('following-posts-column').evaluate(el => getComputedStyle(el).outline), 'rgb(212, 212, 216) solid 1px');
+      }
       if (screen === 'watch-hls') {
+        await page.getByTestId('watch-comments').waitFor();
         await page.getByTestId('hls-video-player').waitFor();
         assert.deepEqual(await page.getByTestId('hls-video-player').evaluate(el => {
           const css = getComputedStyle(el);
@@ -204,6 +238,10 @@ try {
         }), ['#fafafa', '#a8ceff', '#4c97ff']);
       }
       await capture(page, `${screen}-light-${label}`);
+      if (screen === 'watch-hls') {
+        await page.getByTestId('watch-comments').scrollIntoViewIfNeeded();
+        await capture(page, `watch-comments-light-${label}`, false);
+      }
       if (screen === 'shorts') {
         // Direct-link the immersive renderer; this is a theme check, not a
         // preview-control/navigation acceptance test.
@@ -230,6 +268,21 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.close();
     receipts.push({ width, responsive: true });
+  }
+  for (const width of [320, 375]) {
+    for (const colorScheme of ['light', 'dark']) {
+      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme });
+      await page.goto(`${base}?screen=appearance&anon=1`, { waitUntil: 'networkidle' });
+      const header = page.getByTestId('topbar-mobile');
+      await header.getByTestId('social-wordmark-signature').waitFor();
+      assert.equal(await header.evaluate(el => {
+        const [brand, controls] = el.children;
+        return brand.getBoundingClientRect().right <= controls.getBoundingClientRect().left
+          && controls.getBoundingClientRect().right <= el.getBoundingClientRect().right;
+      }), true, `${width}px ${colorScheme}: the complete lockup and signed-out controls fit`);
+      receipts.push({ width, colorScheme, signedOutBrandFits: true });
+      await page.close();
+    }
   }
   await writeFile(path.join(output, 'appearance-receipt.json'), JSON.stringify({ evidence: 'Real Chromium/UI/CSS with isolated data, not deployed/physical-phone evidence', receipts }, null, 2));
 } finally { await browser?.close(); server.kill('SIGTERM'); }

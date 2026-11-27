@@ -285,6 +285,10 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.54 local] **One keys-and-script Social identity** — the capital-S outline is font-independent, the full lockup fits beside phone controls, the catalog matches the install icon, and the Android export keeps all artwork inside its maskable safe circle. Leave Hub and existing routing alone.
+
+- [✓ 6.32.54 local] **Social chrome follow-up** — Discover/Following get a Light-only outer outline with internal dividers intact, Watch comments default open without altering other thread surfaces, and the personal identity stays first below search even when groups are filtered. Preview, cancellation and explicit confirmation retain their existing authority.
+
 - [✓ 6.32.40 local] **Larger Social header wordmark with keys** — use the canonical Light/Dark keys alongside the larger wordmark on desktop and phones. Keep the signed-out 320px header usable and leave Join, App Store, launcher and splash artwork unchanged.
 
 - [✓ 6.32.38 local] **Wordmark-only Social headers** — show the full name with the blue `10` at desktop and phone widths, including signed-out narrow phones. Join, App Store, launcher and splash artwork stay unchanged.
