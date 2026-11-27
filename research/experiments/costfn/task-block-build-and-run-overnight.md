@@ -54,3 +54,13 @@ their existing group key on both oracle and request paths; the first-page and
 views requests are unchanged. This remains source control, not an enabled runner
 or a native receipt. The certified mixed-load cell and native reconciliation
 are still required before opening the timed entry point.
+
+The preparation code can build the exact tally scopes per reader and verify
+their roots against canonical counts. The post-run audit can match complete
+publication intents to their acknowledgment and current canonical attachments,
+and derive views from raw delivery bookends when the interval is proven
+append-only with no relevant TTL expiry or change in the raw counts. Equal
+bookends without that proof are not parity. If delivery state changes during
+the measured interval, a per-request native visibility replay is required.
+These helpers do not authorize mixed-mode serving or change the existing
+single-reader runtime fence.

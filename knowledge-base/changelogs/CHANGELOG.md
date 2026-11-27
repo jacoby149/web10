@@ -1,3 +1,6 @@
+6.32.43 || 27.11.2026
+research: add per-reader indexed tally certificate preparation, strict route lookup, and native journal/attachment and raw delivery audit helpers for sustained DAU. Keep timed entry closed pending mixed-load integration; no certified native run, capacity finding, or draft update.
+
 6.32.42 || 27.11.2026
 research: batch quiescent canonical DAU oracle setup by frozen reader, add explicit grouped follow-up order and a phased HTTP dispatch adapter, and bind the overnight 24-hour failsafe separately from the original admission. Mixed-load certification and native delivery reconciliation are still required; no run or measured result.
 
