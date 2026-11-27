@@ -1,3 +1,6 @@
+6.32.33 || 27.11.2026
+research: build and certify DAU derived metadata from the verified Parquet store rather than adopting files that only exist on the prepared snapshot host. Preserve saved preparation, including the billboard-applied oracle when fixture setup already passed. No workload or gate change.
+
 6.32.32 || 27.11.2026
 research: generate the sustained-DAU ClickHouse server memory limit from the bound admission instead of mounting the retired host's fixed 80 GiB setting. The container and server limits now use the same admission, and the live equality check remains. Admit the declared class-provided local storage without requiring an NVMe label; calibration still has to demonstrate headroom. No workload or measurement-gate change.
 
