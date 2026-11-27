@@ -334,8 +334,8 @@ try {
         await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
         await page.getByRole('heading', { level: 1 }).first().waitFor();
         await waitTheme(page, mode);
-        const darkHome = mode === 'dark' && name === 'home';
-        await verifyLogo(page, darkHome ? 'white' : 'dark');
+        const dark = mode === 'dark';
+        await verifyLogo(page, dark ? 'white' : 'dark');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${name} at ${width}`);
         const chrome = await page.evaluate(() => ({ background: getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim(), native: getComputedStyle(document.documentElement).colorScheme, chrome: document.querySelector('meta[name="theme-color"]').content }));
         assert.equal(chrome.background, mode === 'light' ? '#fafafa' : '#2b2f32');
@@ -356,9 +356,9 @@ try {
             inset: rect.left > 0 && rect.right < innerWidth && rect.top >= 12,
             supportsFrost: CSS.supports('backdrop-filter', 'blur(1px)') && matchMedia('(prefers-reduced-transparency: no-preference)').matches };
         });
-        assert.equal(nav.ink, darkHome ? 'rgb(250, 250, 250)' : 'rgb(24, 35, 44)');
-        const solidNavbar = mode === 'light' ? 'rgb(255, 255, 255)' : darkHome ? 'rgb(27, 32, 38)' : 'rgb(181, 212, 220)';
-        assert.equal(nav.token, mode === 'light' ? '#ffffff' : darkHome ? '#1b2026' : '#b5d4dc');
+        assert.equal(nav.ink, dark ? 'rgb(250, 250, 250)' : 'rgb(24, 35, 44)');
+        const solidNavbar = dark ? 'rgb(27, 32, 38)' : 'rgb(255, 255, 255)';
+        assert.equal(nav.token, dark ? '#1b2026' : '#ffffff');
         if (width < 1024) {
           assert.ok(nav.inset && nav.radius >= 32, 'the closed navbar floats as a capsule');
           assert.equal(nav.color, 'rgba(0, 0, 0, 0)', 'the outer bar must not become its own backdrop');
@@ -429,9 +429,12 @@ try {
             receipts.push({ width, mode, page: name, expandedNavbarOptics: await verifyNavbarOptics(page) });
           }
           const current = page.getByRole('link', { name: name === 'home' ? 'Home' : 'Freedom', exact: true }).filter({ visible: true }).first();
-          assert.equal(await current.evaluate(el => getComputedStyle(el).backgroundColor), darkHome ? 'rgb(54, 65, 77)' : 'rgb(225, 242, 246)');
+          assert.equal(await current.evaluate(el => getComputedStyle(el).backgroundColor), dark ? 'rgb(54, 65, 77)' : 'rgb(225, 242, 246)');
+          // One neutral outline entry across all tabs — the shared pages
+          // must not reintroduce a brand fill the Home navbar doesn't have.
           const social = page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true });
-          assert.equal(await social.evaluate(el => getComputedStyle(el).backgroundColor), name === 'home' ? 'rgba(0, 0, 0, 0)' : 'rgb(194, 223, 237)');
+          assert.equal(await social.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
+          assert.equal(await social.evaluate(el => getComputedStyle(el).color), dark ? 'rgb(250, 250, 250)' : 'rgb(24, 35, 44)');
           if (width < 1024) {
             await capture(page, `${name}-navigation-${mode}-${label}`);
             await page.getByRole('button', { name: 'Close menu', exact: true }).click();
