@@ -1,3 +1,9 @@
+6.32.42 || 27.11.2026
+research: batch quiescent canonical DAU oracle setup by frozen reader, add explicit grouped follow-up order and a phased HTTP dispatch adapter, and bind the overnight 24-hour failsafe separately from the original admission. Mixed-load certification and native delivery reconciliation are still required; no run or measured result.
+
+6.32.41 || 27.11.2026
+research: add offline controls for concurrent DAU arrivals, reader-bound ordered comparison and publication reconciliation, and non-overlapping host-memory accounting. The indexed mixed-load serving cell and end-to-end runner remain open; no provisioning or sustained result.
+
 6.32.40 || 27.11.2026
 style(social): enlarge the `web10 social` wordmark on phones and desktop and pair it with the original keys mark in both themes. Keep the mobile controls on one line and leave Join and installed app artwork unchanged.
 
