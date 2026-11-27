@@ -1,3 +1,6 @@
+6.32.46 || 27.11.2026
+research: stage the original paired fixture from the retained image on the single admitted c-32, verify its bytes and native authority rows, and load only disjoint fixture keys after the frozen census. Bind the exact guest and armed timer before execution; source controls are not a native restore or run result.
+
 6.32.45 || 27.11.2026
 research: connect the admitted DAU cell to calibration, open-loop timing, native reconciliation, and private resource receipts after same-host setup proof. Repair the two AST-extracted engagement test harnesses that did not load the uniform-copy helper. No cloud lease, native result, or draft update.
 

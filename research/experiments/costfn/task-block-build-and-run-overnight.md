@@ -76,10 +76,9 @@ separate from actual virtual-device I/O during load. Source checks do not prove
 the fresh restore/fixture/furniture chain or an admitted-guest boot, and the
 controller never claims custody or publishable native capacity by itself.
 
-The no-new-grants fence applies during preparation as well. `--prepare-only`
-requires a validated retained paired fixture already present on the owned
-restore; it never invokes the fallback that adds consent and creates new group
-memberships. The plain frozen Parquet import carries no such fixture. Provide
-a verified transfer of the existing snapshot fixture and its native authority
-before provisioning a run that depends on this stage. A missing fixture is a
-setup blocker, not a native resource or parity stop.
+The no-new-grants fence applies during preparation as well. The
+[after-#1722 task](task-block-after-1722-run-to-results.md) extracts the
+existing fixture on the one c-32 from the retained snapshot image, then
+restores the frozen dataset from its verified Parquet. `--prepare-only`
+imports only the original fixture rows from the verified transfer, not the
+legacy fallback that creates scopes or calls consent.
