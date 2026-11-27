@@ -282,6 +282,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 - [✓ 6.32.57 local] **Quick-links image ownership** — use the shared image component for the bundled Social icon; keep it decorative and retain the 48px footprint and unchanged click destination.
 
+- [✓ 6.32.58 local] **Quick links opens separately** — open the directory in a new tab from both navbar layouts, without opener access or replacing the original page. Verify ordinary links and Back still work inside the directory.
+
 - [✓ 6.32.11 local] **Social conversation pair** — use the lower two-person crop on white for the featured listing and canonical detail, and transparent for Social and Join chrome. Leave Hub and installed icons alone.
 - [✓ 6.31.1 local] **MK-REVOLUTION-STORE-ART** — three distinct app windows connect to one data key. Keep the shared intro layout, catalog, and other page illustrations unchanged.
 - [ ] **MK-CLASSIC-03 — observation window (Phase 3)** — 2–4 weeks, no flag: PostHog funnel comparison `/revolution` vs `/` (views, CTA clicks, signups), recorded against the Phase 0 baseline. Exit: `/revolution` signups ≥ `/` at equal-or-lower traffic → Phase 4; clearly worse → one copy/CTA iteration + one more window; too thin → extend once, then observational-only (stated plainly, no fake significance).
