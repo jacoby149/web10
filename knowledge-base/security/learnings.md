@@ -51,6 +51,12 @@ IDs. They cache neither permission decisions nor rows; a different input
 recompiles, rejection is not cached, and native history and policy SQL still
 execute on every served read.
 
+The internal batched-prepare context is set by the server binder, never by an
+HTTP input. Its exact-key lookup still runs live F certification and the
+canonical permission compiler; it only skips the feed and tally recognizers
+that cannot route that lookup. The page's tally SQL is reused after actual
+route and target verification, never before it.
+
 ### 2026-11-27: Isolated benchmark read certificates do not authorize writes
 
 The opt-in sustained DAU cell checks the live resolved reader scope against
