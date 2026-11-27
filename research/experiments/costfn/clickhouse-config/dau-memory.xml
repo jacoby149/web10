@@ -1,9 +1,0 @@
-<clickhouse>
-    <!-- Sustained-DAU sized host (contract DAU-SUSTAINED-LOAD.md §9/§10):
-         80 GiB server cap inside a 100 GiB container, declared at admission
-         and verified live before any timed window. Large enough that no
-         hardware line binds by arithmetic against the contract's ~17-20
-         thread-seconds/s engine demand; the debt-slope gate finds whichever
-         resource binds first, which is the software's problem, not the box's. -->
-    <max_server_memory_usage>85899345920</max_server_memory_usage>
-</clickhouse>

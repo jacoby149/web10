@@ -313,6 +313,17 @@ class EnvelopeOverlay(unittest.TestCase):
             self.assertEqual(got['services']['api']['mem_limit'], '34359738368')
             self.assertEqual(got['services']['minio']['mem_limit'], '1073741824')
 
+    def test_overlay_bind_and_native_cap_follow_small_host_admission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'restore.overlay.json').write_text(json.dumps(self.overlay_value()))
+            got = run.apply_envelope_overlay(root, approval())
+            memory_path = root.resolve() / 'dau-memory.xml'
+            self.assertEqual(got['services']['clickhouse']['volumes'][3],
+                f'{memory_path}:/etc/clickhouse-server/config.d/costfn-memory.xml:ro')
+            self.assertIn('<max_server_memory_usage>23622320128</max_server_memory_usage>',
+                memory_path.read_text())
+
     def test_missing_overlay_or_input_bind_refuses(self):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, 'restore overlay required'):
