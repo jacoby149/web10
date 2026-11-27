@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.38 local] **Wordmark-only Social headers** — keep the blue `10` on desktop and phone; remove the tiny illustration from the headers without changing other brand surfaces.
+
 - [✓ 6.32.37 local] **Sharpen the Android PWA startup splash** — render from the full-bleed source without changing the conversation pair, blue tile, or bottom crop. Physical-device refresh remains unverified.
 
 - [✓ 6.32.35 local] **Social launcher icon bottom bleed** — intentionally crop both lower silhouettes at the bottom while keeping the upper artwork mask-safe.

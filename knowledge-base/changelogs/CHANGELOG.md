@@ -1,3 +1,6 @@
+6.32.38 || 27.11.2026
+style(social): use only the `web10 social` wordmark with the blue `10` in the desktop and phone headers. Keep the illustrated mark on Join, the App Store, the launcher, and the startup splash.
+
 6.32.37 || 27.11.2026
 fix(social): render Android's PWA startup artwork from the sharper full-bleed source instead of enlarging the chrome crop. Keep the blue tile and bottom bleed, refresh the manifest and shell cache, and leave iOS and in-app icons unchanged.
 
