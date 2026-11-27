@@ -1,3 +1,6 @@
+6.32.75 || 27.11.2026
+research: add opt-in per-core and queue utilization observations for the DAU calibration replay, capture the existing request phase timings, and reuse the exact banked reader oracles only after a matching fresh native census. No serving-policy or concurrency configuration change.
+
 6.32.74 || 27.11.2026
 research: bank the diverse-reader DAU calibration resource stop on the single c-32. The restored input and retained fixture, 20,000-to-150 census, oracle packets and all 750 indexed checks verify; the single-worker API did not clear calibration. No measured windows, sustained capacity claim, or draft change. Private custody and owned cleanup verified; snapshot retained.
 

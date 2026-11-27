@@ -1,6 +1,7 @@
 """Host-side dispatcher and private native evidence collection for the DAU cell."""
 
 import asyncio
+from contextlib import ExitStack
 from datetime import UTC, datetime
 import json
 from pathlib import Path
@@ -12,6 +13,7 @@ from arm_f_native import save
 from arm_satellite_sql import literal as q
 from costfn_task import ParityDivergence, digest, read
 from dau_sustain_dispatch import Dispatch
+import dau_calibration_diagnostics as diagnostics
 import dau_sustain_memory as memory
 import dau_sustain_native_audit as native
 import dau_sustain_parity as parity
@@ -323,6 +325,9 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     record_write = record_to(output / 'writes.jsonl')
     resources = record_to(output / 'resources.jsonl')
     started_utc = datetime.now(UTC)
+    utilization = approval.get('dau_calibration_utilization') is True
+    probe_stack = ExitStack()
+    direct = None
 
     async def sample_window(phase, dispatch, origin, stop):
         loop = asyncio.get_running_loop()
@@ -334,6 +339,11 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
             elapsed = loop.time() - origin
             resources(dict(phase=phase, elapsed_s=elapsed, debt=values, memory=host, api_descriptors=descriptors,
                 guest_cpu=Path('/proc/stat').read_text().splitlines()[0]))
+            if utilization and phase in ('CAL', 'CAL-BURST'):
+                point = diagnostics.host_probe(*pids)
+                point['engine_queue'] = await asyncio.to_thread(diagnostics.engine_queue, direct)
+                diagnostics.append(output / 'utilization-samples.jsonl', dict(phase=phase, elapsed_s=elapsed,
+                    **point, host_memory=host, io=values['io'], debt=values['values'], api_descriptors=descriptors))
             collapse = saturation_observation(phase, elapsed, observed_reads)
             if collapse is not None:
                 save(output / 'saturation-stop.json', dict(**collapse, debt=values))
@@ -352,6 +362,9 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
             raise
 
     try:
+        if utilization:
+            direct = probe_stack.enter_context(transport.connect(session))
+            diagnostics.inventory(direct, output)
         journal_path = cell / 'fanout-state/journal/intents.sqlite'
         first_write_sequence = native.bootstrap_sequence(journal_path)
         save(output / 'publication-boundary.json', dict(first_excluded_sequence=first_write_sequence,
@@ -365,8 +378,15 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
             if value['path_mode'] != 'F_DOCUMENT_STREAM_V1':
                 raise ValueError('idle baseline did not use certified indexed path')
             idle.append(value['elapsed_ms'])
+            if utilization and len(idle) == 1:
+                save(output / 'utilization-one-read.json', dict(reader_index=actor['index'],
+                    request_ids=value['request_ids'], elapsed_ms=value['elapsed_ms'], path_mode=value['path_mode']))
         bound = wl.DRAIN_MULTIPLIER * statistics.median(idle) / 1000
         cal, drained = await calibration(driver, selected, record_read, observe, abort, bound)
+        if utilization:
+            save(output / 'utilization-calibration-boundary.json', dict(counts=dict(cal.counts),
+                drained_within_bound=drained, aborted=abort.is_set(), idle_ms=idle, bound_s=bound,
+                assessed_before_waiting_for_later_native_completions=True))
         if not drained:
             await cal.drain(None)
         save(output / 'calibration.json', dict(counts=dict(cal.counts), drained=drained, idle_ms=idle, bound_s=bound))
@@ -414,4 +434,5 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
         save(output / 'live-receipt.json', value)
         return value
     finally:
+        probe_stack.close()
         await http.close()

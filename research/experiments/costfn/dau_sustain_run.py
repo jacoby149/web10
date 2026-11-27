@@ -959,11 +959,15 @@ def prepare_mixed_cell(root, session, settled_ledger):
         contract.gate(name, value)
     if approval.get('dau_overnight') is not True:
         raise ValueError('mixed-cell preparation requires the admitted overnight driver')
-    session.env['DAU_ORACLE_BATCH_UNTIMED'] = '1'
-    try:
-        index = references.prepare(root, session, settled_ledger)
-    finally:
-        session.env.pop('DAU_ORACLE_BATCH_UNTIMED', None)
+    if approval.get('dau_calibration_utilization') is True:
+        from dau_calibration_oracle_reuse import prepare as reuse_oracles
+        index = reuse_oracles(root, settled_ledger)
+    else:
+        session.env['DAU_ORACLE_BATCH_UNTIMED'] = '1'
+        try:
+            index = references.prepare(root, session, settled_ledger)
+        finally:
+            session.env.pop('DAU_ORACLE_BATCH_UNTIMED', None)
     proof = scope_proof.prepare(root, session, index)
     writers = writer_population(root, session, selection)
     validate_cell(approval, proof, writers)
