@@ -7,6 +7,7 @@ import sys
 import unittest
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import uuid
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -14,6 +15,9 @@ import sqlglot
 
 import costfn_task
 import arm_f_native
+import arm_f_prepare
+import arm_satellite_serve
+from dau_sustain_candidate import cached_candidate
 import dau_sustain_admission as binding
 import dau_sustain_cell_policy as cell_policy
 import dau_sustain_fixture_transfer as transfer
@@ -928,6 +932,32 @@ class DiverseNativeAudit(unittest.TestCase):
 
 
 class DiverseCellPolicy(unittest.TestCase):
+    def test_candidate_template_is_byte_identical_to_the_existing_renderer(self):
+        sql = "SELECT p.doc_id FROM posts p WHERE NOT has(p.tags,'ad') ORDER BY p.created_at DESC LIMIT 21"
+        original = Mock(side_effect=arm_satellite_serve.candidate_sql)
+        candidate = cached_candidate(original)
+        for group, after, limit in [('first', None, 22), ('second/quote\'', None, 29),
+                ('other', {'created_ms': 123, 'doc_id': 'docs', 'author_key': 'author'}, 3)]:
+            self.assertEqual(candidate(sql, group, after, limit), arm_satellite_serve.candidate_sql(sql, group, after, limit))
+        original.assert_called_once()
+
+    def test_unique_canonical_prepare_batches_full_keys_but_collision_still_partitions(self):
+        calls = []
+        endpoint = SimpleNamespace(ch=SimpleNamespace(execute_query=lambda sql: calls.append(sql)))
+        bound = Mock(side_effect=lambda rows, reader, groups: (endpoint.ch.execute_query('SELECT trusted'), rows)[1])
+        endpoint._canonical_prepare_docs = bound
+        arm_f_prepare.install(endpoint, batch_unique_ids=True)
+        first, second = dict(author_key='a', doc_id='one'), dict(author_key='b', doc_id='two')
+        scopes = {'posts': ['group']}
+        self.assertEqual(endpoint._canonical_prepare_docs([first, second], 'reader', scopes), [first, second])
+        bound.assert_called_once_with([first, second], 'reader', scopes)
+        self.assertEqual(len(calls), 1)
+        self.assertIn("WHERE (author_key,doc_id) IN (('a','one'),('b','two'))", calls[0])
+        endpoint._canonical_prepare_docs([first, dict(second, doc_id='one')], 'reader', scopes)
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(calls[1].endswith("WHERE author_key='a'"))
+        self.assertTrue(calls[2].endswith("WHERE author_key='b'"))
+
     def test_batched_membership_counts_preserve_recipient_sets_and_required_readers(self):
         groups = ['a', 'b']
         expected = {'a': {'reader'}, 'b': {'other'}}

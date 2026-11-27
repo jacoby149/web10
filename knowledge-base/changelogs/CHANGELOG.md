@@ -1,3 +1,6 @@
+6.32.71 || 27.11.2026
+research: after a DAU calibration API CPU profile showed repeated SQL parsing, reuse an exact validated candidate SQL template and batch canonical prepare for unique page IDs. Keep live policy checks, full-key selectors and collision handling; historical F arms and the DAU offered workload are unchanged.
+
 6.32.70 || 27.11.2026
 research: preserve the DAU calibration that hit the inherited API file-descriptor limit. Pin and verify a larger finite descriptor limit for the isolated API cell and sample actual descriptor usage without changing host class, memory limits, or offered rates. A failed calibration can re-enter only if no warm-up or measured traffic was offered.
 
