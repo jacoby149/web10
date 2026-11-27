@@ -232,6 +232,19 @@ def evidence_verdict(phases, resources, dispatch):
         custody='NOT_YET_VERIFIED', experiment_capacity='NOT_CLAIMED_BY_ON_HOST_CONTROLLER')
 
 
+def saturation_observation(phase, elapsed, records):
+    """Observe the predeclared <50% completion gate over an actual 60s window."""
+    if phase not in ('A', 'B') or not wl.SATURATION_SECONDS <= elapsed <= wl.phase(phase)['duration_s']:
+        return None
+    expected = wl.phase(phase)['rate'] * wl.SATURATION_SECONDS
+    completed = sum(row['phase'] == phase and row['error_class'] is None
+        and elapsed - wl.SATURATION_SECONDS < row['finished_s'] <= elapsed for row in records)
+    if completed < expected * wl.SATURATION_FRACTION:
+        return dict(phase=phase, reason='SUSTAINED_ACHIEVED_RATE_COLLAPSE',
+            window_seconds=wl.SATURATION_SECONDS, expected=expected, completed=completed, elapsed_s=elapsed)
+    return None
+
+
 async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     """Run the measured HTTP contract; keep all results private until proof holds.
 
@@ -252,7 +265,13 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     envelope = approval['dau_envelope']
     pids = service_pid(session, 'clickhouse'), service_pid(session, 'api')
     abort = asyncio.Event()
-    record_read = record_to(output / 'reads.jsonl')
+    read_sink = record_to(output / 'reads.jsonl')
+    observed_reads = []
+
+    def record_read(row):
+        read_sink(row)
+        observed_reads.append(row)
+
     record_write = record_to(output / 'writes.jsonl')
     resources = record_to(output / 'resources.jsonl')
     started_utc = datetime.now(UTC)
@@ -263,8 +282,14 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
             values = await asyncio.to_thread(sample_debt, session, phase, len(dispatch.pending))
             host = await asyncio.to_thread(memory.sample, *pids, engine_cap=envelope['container_bytes'],
                 server_cap=envelope['server_bytes'])
-            resources(dict(phase=phase, elapsed_s=loop.time() - origin, debt=values, memory=host,
+            elapsed = loop.time() - origin
+            resources(dict(phase=phase, elapsed_s=elapsed, debt=values, memory=host,
                 guest_cpu=Path('/proc/stat').read_text().splitlines()[0]))
+            collapse = saturation_observation(phase, elapsed, observed_reads)
+            if collapse is not None:
+                save(output / 'saturation-stop.json', dict(**collapse, debt=values))
+                abort.set()
+                return
             try:
                 await asyncio.wait_for(stop.wait(), 10)
             except TimeoutError:

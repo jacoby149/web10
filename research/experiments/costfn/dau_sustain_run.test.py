@@ -909,6 +909,14 @@ class DiverseCellPolicy(unittest.TestCase):
 
 
 class DiverseLiveReceipt(unittest.TestCase):
+    def test_saturation_uses_successful_completions_after_a_full_sixty_seconds(self):
+        rows = [dict(phase='A', finished_s=30, error_class=None)] * 449 + [
+            dict(phase='W', finished_s=10, error_class=None), dict(phase='A', finished_s=45, error_class='http_429')]
+        self.assertIsNone(live.saturation_observation('A', 59.9, rows))
+        self.assertEqual(live.saturation_observation('A', 60, rows)['completed'], 449)
+        self.assertIsNone(live.saturation_observation('A', 60, rows + [rows[0]]))
+        self.assertIsNone(live.saturation_observation('W', 60, rows))
+
     def test_live_successor_uses_repair_source_only_after_same_host_prepare(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

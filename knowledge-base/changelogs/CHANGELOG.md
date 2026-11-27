@@ -1,3 +1,6 @@
+6.32.53 || 27.11.2026
+research: enforce the DAU run's 60-second completion-collapse stop during measured windows, counting actual successful in-window completions rather than offers or HTTP errors. Bank the stop trace without inferring a physical bottleneck from the completion counter alone.
+
 6.32.52 || 27.11.2026
 research: build DAU reader tallies only for the already-certified first-page targets, selecting full historical keys through the verified pairs index. Keep canonical history, live policy and independent per-reader tally verification; refuse unchecked targets and leave the measured path unchanged.
 
