@@ -1,0 +1,44 @@
+\subsubsection{Million-account sizing arithmetic and the load preflight}
+\label{sec:budget}
+
+The realism scenario proposes 0.25 page reads per account per day, or
+250,000 per day at one million accounts (about 2.9\,s$^{-1}$ on average).
+The 15\,s$^{-1}$ peak is a declared planning input, not a measured traffic
+peak or a claim about the communities used to fit authorship.
+
+At that peak the measured indexed and hybrid per-read logical totals imply
+1.85 and 1.39 decimal GB/s respectively. The latter replaces 0.54\,GB/s,
+which was a transfer of the transient slice ratio, not a full-store result.
+Logical bytes are neither a bound on nor a measure of physical disk bytes.
+The reference R630 has four 2\,TB SATA SSDs in two mirrored pairs; the
+vendor rates each at 545\,MB/s sequential reads \cite{sandisk}. Depending
+on mirror behavior the gross rating is 1.09 or at most 2.18\,GB/s, not net
+supply alongside writes and merges. No physical disk-budget pass follows
+from comparing these quantities. Neither logical demand nor the October
+production browser observation measures that array's physical supply.
+
+Statement peaks against an approximately 17\,GB per-read planning allowance
+do not bound overlapping queries, writers, caches, or merges. The product's
+500\,ms complete HTTP line remains unmet. Summed native durations, including
+1,332\,ms in the indexed archive, are request statement elapsed times, not
+CPU times or bounds on multithreaded CPU. Neither the CPU budget nor a
+concurrent latency distribution was verified.
+
+The separate sustained-load contract specified 150 distinct prepared reader
+tokens with the same K20 request and authority, 15 reads/s at peak, 2.9
+reads/s at average, and one publication/s in the load windows. Its target
+host was 16 cores, 32 threads, and 32\,GB of RAM. The closest available
+32\,GB dedicated-vCPU SKU exposed 16 vCPUs with one thread per visible
+core; it did not supply an observed 32-thread operating point. The
+Parquet restore from the verified frozen input reconciled 88,200,300
+documents, 92,200,600 links, and 1.6 billion events. Restore and hot-table
+preparation are not workload evidence.
+
+The membership census found only one principal with all 21 groups in the
+banked request (20 followed groups and the original reader's own group),
+and no public or authenticated group rows that could authorize other
+readers. The preflight therefore refused the contracted pool before
+calibration. No grants or reader identities were substituted. Warm-up,
+peak, average, drain, and their latency and debt measurements did not run.
+This is a fixture authority finding, not a bound on sustainable throughput
+or a verdict on the host's resource envelope (\pr{1706}).

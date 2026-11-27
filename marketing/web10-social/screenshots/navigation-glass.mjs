@@ -42,10 +42,14 @@ try {
           const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
           let transparent = 0, upperOutsideMask = 0, lowerOutsideMask = 0;
           const bottom = [0, 0];
+          const highlights = [0, 0];
           for (let y = 0; y < bitmap.height; y++) for (let x = 0; x < bitmap.width; x++) {
             const i = (y * bitmap.width + x) * 4;
+            const r = data[i], g = data[i + 1], b = data[i + 2];
             if (data[i + 3] !== 255) transparent++;
-            if (data[i] === 4 && data[i + 1] === 103 && data[i + 2] === 242) continue;
+            if (r === 4 && g === 103 && b === 242) continue;
+            if (r > 220 && g < 40) highlights[0]++;
+            if (r < 40 && g > 175 && b > 200) highlights[1]++;
             if (y === bitmap.height - 1) bottom[x < bitmap.width / 2 ? 0 : 1]++;
             if (Math.hypot(x + 0.5 - 256, y + 0.5 - 256) > 512 * 0.4) {
               // Only the lower silhouettes may extend past the safe circle.
@@ -53,8 +57,10 @@ try {
               else lowerOutsideMask++;
             }
           }
-          return { sizes: entry.sizes, width: bitmap.width, height: bitmap.height, transparent, upperOutsideMask, lowerOutsideMask, bottom };
+          return { sizes: entry.sizes, width: bitmap.width, height: bitmap.height, transparent, upperOutsideMask, lowerOutsideMask, bottom, highlights };
         });
+        // The enlarged chrome crop lost both sets of saturated line highlights.
+        assert.ok(icon.highlights.every(pixels => pixels > 1000), 'the launch artwork retains its pink and cyan line detail');
         assert.ok(icon.lowerOutsideMask > 0 && icon.bottom.every(pixels => pixels > 0), 'both lower silhouettes bleed through the bottom edge');
         assert.deepEqual([icon.sizes, icon.width, icon.height, icon.transparent, icon.upperOutsideMask], ['512x512', 512, 512, 0, 0],
           'maskable PNG fills the launcher shape and protects the upper artwork from clipping');

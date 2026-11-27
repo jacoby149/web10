@@ -1,0 +1,87 @@
+\subsubsection{Complete K20 reads and physical access paths}
+\label{sec:ev-programme}
+
+The later programme uses a different regime from the sequential fan-out
+trial: a synthetic million-account input with 1.6 billion platform events,
+an independent response oracle, and complete uniform K20 research reads.
+Authorship and graph shape are modelled from observational work
+\cite{vanmierlo,kwak,ugander}; those observations do not determine request
+arrival rates. The generator adopts 85\% never-posting accounts as a
+modelling choice, not as an observation about web10. The authorship study's
+four communities yielded 63,990 accounts and 578,349 posts; the top 1\%,
+next 9\%, and remaining 90\% authored weighted shares of 74.7\%, 24.0\%,
+and 1.3\%. The \record{REALISM-RERUN-PLAN.md}{realism contract} separates
+authorship, graph shape, population, and engagement.
+
+\textbf{Precomputation is not placement.} In the standalone ordinary
+comment cell, a named tally lookup read 1,600 rows and 107,200 logical
+bytes instead of 247,081,302 rows and 17,060,447,628 bytes for read-time
+aggregation. A separate complete optional-projection cell fell from
+59.46\,GB to 224.52\,MB at exact response parity, but changed both when
+counts were computed and where they were placed. The diagnostic is not
+additive to that complete comparison. The
+\record{evidence/engagement-tally-20261119/RESULTS.md}{tally receipt}
+also reports an omitted paired verification domain; it did not invalidate
+the ordinary observation or establish the missing paired result.
+
+Exact distinct delivery counts merge reader sets across days rather than
+sum daily distinct counts. Before day partitioning, 294 native daily
+inserts finished but the \record{evidence/all-fixes-two-grain-20261120/RESULTS.md}{seed}
+did not complete. On the day-partitioned store, all 319 daily inserts read
+1.6 billion rows and reconciled exactly 1.6 billion events, excluding
+layout construction and census costs. One-shot all-time merging hit the
+memory cap; subsequent bounded merging completed in 489 batches
+(\pr{1603}), preserving exact distinct semantics. These are build costs,
+not complete-read costs. Later isolated composition gates passed with exact
+responses while read budgets still failed; the first combined row run's
+query-ID bridge did not produce bankable row measurements
+(\record{evidence/all-fixes-reconciled-20261122/RESULTS.md}{composition receipt}).
+
+\textbf{Order for the lookup.} A full-post-key billboard pin index cut
+candidate discovery from 82,897,093 rows, 8.72\,GB, and 3,385\,ms native
+elapsed to 32 rows, 2,912 bytes, and 6\,ms. The 32 rows are the entire
+pin population of the fixture, not a production worst case. The same-store
+complete logical-byte observation fell from 8.85\,GB to 123.12\,MB;
+creative authority remained canonical
+(\record{evidence/skinny-pin-20261122/RESULTS.md}{pin receipt}, \pr{1618}).
+
+\textbf{Keep bodies as payloads.} All six isolated post-family assembly
+cells passed exact key, type, and value parity, yet crossed the predeclared
+tenfold rejection threshold on at least one measured axis. For ordinary
+post-open, rows read rose from 8,192 to 1,817,510 and logical bytes from
+1,293,268 to 155,195,815. Paired P feed assembly rose from 8,192 to 244,185
+rows and from 169,943 to 21,591,973 bytes. A separate single fat-payload
+control rose from one to 90,115 rows; it is not an engagement thread.
+The conclusion is about maximal decomposition, not every narrower
+row layout or complete-feed latency
+(\record{evidence/row-model-4096-20261123/RESULTS.md}{six-cell receipt}).
+
+\textbf{Transient fixed slice.} Deferring bodies from the key scans left
+complete captured reads effectively unchanged: indexed 620.85\,MB versus
+projected 622.46\,MB (6.014 versus 6.021\,s HTTP). Native plans still
+selected 323 and 54 attachment-history granules. Replacing those reads
+with a skinny layout ordered by document, group, version and deletion flag
+cut the two scans to 21 and one granule. Both measurement orders matched
+the independent oracle: indexed 620.85\,MB versus hybrid 182.34\,MB,
+a 70.6\% drop. HTTP wall time rose from 5.742 to 6.739\,s and from
+5.490 to 6.337\,s in the respective orders. Summed native duration was
+1,094 versus 1,093\,ms and 1,054 versus 1,059\,ms; statement peaks were
+roughly 86--91\,MB. Generation checks remained in the path, not a
+separately isolated cause of the full wall-time increase. The frozen lab
+passed seven named fault cases with 43 native receipts; the six-case live
+publish/cleanup gate was not admitted
+(\record{evidence/k20-projected-20261125/RESULTS.md}{projected receipt};
+\record{evidence/k20-attachment-20261125/RESULTS.md}{hybrid slice receipt}).
+
+\textbf{Post-merge full store.} On the retained frozen store the hybrid
+satellite copied 92,201,626 link-history rows in 32 subdivisions. All
+subdivisions had zero census mismatches and zero tombstone ties. Two
+measured reads matched the independent ordered complete-response oracle.
+Each read 1,424,566 rows and 92,998,217 logical bytes; HTTP times were
+9.510 and 8.722\,s, summed native durations 1,533 and 1,390\,ms, and
+largest statement memory 106.2 and 110.2\,MB. The cited indexed
+observation was 123,119,689 logical bytes and 7.017\,s HTTP, not a
+contemporaneous rerun. The post-merge byte ratio is 0.7553 (24.5\% lower),
+not the transient slice's 0.294. The full-store fault suite and live
+six-case comparison did not run
+(\record{evidence/full-store-hybrid-20261126/RESULTS.md}{full-store receipt}, \pr{1679}).
