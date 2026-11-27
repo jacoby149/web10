@@ -849,7 +849,7 @@ def reader_preflight(root, *, note=None):
     admission_gate(approval)
     diverse_host_admission(approval)
     sha = current.source_guard(approval)
-    if (root / 'costfn-task.json').exists():
+    if any((root / name).exists() for name in ('costfn-task.json', 'costfn-task-diverse.json')):
         raise ValueError('reader census must precede canonical fixture and load writes')
     task = Task(root, approval, sha)
     task.path = root / 'costfn-task-reader-preflight.json'
@@ -989,7 +989,7 @@ def run(root, *, note=None):
     preflight = read(preflight_path)
     if preflight['status'] == readers.REFUSED:
         return preflight
-    task = Task(root, approval, sha)
+    task = measurement_task(root, approval, sha)
     with task.attempt(note):
         modern.install_sessions()
         session = modern.Session(root)
@@ -1010,6 +1010,28 @@ def run(root, *, note=None):
 def verify_cell_bundle(root, stored):
     if stored['bundle_sha256'] != digest(root / 'dau-cell-bundle.json'):
         raise ValueError('original prepared mixed-cell bundle changed')
+
+
+def measurement_task(root, approval, sha):
+    """Certify the preparation→measurement transition on the existing lease."""
+    task = Task(root, approval, sha)
+    task.path = root / 'costfn-task-indexed-prep.json'
+    prepared = read(task.path)
+    if (prepared['status'] != 'COMPLETE' or prepared['identity'] != task.identity
+            or not {'retained-fixture-import', 'steady-state', 'furniture', *('gate:' + name for name in contract.GATES)}
+                <= set(prepared['steps'])):
+        raise ValueError('completed exact same-task preparation required before timing')
+    handoff = root / 'dau-preparation-handoff.json'
+    value = dict(**task.identity, prepared_sha256=digest(task.path),
+        composition_sha256=digest(root / 'composition-proof.json'),
+        oracle_inputs_sha256=digest(root / 'dau-diverse-reader-selection.json'))
+    if handoff.exists():
+        if read(handoff) != value:
+            raise ValueError('prepared-to-live basis changed after handoff')
+    else:
+        save(handoff, value)
+    task.next_phase('diverse', handoff)
+    return task
 
 
 def prepare_only(root, *, note=None):
