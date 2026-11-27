@@ -121,7 +121,7 @@ def infrastructure(root, name, *, initial=False, settle=True, additional_groups=
     return generation
 
 
-def build_fanout(root, ordinary, paired, *, additional_groups=(), reader_groups=None, repair=False):
+def build_fanout(root, ordinary, paired, *, additional_groups=(), reader_groups=None, repair=False, retained_empty_ddl=None):
     from uuid import uuid4
 
     name = 'fanout-bootstrap-repair-' + uuid4().hex if repair else 'fanout-bootstrap'
@@ -137,7 +137,10 @@ def build_fanout(root, ordinary, paired, *, additional_groups=(), reader_groups=
                 memberships[group].add(reader)
         combined['dau_group_readers'] = {group: sorted(actors) for group, actors in memberships.items()}
     save(build_root / 'profile/inventory.json', combined)
-    arm_f_native.build(build_root)
+    if retained_empty_ddl is None:
+        arm_f_native.build(build_root)
+    else:
+        arm_f_native.build(build_root, retained_empty_ddl=retained_empty_ddl)
     shutil.copytree(build_root / 'fanout-state', root / 'fanout-template')
     save(root / 'fanout-template-source.json', dict(build_sha256=hashlib.sha256(
         (build_root / 'F-build/result.json').read_bytes()).hexdigest(), groups=combined['groups']))
