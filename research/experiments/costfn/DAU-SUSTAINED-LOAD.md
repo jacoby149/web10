@@ -298,7 +298,7 @@ line for the contract load is retired on the software side.
 - Physical disk supply on production hardware — an ops matter, out of scope
   for this test. The budget derives disk *demand* from the measured per-read
   cost; whether a given production array meets it (and what account count it
-  caps) is a deployment judgment. This test's storage is NVMe with measured
+  caps) is a deployment judgment. This test uses class-provided local storage with measured
   headroom, and no disk-supply claim is made for any machine other than the
   one measured.
 - Full-store hybrid savings — the 0.54 GB/s remains ratio-transfer arithmetic
@@ -402,7 +402,7 @@ establishes the class cannot hold the restored store at the declared steady
 state, that finding is the result, banked with the binding resource named; a
 larger host is not silently substituted.
 
-Storage is NVMe and calibration-measured non-binding against the ~1.85 GB/s
+Class-provided local storage must be calibration-measured non-binding against the ~1.85 GB/s
 peak read demand. The asymmetry:
 
 - **A pass on a sized host validates the software lines.** CPU, memory,

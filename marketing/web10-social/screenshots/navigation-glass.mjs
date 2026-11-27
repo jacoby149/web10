@@ -40,19 +40,24 @@ try {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(bitmap, 0, 0);
           const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-          let transparent = 0, unsafe = 0, artwork = 0;
+          let transparent = 0, upperOutsideMask = 0, lowerOutsideMask = 0;
+          const bottom = [0, 0];
           for (let y = 0; y < bitmap.height; y++) for (let x = 0; x < bitmap.width; x++) {
             const i = (y * bitmap.width + x) * 4;
             if (data[i + 3] !== 255) transparent++;
             if (data[i] === 4 && data[i + 1] === 103 && data[i + 2] === 242) continue;
-            artwork++;
-            if (Math.hypot(x + 0.5 - 256, y + 0.5 - 256) > 512 * 0.4) unsafe++;
+            if (y === bitmap.height - 1) bottom[x < bitmap.width / 2 ? 0 : 1]++;
+            if (Math.hypot(x + 0.5 - 256, y + 0.5 - 256) > 512 * 0.4) {
+              // Only the lower silhouettes may extend past the safe circle.
+              if (y < 360) upperOutsideMask++;
+              else lowerOutsideMask++;
+            }
           }
-          return { sizes: entry.sizes, width: bitmap.width, height: bitmap.height, transparent, unsafe, artwork };
+          return { sizes: entry.sizes, width: bitmap.width, height: bitmap.height, transparent, upperOutsideMask, lowerOutsideMask, bottom };
         });
-        assert.ok(icon.artwork > 0, 'the maskable icon contains the conversation artwork');
-        assert.deepEqual([icon.sizes, icon.width, icon.height, icon.transparent, icon.unsafe], ['512x512', 512, 512, 0, 0],
-          'maskable PNG fills the launcher shape and keeps artwork within the 80% safe circle');
+        assert.ok(icon.lowerOutsideMask > 0 && icon.bottom.every(pixels => pixels > 0), 'both lower silhouettes bleed through the bottom edge');
+        assert.deepEqual([icon.sizes, icon.width, icon.height, icon.transparent, icon.upperOutsideMask], ['512x512', 512, 512, 0, 0],
+          'maskable PNG fills the launcher shape and protects the upper artwork from clipping');
       }
       const mobile = width < 768;
       const darkDesktop = mode === 'dark' && !mobile;
