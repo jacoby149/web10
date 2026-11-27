@@ -68,5 +68,18 @@ the node's existing `/v3/create`: exact targets and deterministic slot identity
 are checked before the normal authorization and journal, with canonical reads
 for the write/reconcile path. Indexed reads still use live authorization and
 the original frozen-copy, tally and pin fences. Never start timed traffic from
-an unverified bundle. The controller still needs end-to-end calibration and
-receipt integration and a real admitted-guest check before use.
+an unverified bundle. The controller now accepts the same-host composition
+proof and frozen reader census, builds the mixed-cell bundle, and connects
+calibration, open-loop HTTP, native publication and stable-delivery audits, and
+private resource receipts. The direct read-only class storage calibration is
+separate from actual virtual-device I/O during load. Source checks do not prove
+the fresh restore/fixture/furniture chain or an admitted-guest boot, and the
+controller never claims custody or publishable native capacity by itself.
+
+The no-new-grants fence applies during preparation as well. `--prepare-only`
+requires a validated retained paired fixture already present on the owned
+restore; it never invokes the fallback that adds consent and creates new group
+memberships. The plain frozen Parquet import carries no such fixture. Provide
+a verified transfer of the existing snapshot fixture and its native authority
+before provisioning a run that depends on this stage. A missing fixture is a
+setup blocker, not a native resource or parity stop.

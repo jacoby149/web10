@@ -14,6 +14,7 @@ import sqlglot
 
 import costfn_task
 import dau_sustain_cell_policy as cell_policy
+import dau_sustain_live as live
 from dau_sustain_dispatch import Dispatch
 import dau_sustain_memory as memory
 import dau_sustain_native_audit as native_audit
@@ -847,6 +848,28 @@ class DiverseCellPolicy(unittest.TestCase):
         proof['routes']['reader-0']['groups'].append(writers['actors'][0]['groups'][0])
         with self.assertRaisesRegex(ValueError, 'outside Following'):
             cell_policy.validate(approved, proof, writers)
+
+
+class DiverseLiveReceipt(unittest.TestCase):
+    def test_achieved_rate_excludes_responses_finishing_after_the_window(self):
+        phase = dict(name='A', rate=3, duration_s=1)
+        records = [dict(phase='A', offered_s=0, started_s=0.01, finished_s=0.9, error_class=None),
+            dict(phase='A', offered_s=0.4, started_s=0.41, finished_s=1.1, error_class=None),
+            dict(phase='A', offered_s=0.8, started_s=None, finished_s=0.8, error_class='backpressure')]
+        report = live.phase_reconciliation(records, [phase])['A']
+        self.assertEqual([report[key] for key in ('offered', 'started', 'completed', 'completed_in_window')], [3, 2, 2, 1])
+        self.assertEqual(report['achieved_rps'], 1)
+
+    def test_disk_space_decline_counts_as_debt_and_io_is_attributable(self):
+        data = [dict(phase='A', elapsed_s=10 * i, debt=dict(values={'disk_free:bytes': 100-i*10},
+            io=dict(device='dev', read_bytes=i*512, write_bytes=i*1024))) for i in range(4)]
+        report = live.debt_summary(data)['A']
+        self.assertEqual(report['slope_per_second']['disk_free:bytes'], -1)
+        self.assertTrue(report['sustained_debt']['disk_free:bytes'])
+        self.assertEqual(report['written_bytes'], 3072)
+        data[-1]['debt']['io']['device'] = 'other'
+        with self.assertRaisesRegex(ValueError, 'device changed'):
+            live.debt_summary(data)
 
 
 if __name__ == '__main__':

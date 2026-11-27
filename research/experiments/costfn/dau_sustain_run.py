@@ -26,6 +26,7 @@ import dau_sustain_readers as readers
 from dau_sustain_cell_policy import validate as validate_cell, writer_population
 import dau_sustain_reference as references
 import dau_sustain_scope_proof as scope_proof
+import dau_sustain_live as live
 import dau_sustain_workload as wl
 import engagement_billboards as ads
 import engagement_cells as cells
@@ -881,8 +882,80 @@ def prepare_mixed_cell(root, session, settled_ledger):
 
 
 def run(root, *, note=None):
-    raise ValueError('sustained windows blocked: mixed-load launch and native receipt stages are not connected; '
-        'only --reader-preflight-only may run')
+    root = Path(root).resolve()
+    if not (root / 'admission.json').is_file() or not (root / 'composition-proof.json').is_file():
+        raise ValueError('sustained windows blocked: an owned admission and the certified setup chain are required')
+    approval = read(root / 'admission.json')
+    admission_gate(approval)
+    diverse_host_admission(approval)
+    sha = current.source_guard(approval)
+    verify_diverse_guest()
+    preflight_path = root / 'dau-diverse-reader-preflight.json'
+    if not preflight_path.exists():
+        raise ValueError('sustained windows blocked: run the frozen reader preflight before setup')
+    preflight = read(preflight_path)
+    if preflight['status'] == readers.REFUSED:
+        return preflight
+    task = Task(root, approval, sha)
+    with task.attempt(note):
+        modern.install_sessions()
+        session = modern.Session(root)
+        try:
+            verify_envelope(root)
+            task.step('indexed-mixed-cell', lambda: prepare_mixed_cell(root, session, read(root / 'billboards/setup.json')),
+                validate=lambda stored: verify_cell_bundle(root, stored))
+            disk = live.engine_disk(session)
+            result = task.step('diverse-http', lambda: asyncio.run(live.run(root,
+                sample_debt=lambda current, phase, pending: live.resource_debt(current, phase, pending, disk),
+                verify_storage=lambda path, output: live.storage_probe(path, output, disk),
+                verify_delivery_stability=live.append_only_audit)))
+            return result
+        finally:
+            cells.stop(root)
+
+
+def verify_cell_bundle(root, stored):
+    if stored['bundle_sha256'] != digest(root / 'dau-cell-bundle.json'):
+        raise ValueError('original prepared mixed-cell bundle changed')
+
+
+def prepare_only(root, *, note=None):
+    """Materialize the required same-host proofs without authorizing traffic."""
+    root = Path(root).resolve()
+    approval = read(root / 'admission.json')
+    admission_gate(approval)
+    diverse_host_admission(approval)
+    sha = current.source_guard(approval)
+    preflight = read(root / 'dau-diverse-reader-preflight.json')
+    if preflight['status'] == readers.REFUSED:
+        return preflight
+    if (preflight['status'] != 'SELECTED' or preflight['selected_count'] != wl.READERS
+            or preflight['selection_sha256'] != digest(root / 'dau-diverse-reader-selection.json')):
+        raise ValueError('frozen reader preflight does not match the owned setup')
+    if not read(root / 'modern-restore.json').get('fixture'):
+        raise ValueError('no validated retained paired fixture; do not synthesize new grants on DAU input')
+    task = Task(root, approval, sha)
+    task.path = root / 'costfn-task-indexed-prep.json'
+    with task.attempt(note):
+        modern.install_sessions()
+        actions = Actions(root, task)
+        preload_expected(root, task.state['steps'], actions)
+        try:
+            verify_envelope(root)
+            task.step('steady-state', lambda: full_store.steady_state(root))
+            for name in ('read-setup', 'migrate', 'billboard-fixtures'):
+                task.step(name, lambda name=name: actions.stage(name, {}))
+            task.step('furniture', lambda: actions.stage('furniture', {}),
+                validate=lambda stored: full_store.validate_furniture(stored, root))
+            progress = {}
+            for name in contract.GATES:
+                value = task.step('gate:' + name, lambda name=name: full_store.gate_stage(actions, name, progress),
+                    validate=lambda stored, name=name: contract.gate(name, stored))
+                progress['verify-' + name] = dict(outcome='PASS', evidence=value)
+            return dict(status='INDEXED_COMPOSITION_PREPARED', composition_sha256=digest(root / 'composition-proof.json'),
+                measured_windows='NOT_RUN')
+        finally:
+            cells.stop(root)
 
 
 def _historical_run(root, *, note=None):
@@ -958,6 +1031,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path)
     parser.add_argument('--repair-note')
-    parser.add_argument('--reader-preflight-only', action='store_true')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--reader-preflight-only', action='store_true')
+    modes.add_argument('--prepare-only', action='store_true')
     args = parser.parse_args()
-    (reader_preflight if args.reader_preflight_only else run)(args.root, note=args.repair_note)
+    action = reader_preflight if args.reader_preflight_only else prepare_only if args.prepare_only else run
+    action(args.root, note=args.repair_note)

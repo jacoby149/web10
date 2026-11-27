@@ -28,6 +28,8 @@ from app.v3.services.safe_query import build_safe_query  # noqa: E402
 
 class ModernTests(unittest.TestCase):
     def function(self, file, name, namespace):
+        if (file, name) == ('engagement_api.py', 'checked_query'):
+            self.function(file, 'use_uniform_copy', namespace)
         node = next(node for node in ast.parse(Path(__file__).with_name(file).read_text()).body
             if isinstance(node, ast.FunctionDef) and node.name == name)
         exec(compile(ast.Module(body=[node], type_ignores=[]), file, 'exec'), namespace)
@@ -184,6 +186,9 @@ class ModernTests(unittest.TestCase):
         self.assertIn('engagement_documents', calls[0]['query'])
         self.assertIn('LIMIT 5', calls[0]['query'])
         self.assertIsNone(calls[0]['parameters'])
+        scope['use_uniform_copy'] = lambda: False
+        hook('SELECT * FROM documents')
+        self.assertEqual(calls[1]['query'], 'SELECT * FROM documents')
 
     def test_query_observer_keeps_native_caps_and_concurrent_identical_sql_receipts(self):
         current = {'request_id': 'c' * 32}
