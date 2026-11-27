@@ -1,4 +1,5 @@
 """No-engine admission, discipline and gate controls for the DAU runner."""
+import asyncio
 import json
 import sys
 import unittest
@@ -9,6 +10,9 @@ from unittest.mock import Mock, patch
 import sqlglot
 
 import costfn_task
+from dau_sustain_dispatch import Dispatch
+import dau_sustain_memory as memory
+import dau_sustain_parity as parity
 import dau_sustain_readers as readers
 import dau_sustain_run as run
 import dau_sustain_workload as wl
@@ -552,6 +556,104 @@ class DiverseReaderPreflight(unittest.TestCase):
     def test_legacy_serial_shared_oracle_cannot_start_a_measurement(self):
         with self.assertRaisesRegex(ValueError, 'sustained windows blocked'):
             run.run('/does/not/exist')
+
+
+class DiverseDispatch(unittest.IsolatedAsyncioTestCase):
+    async def test_slow_reads_do_not_reduce_offers_and_drain_does_not_cancel(self):
+        saved, release = [], asyncio.Event()
+        dispatch = Dispatch(limit=2, record=saved.append)
+
+        async def slow(entry):
+            await release.wait()
+
+        start = asyncio.get_running_loop().time()
+        entries = [dict(slot=i, offset_s=i * 0.01, reader_index=i) for i in range(3)]
+        await dispatch.offer(entries, origin=start, end=start + 0.1, operation=slow, classify=None)
+        self.assertEqual(dispatch.peak, 2)
+        self.assertEqual(dispatch.counts, dict(scheduled=3, offered=3, started=2, backpressured=1))
+        self.assertFalse(await dispatch.drain(0))
+        self.assertEqual(saved[0]['error_class'], 'backpressure')
+        self.assertIsNone(saved[0]['started_s'])
+        release.set()
+        self.assertTrue(await dispatch.drain(1))
+        self.assertEqual(dispatch.counts['completed'], 2)
+
+    async def test_terminal_error_stops_future_offers_without_marking_success(self):
+        saved = []
+        dispatch = Dispatch(limit=2, record=saved.append)
+
+        async def error(entry):
+            raise ValueError('private content must not appear in the record')
+
+        start = asyncio.get_running_loop().time()
+        await dispatch.offer([dict(slot=0, offset_s=0), dict(slot=1, offset_s=0.1)],
+            origin=start, end=start + 1, operation=error, classify=lambda exc: ('parity', True))
+        self.assertEqual(dispatch.counts['offered'], 1)
+        self.assertEqual(dispatch.counts['completed'], 0)
+        self.assertEqual(saved[0]['error_class'], 'parity')
+        self.assertNotIn('private', json.dumps(saved))
+
+
+class DiverseParityAndMemory(unittest.TestCase):
+    def test_oracles_are_bound_to_schedule_and_never_sort_outputs(self):
+        first = dict(rows=[1, 2], followups=[{'rows': [3, 4]}, {'rows': []}, {}])
+        second = dict(rows=[2, 1], followups=[{'rows': [4, 3]}, {'rows': []}, {}])
+        slots = {('A', 0): 0, ('A', 1): 1}
+        oracles = {0: first, 1: second}
+        records = [dict(phase='A', slot=0, reader_index=0, **first),
+            dict(phase='A', slot=1, reader_index=1, **second)]
+        self.assertEqual(parity.verify(records, slots, oracles)['verified_responses'], 2)
+        for bad in ([dict(records[0], **second), records[1]],
+                    [dict(records[0], followups=second['followups']), records[1]],
+                    [dict(records[0], reader_index=1), records[1]], records[:1], records + records[:1]):
+            with self.assertRaises(costfn_task.ParityDivergence):
+                parity.verify(bad, slots, oracles)
+
+    def test_only_reconciled_disjoint_publications_prove_an_invariant_page(self):
+        commit = dict(actor='writer', doc_id='post', slot=0, reconciled=True,
+            committed_groups=['writer/followers', 'discover'])
+        writers = {'writer': commit['committed_groups']}
+        self.assertEqual(parity.writer_ledger([commit], writers, {0: ['other/followers']}, {0}), {0})
+        for records, scope in (([commit], ['discover']), ([], ['other/followers']),
+                ([dict(commit, reconciled=False)], ['other/followers'])):
+            with self.assertRaises(costfn_task.ParityDivergence):
+                parity.writer_ledger(records, writers, {0: scope}, {0})
+
+    def test_memory_partitions_host_without_counting_cgroup_cache_twice(self):
+        host = memory.meminfo('MemTotal: 65536 kB\nMemFree: 10240 kB\nMemAvailable: 32768 kB\n'
+            'Buffers: 1024 kB\nCached: 20480 kB\nShmem: 1024 kB\nSReclaimable: 768 kB\n')
+        engine = memory.memory_stat('anon 31457280\nfile 12582912\n')
+        api = memory.memory_stat('anon 1048576\nfile 1048576\n')
+        receipt = memory.account(host, engine, api, engine_current=44_000_000,
+            api_current=2_200_000, api_rss=1_100_000, engine_cap=28 * 1024**3, server_cap=22 * 1024**3)
+        self.assertTrue(receipt['host']['partition_consistent'])
+        self.assertEqual(receipt['host']['page_cache_and_buffers_bytes'], 20480 * 1024)
+        self.assertEqual(receipt['host']['occupied_bytes'], receipt['host']['page_cache_and_buffers_bytes']
+            + receipt['host']['os_other_and_unattributed_bytes'] + engine['anon'] + api['anon'])
+
+    def test_memory_sample_reads_live_cgroup_equivalent_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proc, cgroups = root / 'proc', root / 'cgroups'
+            proc.mkdir()
+            (proc / 'meminfo').write_text('MemTotal: 65536 kB\nMemFree: 10240 kB\n'
+                'MemAvailable: 32768 kB\nBuffers: 1024 kB\nCached: 20480 kB\nShmem: 1024 kB\n')
+            for pid, name in ((1, 'engine'), (2, 'api')):
+                group = cgroups / name
+                group.mkdir(parents=True)
+                (group / 'memory.stat').write_text('anon 1000\nfile 2000\n')
+                (group / 'memory.current').write_text('3000\n')
+                (group / 'cgroup.procs').write_text(f'{pid}\n')
+                (proc / str(pid)).mkdir()
+                (proc / str(pid) / 'cgroup').write_text(f'0::/{name}\n')
+                (proc / str(pid) / 'status').write_text('VmRSS: 2 kB\n')
+            cap = 28 * 1024**3
+            (cgroups / 'engine/memory.max').write_text(str(cap))
+            sample = memory.sample(1, 2, engine_cap=cap, server_cap=22 * 1024**3, proc=proc, cgroups=cgroups)
+            self.assertEqual(sample['engine']['cgroup_current_bytes'], 3000)
+            self.assertEqual(sample['api']['process_rss_bytes'], 2048)
+            with self.assertRaisesRegex(ValueError, 'cap differs'):
+                memory.sample(1, 2, engine_cap=cap - 1, server_cap=22 * 1024**3, proc=proc, cgroups=cgroups)
 
 
 if __name__ == '__main__':
