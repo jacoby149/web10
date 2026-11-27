@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.56 local] **Quick-links image ownership** — use the shared image component without changing the Social tile size, artwork, or destination.
+
 - [✓ 6.32.55 local] **Final Social icon and upright headers** — put blue keys and white lowercase `social` side by side in the square icon. Social and Join headers use one upright `web10 social` line, with theme-aware keys and the blue `10`.
 
 - [✓ 6.32.55 local] **Social More ecosystem links** — add What is web10 followed by Rate us on the App Store in desktop and phone More, visible signed in or out without changing access to personal destinations.

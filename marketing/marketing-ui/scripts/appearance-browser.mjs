@@ -456,6 +456,11 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       const actions = quickLinks.getByRole('region', { name: 'Apps and information' }).getByRole('link');
       assert.equal(await actions.first().getAttribute('href'), process.env.VITE_SOCIAL_URL || 'https://social.web10.app');
+      assert.deepEqual(await actions.first().locator('img').evaluate(async el => {
+        await el.decode();
+        const { width, height } = el.getBoundingClientRect();
+        return [el.getAttribute('alt'), width, height];
+      }), ['', 48, 48]);
       assert.equal(await actions.nth(2).getAttribute('href'), process.env.VITE_AUTH_URL || 'https://auth.web10.app');
       for (const action of await quickLinks.getByRole('link').all()) {
         assert.ok((await action.boundingBox()).height >= 44);
