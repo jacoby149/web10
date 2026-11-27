@@ -187,18 +187,28 @@ async function verifyLogo(page, variant = 'white') {
   assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
   assert.equal(await active.evaluate(el => el.complete && el.naturalWidth > 0), true);
 }
-async function verifyCatalogIcon(locator, expectedCorner) {
-  const corner = await locator.evaluate(async el => {
+async function verifyCatalogIcon(locator, expectedCorner, socialLockup = false) {
+  const { corner, blueOnLeft, whiteOnRight } = await locator.evaluate(async el => {
     const image = new Image();
     image.src = el.getAttribute('src');
     await image.decode();
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 1;
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
     const context = canvas.getContext('2d');
-    context.drawImage(image, 0, 0, 1, 1, 0, 0, 1, 1);
-    return [...context.getImageData(0, 0, 1, 1).data];
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let blueOnLeft = 0, whiteOnRight = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const x = (i / 4) % canvas.width;
+      const [r, g, b] = [pixels[i], pixels[i + 1], pixels[i + 2]];
+      if (x < canvas.width * .42 && r === 168 && g === 206 && b === 255 && pixels[i + 3] === 255) blueOnLeft++;
+      if (x > canvas.width * .43 && r === 250 && g === 250 && b === 250 && pixels[i + 3] === 255) whiteOnRight++;
+    }
+    return { corner: [...pixels.subarray(0, 4)], blueOnLeft, whiteOnRight };
   });
   assert.deepEqual(corner, expectedCorner);
+  if (socialLockup) assert.ok(blueOnLeft > 100 && whiteOnRight > 100, 'Social icon renders blue keys beside white type');
 }
 async function readInteriorPalette(page) {
   return page.getByRole('heading', { level: 1 }).first().evaluate(heading => {
@@ -358,7 +368,7 @@ try {
         if (name === 'app-store') {
           await page.getByTestId('browse-card-0').waitFor();
           assert.equal(await page.getByTestId('plug-slot-1').count(), 0);
-          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-app-icon.png"]'), socialIconCharcoal);
+          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-app-icon.png"]'), socialIconCharcoal, true);
           await verifyCatalogIcon(page.getByTestId('browse-section').getByRole('img', { name: 'web10 hub' }), [9, 9, 11, 255]);
           const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
             const css = getComputedStyle(el);
@@ -371,7 +381,7 @@ try {
         } else if (name !== 'home') {
           assert.deepEqual(await readInteriorPalette(page), interiorPalette, `${name} must match the shared interior in ${mode}`);
         }
-        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-app-icon.png"]'), socialIconCharcoal);
+        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-app-icon.png"]'), socialIconCharcoal, true);
         if (['app-store', 'freedom', 'docs', 'appearance'].includes(name)) {
           const art = await readInteriorIntro(page);
           assert.equal(art.kind, name === 'app-store' ? 'store' : name);

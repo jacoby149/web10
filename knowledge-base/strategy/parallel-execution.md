@@ -285,6 +285,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.55 local] **Final Social icon and upright headers** — use blue keys and white lowercase `social` in the catalog and install artwork; the normal Dark and Light headers retain themed keys and an accented `10` next to uniform upright type. Verify the narrow header and Android maskable safe zone; no device-refresh claim.
+
 - [✓ 6.32.54 local] **One keys-and-script Social identity** — the capital-S outline is font-independent, the full lockup fits beside phone controls, the catalog matches the install icon, and the Android export keeps all artwork inside its maskable safe circle. Leave Hub and existing routing alone.
 
 - [✓ 6.32.54 local] **Social chrome follow-up** — Discover/Following get a Light-only outer outline with internal dividers intact, Watch comments default open without altering other thread surfaces, and the personal identity stays first below search even when groups are filtered. Preview, cancellation and explicit confirmation retain their existing authority.

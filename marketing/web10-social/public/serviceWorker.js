@@ -14,7 +14,7 @@
 // Bump VERSION on a deploy that changes the shell — the versioned cache names
 // make the old shell get garbage-collected on activate.
 
-const VERSION = 'v11';
+const VERSION = 'v12';
 const STATIC_CACHE = `web10-social-static-${VERSION}`;
 const RUNTIME_CACHE = `web10-social-runtime-${VERSION}`;
 
