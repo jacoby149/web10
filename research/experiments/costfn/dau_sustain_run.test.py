@@ -747,11 +747,16 @@ class DiverseParityAndMemory(unittest.TestCase):
                 (proc / str(pid)).mkdir()
                 (proc / str(pid) / 'cgroup').write_text(f'0::/{name}\n')
                 (proc / str(pid) / 'status').write_text('VmRSS: 2 kB\n')
+                (proc / str(pid) / 'limits').write_text('Max open files 65536 65536 files\n')
+                (proc / str(pid) / 'fd').mkdir()
+                (proc / str(pid) / 'fd/1').touch()
             cap = 28 * 1024**3
             (cgroups / 'engine/memory.max').write_text(str(cap))
             sample = memory.sample(1, 2, engine_cap=cap, server_cap=22 * 1024**3, proc=proc, cgroups=cgroups)
             self.assertEqual(sample['engine']['cgroup_current_bytes'], 3000)
             self.assertEqual(sample['api']['process_rss_bytes'], 2048)
+            self.assertEqual(memory.api_descriptors(2, proc=proc, cgroups=cgroups),
+                [dict(pid=2, open=1, soft=65536, hard=65536)])
             with self.assertRaisesRegex(ValueError, 'cap differs'):
                 memory.sample(1, 2, engine_cap=cap - 1, server_cap=22 * 1024**3, proc=proc, cgroups=cgroups)
 
@@ -994,6 +999,10 @@ class DiverseLiveReceipt(unittest.TestCase):
                 live.preserve_precalibration_cell(root, session)
             session.rows.assert_not_called()
             records.write_text('{"phase":"CAL"}\n')
+            run.save(live_output / 'calibration.json', dict(counts={'failed': 0}, drained=True))
+            with self.assertRaisesRegex(ValueError, 'successful calibration'):
+                live.preserve_precalibration_cell(root, session)
+            run.save(live_output / 'calibration.json', dict(counts={'failed': 12}, drained=False))
             session.rows.return_value = ([{'n': 0}], 'native')
             session.native.return_value = dict(query_id='native', type='QueryFinish', exception_code=0)
             with patch.object(live.transport, 'connect') as connect:
@@ -1001,6 +1010,7 @@ class DiverseLiveReceipt(unittest.TestCase):
                 prior = live.preserve_precalibration_cell(root, session)
             self.assertFalse(live_output.exists())
             self.assertEqual((prior / 'live/reads.jsonl').read_text(), '{"phase":"CAL"}\n')
+            self.assertEqual(run.read(prior / 'live/calibration.json')['counts']['failed'], 12)
 
     def test_saturation_uses_successful_completions_after_a_full_sixty_seconds(self):
         rows = [dict(phase='A', finished_s=30, error_class=None)] * 449 + [

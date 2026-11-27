@@ -1,3 +1,6 @@
+6.32.70 || 27.11.2026
+research: preserve the DAU calibration that hit the inherited API file-descriptor limit. Pin and verify a larger finite descriptor limit for the isolated API cell and sample actual descriptor usage without changing host class, memory limits, or offered rates. A failed calibration can re-enter only if no warm-up or measured traffic was offered.
+
 6.32.69 || 27.11.2026
 research: use the synchronous private native connection for the DAU calibration retry's quiescence check. Do not mistake the CLI poller's own SYSTEM FLUSH LOGS for prior live traffic; retain an exact receipt and refuse real active native work.
 

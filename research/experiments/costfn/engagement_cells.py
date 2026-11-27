@@ -115,8 +115,12 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
         entry = 'dau_sustain_cell'
         env['DAU_CELL_BUNDLE'] = '/dau-cell-bundle.json'
         volumes.append(str(bundle_path) + ':/dau-cell-bundle.json:ro')
-    save(overlay, {'services': {'api': {'volumes': volumes, 'environment': env,
-        'command': ['uv', 'run', 'uvicorn', entry + ':application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}})
+    settings = {'volumes': volumes, 'environment': env,
+        'command': ['uv', 'run', 'uvicorn', entry + ':application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}
+    if dau:
+        from dau_sustain_memory import DAU_API_NOFILE
+        settings['ulimits'] = {'nofile': {'soft': DAU_API_NOFILE, 'hard': DAU_API_NOFILE}}
+    save(overlay, {'services': {'api': settings}})
     here = Path(__file__).parent
     compose = session.compose[:-2] + ['-f', str(here / 'arm_satellite_serve.compose.yml'), '-f', str(overlay), *session.compose[-2:]]
     environment = {**session.env, 'SATELLITE_SERVE_STATE': str(cell / 'serve-state')}

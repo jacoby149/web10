@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+DAU_API_NOFILE = 65536
+
 
 def meminfo(text):
     result = {}
@@ -68,3 +70,22 @@ def sample(engine_pid, api_pid, *, engine_cap, server_cap, proc=Path('/proc'), c
         engine_current=int((engine / 'memory.current').read_text()),
         api_current=int((api / 'memory.current').read_text()), api_rss=rss,
         engine_cap=engine_cap, server_cap=server_cap)
+
+
+def api_descriptors(api_pid, *, proc=Path('/proc'), cgroups=Path('/sys/fs/cgroup')):
+    group = cgroup(api_pid, proc, cgroups)
+    result = []
+    for pid in sorted({int(part) for part in (group / 'cgroup.procs').read_text().split()}):
+        directory = proc / str(pid)
+        try:
+            limit = next(line.split()[-3:-1] for line in (directory / 'limits').read_text().splitlines()
+                if line.startswith('Max open files'))
+            count = sum(1 for _ in (directory / 'fd').iterdir())
+        except FileNotFoundError:
+            # A short-lived child may exit between reading cgroup.procs and its
+            # proc directory. The actual API container PID must still be present.
+            continue
+        result.append(dict(pid=pid, open=count, soft=int(limit[0]), hard=int(limit[1])))
+    if api_pid not in {row['pid'] for row in result}:
+        raise ValueError('owned API process disappeared during descriptor sample')
+    return result

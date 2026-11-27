@@ -259,7 +259,12 @@ def preserve_precalibration_cell(root, session):
         return None
     output = cell / 'live'
     records = output / 'reads.jsonl'
-    if (any((output / name).exists() for name in ('calibration.json', 'storage.json', 'raw-views-before.json',
+    prior_calibration = output / 'calibration.json'
+    if prior_calibration.exists():
+        trial = read(prior_calibration)
+        if trial.get('drained') is True and not trial.get('counts', {}).get('failed'):
+            raise ValueError('successful calibration already exists; do not repeat it')
+    if (any((output / name).exists() for name in ('storage.json', 'raw-views-before.json',
             'live-receipt.json', 'saturation-stop.json')) or any((output / 'publication-acks').glob('*.json'))):
         raise ValueError('calibration completed or live work began; a calibration-only retry is not safe')
     if records.exists() and any(json.loads(line)['phase'] not in ('CAL', 'CAL-BURST')
@@ -303,6 +308,10 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     http = HTTP(cell, session, cell / 'http')
     envelope = approval['dau_envelope']
     pids = service_pid(session, 'clickhouse'), service_pid(session, 'api')
+    limits = memory.api_descriptors(pids[1])
+    if any((row['soft'], row['hard']) != (memory.DAU_API_NOFILE, memory.DAU_API_NOFILE) for row in limits):
+        raise ValueError('live API descriptor limits differ from the DAU calibration setup')
+    save(output / 'api-descriptor-preflight.json', limits)
     abort = asyncio.Event()
     read_sink = record_to(output / 'reads.jsonl')
     observed_reads = []
@@ -321,8 +330,9 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
             values = await asyncio.to_thread(sample_debt, session, phase, len(dispatch.pending))
             host = await asyncio.to_thread(memory.sample, *pids, engine_cap=envelope['container_bytes'],
                 server_cap=envelope['server_bytes'])
+            descriptors = await asyncio.to_thread(memory.api_descriptors, pids[1])
             elapsed = loop.time() - origin
-            resources(dict(phase=phase, elapsed_s=elapsed, debt=values, memory=host,
+            resources(dict(phase=phase, elapsed_s=elapsed, debt=values, memory=host, api_descriptors=descriptors,
                 guest_cpu=Path('/proc/stat').read_text().splitlines()[0]))
             collapse = saturation_observation(phase, elapsed, observed_reads)
             if collapse is not None:
