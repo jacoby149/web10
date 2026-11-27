@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 
 interface DeployInfo {
@@ -49,11 +49,13 @@ function DeployStatus() {
     }
   }, [open])
 
-  if (!info) return null
-
-  const version = known(info.version)
-  const commit = known(info.commit)
-  const deployed = known(info.deployedAt)
+  const version = known(info?.version)
+  const commit = known(info?.commit)
+  const deployedAt = known(info?.deployedAt)
+  // Prepare the locale label with the fetched status, not on the first tap.
+  const deployed = useMemo(() => deployedAt && new Date(deployedAt).toLocaleString(undefined, {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  }), [deployedAt])
 
   // If every field is unknown/missing, there is nothing useful to show.
   if (!version && !commit && !deployed) return null
@@ -90,9 +92,7 @@ function DeployStatus() {
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="text-muted-foreground">Deployed</dt>
                 <dd className="text-right text-[0.8125rem] text-foreground">
-                  {new Date(deployed).toLocaleString(undefined, {
-                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                  })}
+                  {deployed}
                 </dd>
               </div>
             )}
@@ -113,7 +113,7 @@ function DeployStatus() {
         aria-expanded={open}
         aria-controls="deploy-status-panel"
         onClick={() => setOpen(v => !v)}
-        className="relative flex items-center gap-2 rounded-full border border-border bg-surface/95 px-3 py-1.5 backdrop-blur-sm transition-colors duration-150 ease-out before:absolute before:-inset-2 hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="relative flex touch-manipulation items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 before:absolute before:-inset-2 hover:bg-elevated active:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid="deploy-status-toggle"
       >
         <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" />

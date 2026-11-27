@@ -56,6 +56,19 @@ describe('DeployStatus', () => {
 
     fireEvent.click(toggle);
     expect(screen.queryByTestId('deploy-status-panel')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.pointerDown(document.body);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
+    const link = screen.getByRole('link', { name: /full status/i });
+    link.focus();
+    fireEvent.keyDown(link, { key: 'Escape' });
+    expect(toggle).toHaveFocus();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to the commit when the version is unknown', async () => {
