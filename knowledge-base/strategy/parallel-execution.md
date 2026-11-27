@@ -256,6 +256,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: homepage-classic-revival
 
+- [✓ 6.32.65 local] **Charcoal Dark marketing tabs** — verify the shared charcoal navbar and white keys across primary and detail routes in desktop and 375px Chromium; keep the Light palette, mobile glass and existing content colors.
+
 - [✓ 6.32.63 local] **Neutral marketing navbar** — white in Light on Home and shared interior routes, charcoal with white keys on Dark Home only. Keep the Home hero, Dark interiors and mobile refraction unchanged.
 
 **Owns:** the marketing-ui classic page/route, classic design tokens (design.md §13 + marketing-ui `@theme`), the restored fractal hero asset, that page's telemetry events, the `home_classic` landing A/B flag and its variant controls, and serialized plan/changelog records. Contract: `homepage-classic-revival.md`. No API/SDK/auth surface (D60), no social/authenticator changes, no `/freedom`/`/everything` changes, no deployment (separate operator gate). D94's import cut and D103's PostHog-only tracking stand.
