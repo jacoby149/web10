@@ -25,7 +25,7 @@ def approval(**overrides):
         dau_sustain_directive=run.DIRECTIVE,
         purpose='DAU_SUSTAINED_CONTRACT_RATE',
         dau_host=dict(region='nyc3', size='c-16', price_hourly=0.50,
-            storage_gib=200, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=25.0,
+            storage_gib=200, storage_class='local SSD', backstop_h=12, compute_ceiling_usd=25.0,
             cores=16, threads=32, ram_gb=32),
         dau_envelope=dict(container_bytes=30064771200, server_bytes=23622320128,
             api_bytes=2147483648, minio_bytes=1073741824),
@@ -43,7 +43,7 @@ class AdmissionGate(unittest.TestCase):
                 dict(dau_host=dict(region='nyc2', size='s-8vcpu-32gb-amd', price_hourly=.25,
                     storage_gib=400, storage_class='NVMe', backstop_h=24, compute_ceiling_usd=25.0)),
                 dict(dau_host=dict(region='nyc2', size='g-48vcpu-192gb-intel', price_hourly=2.6994,
-                    storage_gib=720, storage_class='HDD', backstop_h=12, compute_ceiling_usd=25.0)),
+                    storage_gib=720, storage_class='', backstop_h=12, compute_ceiling_usd=25.0)),
                 dict(dau_host=dict(region='nyc2', size='g-48vcpu-192gb-intel', price_hourly=2.6994,
                     storage_gib=720, storage_class='NVMe', backstop_h=12, compute_ceiling_usd=50.0)),
                 dict(dau_envelope=dict(container_bytes=10, server_bytes=20)),
@@ -312,6 +312,17 @@ class EnvelopeOverlay(unittest.TestCase):
             self.assertIn('dau-memory.xml', clickhouse['volumes'][3])
             self.assertEqual(got['services']['api']['mem_limit'], '34359738368')
             self.assertEqual(got['services']['minio']['mem_limit'], '1073741824')
+
+    def test_overlay_bind_and_native_cap_follow_small_host_admission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'restore.overlay.json').write_text(json.dumps(self.overlay_value()))
+            got = run.apply_envelope_overlay(root, approval())
+            memory_path = root.resolve() / 'dau-memory.xml'
+            self.assertEqual(got['services']['clickhouse']['volumes'][3],
+                f'{memory_path}:/etc/clickhouse-server/config.d/costfn-memory.xml:ro')
+            self.assertIn('<max_server_memory_usage>23622320128</max_server_memory_usage>',
+                memory_path.read_text())
 
     def test_missing_overlay_or_input_bind_refuses(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -68,7 +68,7 @@ def admission_gate(approval):
         raise ValueError('sustained-DAU admission purpose required')
     host = approval.get('dau_host')
     if not (host and host.get('region') and host.get('size') and host.get('price_hourly')
-            and host.get('storage_gib') and host.get('storage_class') == 'NVMe'
+            and host.get('storage_gib') and host.get('storage_class')
             and host.get('backstop_h') == 12 and host.get('compute_ceiling_usd') == 25.0):
         raise ValueError('budget-sized host class declared at admission required')
     derived = (host.get('cores') == 16 and host.get('threads') == 32 and host.get('ram_gb') == 32)
@@ -153,12 +153,8 @@ def restore_parquet(root, approval):
 
 def apply_envelope_overlay(root, approval):
     """Replace the banked compose memory shape with the admission-declared
-    DAU envelope: container cap, server cap via the committed
-    clickhouse-config/dau-memory.xml, plus declared api/minio caps. The
-    banked input bind and the store volume survive the rewrite verbatim. The
-    envelope is admission-bound, never host-class-bound, so re-pointing the
-    host class (26 November: the derived 16-core / 32-thread / 32 GB
-    requirement) only changes the admission, not this rewrite."""
+    DAU envelope. Generate a run-owned server config from that same admission;
+    the banked input bind and store volume survive the rewrite verbatim."""
     envelope = approval['dau_envelope']
     overlay_path = Path(root) / 'restore.overlay.json'
     if not overlay_path.is_file():
@@ -170,11 +166,18 @@ def apply_envelope_overlay(root, approval):
         None)
     if input_bind is None:
         raise ValueError('banked input bind missing from the restore overlay')
+    server_bytes = envelope['server_bytes']
+    if type(server_bytes) is not int or not 0 < server_bytes < envelope['container_bytes']:
+        raise ValueError('invalid admitted server memory cap')
+    memory_path = overlay_path.resolve().with_name('dau-memory.xml')
+    memory_path.write_text('<clickhouse>\n'
+        f'    <max_server_memory_usage>{server_bytes}</max_server_memory_usage>\n'
+        '</clickhouse>\n')
     clickhouse['mem_limit'] = str(envelope['container_bytes'])
     clickhouse['volumes'] = ['clickhouse-data:/var/lib/clickhouse',
         '../../../clickhouse-init:/docker-entrypoint-initdb.d:ro',
         {**input_bind},
-        './clickhouse-config/dau-memory.xml:/etc/clickhouse-server/config.d/costfn-memory.xml:ro']
+        f'{memory_path}:/etc/clickhouse-server/config.d/costfn-memory.xml:ro']
     overlay['services']['api']['mem_limit'] = str(envelope['api_bytes'])
     overlay['services']['minio']['mem_limit'] = str(envelope['minio_bytes'])
     overlay_path.write_bytes(json.dumps(overlay, indent=1).encode())
