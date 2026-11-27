@@ -1,5 +1,6 @@
 6.32.56 || 27.11.2026
 fix(marketing): render the Quick links Social icon through the shared image component so it passes media ownership checks without changing the layout.
+test(social): drive the Shorts swipe test through the observer registered on the next slide, not an unrelated player or feed observer.
 
 6.32.55 || 27.11.2026
 social + marketing: use blue keys beside upright white lowercase `social` for the square catalog and install icon. Use one upright `web10 social` line in Social and Join headers, retaining the theme-aware keys and blue `10`. Keep the keys-only favicon and refresh the PWA shell cache.
