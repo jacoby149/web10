@@ -85,6 +85,8 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
+- [✓ 6.32.30 local] **Group permissions in-page search** — reuse Hub's list search on desktop and phone; verify matching, clearing, and the no-results state without changing group authority.
+
 - [✓ 6.32.28 local] **Hub desktop sidebar and More menu** — desktop navigation moves to the sidebar, with Social charcoal in Dark; the desktop sidebar and phone dock both restore ecosystem links under More…. In-page search and role gates stay unchanged.
 
 - [✓ 6.32.13 local] **Hub top-bar navigation and in-page search** — desktop header navigation from 768px, phone dock retained, App permissions and Pending requests search in their lists. Verified in both themes at 375/768/1280/1440px with Chromium fixtures; no live auth or deployment claim.
@@ -279,6 +281,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 - [ ] **MK-CLASSIC-05 — decision + ship (Phase 5)** — single end-of-window read; winner renders at `/` (flag retired, code simplified to the winner); loser stays at `/revolution` if it has ongoing value or is retired; outcome + decision recorded in `decisions.md` (new D number), lane ticked. Optional follow-up only if classic wins: a second experiment splitting pitch vs ask (classic hero, current Explore-only CTA) to attribute story vs signup-ask.
 
 ### Lane: social-appearance
+
+- [✓ 6.32.31 local] **Social mobile Dark header and Android icon** — share the desktop Dark palette and provide Android a mask-safe blue app icon. Chromium verifies rendered chrome and icon pixels; installed-device refresh is not verified.
 
 - [✓ 6.32.28 local] **Social Discover topic alignment** — line up topic chips with the post column at desktop widths, including beside the Top 10 rail; preserve mobile gutters and URL filters.
 

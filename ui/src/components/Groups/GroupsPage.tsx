@@ -4,6 +4,7 @@ import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import GroupCard from './GroupCard';
 import ContractHealth from './ContractHealth';
+import PermissionListSearch from '../Contracts/PermissionListSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -250,7 +251,7 @@ function GroupsManage({ I }: { I: Record<string, any> }) {
       {groups.length === 0 ? (
         <EmptyGroups isManaged={true} />
       ) : filtered.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-muted-foreground">
+        <p role="status" className="mt-8 text-center text-sm text-muted-foreground">
           No groups match "{I.search}".
         </p>
       ) : (
@@ -287,7 +288,7 @@ function GroupsBelong({ I }: { I: Record<string, any> }) {
       {groups.length === 0 ? (
         <EmptyGroups isManaged={false} />
       ) : filtered.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-muted-foreground">
+        <p role="status" className="mt-8 text-center text-sm text-muted-foreground">
           No groups match "{I.search}".
         </p>
       ) : (
@@ -347,6 +348,7 @@ function GroupsPage({ I }: { I: Record<string, any> }) {
         </button>
       </div>
 
+      <PermissionListSearch I={I} label="Search group permissions" />
       {tab === 'manage' ? <GroupsManage I={I} /> : <GroupsBelong I={I} />}
     </AppShell>
   );

@@ -31,10 +31,33 @@ try {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(`${base}?screen=posts-following`, { waitUntil: 'networkidle' });
+      if (width === 1440 && mode === 'dark') {
+        const icon = await page.evaluate(async () => {
+          const manifest = await (await fetch('/manifest.json')).json();
+          const entry = manifest.icons.find(icon => icon.purpose === 'maskable');
+          const bitmap = await createImageBitmap(await (await fetch(`/${entry.src}`)).blob());
+          const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(bitmap, 0, 0);
+          const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+          let transparent = 0, unsafe = 0, artwork = 0;
+          for (let y = 0; y < bitmap.height; y++) for (let x = 0; x < bitmap.width; x++) {
+            const i = (y * bitmap.width + x) * 4;
+            if (data[i + 3] !== 255) transparent++;
+            if (data[i] === 4 && data[i + 1] === 103 && data[i + 2] === 242) continue;
+            artwork++;
+            if (Math.hypot(x + 0.5 - 256, y + 0.5 - 256) > 512 * 0.4) unsafe++;
+          }
+          return { sizes: entry.sizes, width: bitmap.width, height: bitmap.height, transparent, unsafe, artwork };
+        });
+        assert.ok(icon.artwork > 0, 'the maskable icon contains the conversation artwork');
+        assert.deepEqual([icon.sizes, icon.width, icon.height, icon.transparent, icon.unsafe], ['512x512', 512, 512, 0, 0],
+          'maskable PNG fills the launcher shape and keeps artwork within the 80% safe circle');
+      }
       const mobile = width < 768;
       const darkDesktop = mode === 'dark' && !mobile;
-      const headerFill = darkDesktop ? 'rgb(27, 32, 38)' : 'rgb(181, 212, 220)';
-      const headerInk = darkDesktop ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)';
+      const headerFill = mode === 'dark' ? 'rgb(27, 32, 38)' : 'rgb(181, 212, 220)';
+      const headerInk = mode === 'dark' ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)';
       const dividerWidth = darkDesktop ? '1px' : '0px';
       const dock = page.locator('nav[aria-label="Primary mobile"]');
       const expectedDock = ['nav-feed-mobile', 'nav-video-mobile', 'nav-shorts-mobile', 'nav-music-mobile', 'nav-more-mobile'];
@@ -49,7 +72,7 @@ try {
       assert.deepEqual(await header.evaluate(el => {
         const css = getComputedStyle(el);
         return [css.backgroundColor, css.backdropFilter, css.borderTopWidth, css.borderBottomWidth];
-      }), [headerFill, 'none', '0px', dividerWidth], 'only desktop Dark has a charcoal header and bottom divider');
+      }), [headerFill, 'none', '0px', dividerWidth], 'Dark uses a charcoal header, with a bottom divider only on desktop');
       const search = header.getByRole(mobile ? 'button' : 'textbox', { name: 'Search', exact: true });
       assert.equal(await search.evaluate(el => getComputedStyle(el).color), headerInk, 'search uses ink for the header palette');
       const bell = header.getByRole('button', { name: /^Notifications\b/ });

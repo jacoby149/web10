@@ -1,3 +1,9 @@
+6.32.31 || 26.11.2026
+fix(social): match the phone's Dark header to desktop charcoal and provide Android launchers a full-bleed blue maskable app icon. Keep the Light header, phone dock, and iOS touch icon unchanged.
+
+6.32.30 || 26.11.2026
+fix(hub): restore in-page search for Group permissions on desktop and phone. Filter the existing Manage and Belong lists with the same query and announce when no groups match.
+
 6.32.29 || 26.11.2026
 research: the sustained-DAU load test host is re-pointed at the derived requirement per the 26 November task block: the contract's >=64-thread / >=128 GB floor (a description of the R630 as configured, never a measured minimum) is replaced by 16 cores / 32 threads, 32 GB RAM, a DigitalOcean dedicated-CPU class (or the closest class the provider offers at those resources - the catalogue carries no dedicated class, so the CPU-Optimized c-16 is the declared closest class, stated in the admission note), local storage as the class provides it. The admission vehicle binds the derived fields (cores/threads/ram_gb) or a declared closest-class note; the $25 cap, workload, phases, steady-state precondition, gates, custody and the store's provenance are unchanged. DAU-SUSTAINED-LOAD.md, the costfn README and the new task-block-load-test-host-16c-32gb.md carry the restatement, and the contract gains the host-class fence: if calibration establishes the class cannot hold the restored store at the declared steady state, that finding is the result, banked with the binding resource named - no silent substitution of a larger host. One new admission control. No host, no admission, no native execution.
 6.32.28 || 26.11.2026
