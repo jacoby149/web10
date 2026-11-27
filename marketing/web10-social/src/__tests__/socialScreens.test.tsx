@@ -1366,7 +1366,7 @@ describe('Layout', () => {
     expect(screen.getByText('Report a bug')).toBeInTheDocument();
   });
 
-  it('uses only the Social wordmark with an accented 10 in both headers', async () => {
+  it('pairs the decorative web10 keys with the accented Social wordmark in both headers', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -1379,6 +1379,10 @@ describe('Layout', () => {
       const header = within(screen.getByTestId(id));
       expect(header.getByTestId('social-header-wordmark')).toHaveTextContent(/^web10 social$/);
       expect(header.getByText('10', { exact: true })).toHaveClass('text-social-header-accent');
+      const mark = header.getByTestId('theme-key-mark');
+      expect(mark).toHaveAttribute('aria-hidden', 'true');
+      expect(mark.querySelector('[data-brand-variant="white"]')).toHaveAttribute('src', '/keys-mark.png');
+      expect(mark.querySelector('[data-brand-variant="dark"]')).toHaveAttribute('src', '/keys-mark-dark.png');
       expect(header.queryByTestId('social-header-mark')).not.toBeInTheDocument();
     }
   });

@@ -284,6 +284,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.40 local] **Larger Social header wordmark with keys** — use the canonical Light/Dark keys alongside the larger wordmark on desktop and phones. Keep the signed-out 320px header usable and leave Join, App Store, launcher and splash artwork unchanged.
+
 - [✓ 6.32.38 local] **Wordmark-only Social headers** — show the full name with the blue `10` at desktop and phone widths, including signed-out narrow phones. Join, App Store, launcher and splash artwork stay unchanged.
 
 - [✓ 6.32.37 local] **Sharpen the Android PWA startup splash** — use the full-bleed source, protect facial detail inside the safe circle, and keep both silhouettes running off the bottom. Keep ordinary manifest, iOS, and in-app artwork unchanged. Physical-device refresh remains unverified.

@@ -498,8 +498,10 @@ the Top 10 rail; retain the phone gutter and the video wall's own layout.
 
 ### Social navigation glass — first pass (11.11.2026)
 
-Social’s desktop brand strip and phone top bar use the `web10 social` wordmark
-alone, with the `10` in the theme’s blue accent. The two-person illustration
+Social’s desktop brand strip and phone top bar pair the canonical keys mark
+(white on Dark, dark ink on Light) with a larger `web10 social` wordmark. Keep
+the `10` in the theme’s blue accent and use a compact lockup on narrow phones
+so the full name and header controls fit on one line. The two-person illustration
 stays on Join, the App Store, and the installed app, where it has room to read.
 
 Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
