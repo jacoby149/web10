@@ -1,6 +1,8 @@
 """No-engine admission, discipline and gate controls for the DAU runner."""
 import asyncio
+from datetime import UTC, datetime
 import json
+import sqlite3
 import sys
 import unittest
 from pathlib import Path
@@ -12,10 +14,12 @@ import sqlglot
 import costfn_task
 from dau_sustain_dispatch import Dispatch
 import dau_sustain_memory as memory
+import dau_sustain_native_audit as native_audit
 import dau_sustain_parity as parity
 import dau_sustain_readers as readers
 import dau_sustain_reference as reference
 import dau_sustain_run as run
+import dau_sustain_scope_proof as scope_proof
 import dau_sustain_timed as timed
 import dau_sustain_workload as wl
 import engagement_window as window
@@ -742,6 +746,70 @@ class DiverseReference(unittest.TestCase):
         self.assertEqual(reference.apply_billboards(rows, ledger), [rows[0], dict(rows[1], node_ad=creative)])
         with self.assertRaisesRegex(ValueError, 'serving-produced ads'):
             reference.apply_billboards([dict(rows[0], ad=creative)], ledger)
+
+
+class DiverseNativeAudit(unittest.TestCase):
+    def test_native_intents_and_attachment_heads_reconcile_to_issued_write(self):
+        operation = '00000000-0000-0000-0000-000000000001'
+        groups = ['discover', 'writer/followers']
+        issued = [dict(operation_id=operation, actor='writer', doc_id='d1', slot=0, request_id='request')]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'intents.sqlite'
+            with sqlite3.connect(path) as source:
+                source.execute('CREATE TABLE intents (sequence,operation_id,actor_key,operation,state,result_json)')
+                source.execute('INSERT INTO intents VALUES (?,?,?,?,?,?)', (1, operation + ':publish',
+                    'writer', 'publish', 'complete', json.dumps(dict(author_key='writer', doc_id='d1', groups=groups))))
+            session = Mock()
+            session.rows.return_value = [dict(author_key='writer', doc_id='d1', collection_name='posts', groups=groups)], 'native'
+            session.native.return_value = dict(query_id='native', type='QueryFinish', exception_code=0)
+            result = native_audit.reconcile_publications(session, path, 0, issued,
+                {'writer': groups}, {0: ['reader/followers']})
+            self.assertEqual(result['commits'][0]['journal_sequence'], 1)
+            sql = session.rows.call_args.args[1]
+            self.assertIn('LIMIT 1 BY author_key,doc_id', sql)
+            self.assertIn('LIMIT 1 BY doc_id,group_id', sql)
+            session.native.assert_called_once_with('native')
+            with self.assertRaises(costfn_task.ParityDivergence):
+                native_audit.reconcile_publications(session, path, 0, issued,
+                    {'writer': groups}, {0: ['discover']})
+            with sqlite3.connect(path) as source:
+                source.execute("UPDATE intents SET state='reconciling' WHERE sequence=1")
+            with self.assertRaisesRegex(ValueError, 'unresolved'):
+                native_audit.committed_publications(path, 0, issued)
+
+    def test_view_bookends_prove_stability_only_without_writes_or_ttl_loss(self):
+        old = {'rows': {'0': [dict(doc_id='d', impressions=7, reach=3, first_expiry_utc='2026-11-28 00:00:00')]}}
+        end = datetime(2026, 11, 27, tzinfo=UTC)
+        self.assertEqual(native_audit.settled_views(old, old, end, append_only_verified=True),
+            {0: {'d': dict(impressions=7, reach=3)}})
+        with self.assertRaisesRegex(ValueError, 'invariant'):
+            native_audit.settled_views(old, {'rows': {}}, end, append_only_verified=True)
+        with self.assertRaisesRegex(ValueError, 'invariant'):
+            native_audit.settled_views(old, old, end, append_only_verified=False)
+        with self.assertRaisesRegex(ValueError, 'expire'):
+            native_audit.settled_views(old, old, end.replace(day=28), append_only_verified=True)
+        sql = native_audit.raw_views_sql(['doc'], ['group'])
+        self.assertIn('FROM content_events WHERE', sql)
+        self.assertNotIn('content_events_aggregated', sql)
+
+    def test_reader_tallies_bind_the_actual_groups_for_each_route(self):
+        profile = dict(actual_readable_by_kind=dict(main=dict(posts=['following'], comments=['following'],
+            reactions=['following']), comments=dict(comments=['discover']), reactions=dict(reactions=['discover'])))
+        self.assertEqual(set((label, service, tuple(groups)) for label, service, groups in scope_proof.expected_scopes(profile)),
+            {('main', 'posts', ('following',)), ('main', 'comments', ('following',)), ('main', 'reactions', ('following',)),
+             ('comments', 'comments', ('discover',)), ('reactions', 'reactions', ('discover',))})
+
+    def test_route_refuses_uncertified_principal_scope_and_page_target(self):
+        binding = dict(canonical_generation='generation', copy_hash='copy')
+        readable = {'comments': ['discover']}
+        key = scope_proof.sql.scope('reader', 'comments', ['discover'], 'generation', 'copy')
+        proof = dict(binding=binding, routes={'reader': dict(readable_by_kind={'comments': readable},
+            routes={'comments': {'comments': dict(key=key, groups=['discover'], verified_ids=['target'])}})})
+        self.assertEqual(scope_proof.checked_route(proof, 'reader', 'comments', readable, ['target']), {'comments': key})
+        for actor, groups, ids in (('another', readable, ['target']), ('reader', readable, ['unexpected']),
+                ('reader', {'comments': ['other']}, ['target'])):
+            with self.assertRaises(ValueError):
+                scope_proof.checked_route(proof, actor, 'comments', groups, ids)
 
 
 if __name__ == '__main__':
