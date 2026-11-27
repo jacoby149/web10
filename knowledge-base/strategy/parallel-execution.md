@@ -89,6 +89,8 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
+- [✓ 6.32.63 local] **Neutral Light Hub and sign-in headers** — white fill, neutral controls and a thin divider in Light only; retain existing Dark, dock and credential behavior.
+
 - [✓ 6.32.30 local] **Group permissions in-page search** — reuse Hub's list search on desktop and phone; verify matching, clearing, and the no-results state without changing group authority.
 
 - [✓ 6.32.28 local] **Hub desktop sidebar and More menu** — desktop navigation moves to the sidebar, with Social charcoal in Dark; the desktop sidebar and phone dock both restore ecosystem links under More…. In-page search and role gates stay unchanged.
@@ -253,6 +255,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 - [ ] **AB-06 — node flag seam (deferred; research, not build)** — when data treatments (feed order, ad density, sort defaults) are worth testing: pick a candidate shape (node-side PostHog server SDK gated by existing operator config — vendor sees hashed person/device, fails closed; vs an operator-managed flag set via existing `GET /telemetry` — a rollout mechanism, not an A/B, labeled as such), open the D-number, review the API -> PostHog flag-decision exchange, get operator admission. No code in this lane; the item exists so the question is planned, not improvised.
 
 ### Lane: homepage-classic-revival
+
+- [✓ 6.32.63 local] **Neutral Light marketing navbar** — white material and a neutral edge on the homepage and shared interior routes. Keep the homepage hero, Dark palette and mobile refraction unchanged.
 
 **Owns:** the marketing-ui classic page/route, classic design tokens (design.md §13 + marketing-ui `@theme`), the restored fractal hero asset, that page's telemetry events, the `home_classic` landing A/B flag and its variant controls, and serialized plan/changelog records. Contract: `homepage-classic-revival.md`. No API/SDK/auth surface (D60), no social/authenticator changes, no `/freedom`/`/everything` changes, no deployment (separate operator gate). D94's import cut and D103's PostHog-only tracking stand.
 

@@ -91,6 +91,10 @@ try {
     await capture(page, `appearance-${mode}-${width}`);
     await page.getByRole('link', { name: 'Back to sign in' }).click();
     await page.getByTestId('credential-page').waitFor(); await theme(page, mode);
+    assert.deepEqual(await page.locator('.hub-header').evaluate(el => {
+      const css = getComputedStyle(el);
+      return [css.backgroundColor, css.borderBottomWidth];
+    }), mode === 'light' ? ['rgb(255, 255, 255)', '1px'] : ['rgb(181, 212, 220)', '0px']);
     await capture(page, `login-${mode}-${width}`);
     await page.getByRole('link', { name: 'Appearance', exact: true }).click();
     assert.equal(new URL(page.url()).searchParams.get('mode'), 'appearance');

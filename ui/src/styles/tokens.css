@@ -84,6 +84,9 @@
   --color-background: #fafafa;
   --color-foreground: #232323;
   --color-surface: #ffffff;
+  --color-hub-header: var(--color-surface);
+  --color-hub-tint: color-mix(in srgb, var(--color-surface), var(--color-foreground) 5%);
+  --color-hub-tint-hover: color-mix(in srgb, var(--color-surface), var(--color-foreground) 10%);
   --color-elevated: #e3edf8;
   --color-border: #c0cddb;
   --color-input: var(--color-border);

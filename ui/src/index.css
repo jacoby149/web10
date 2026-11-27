@@ -110,6 +110,9 @@ body {
   background: var(--color-hub-header);
   color: var(--color-hub-ink);
 }
+:root[data-theme="light"] .hub-header {
+  border-bottom: 1px solid var(--color-border);
+}
 @media (prefers-reduced-transparency: reduce) {
   .auth-dock-rim { display: none; }
   .auth-dock-bed, .auth-mobile-dock:has(.auth-dock-rim) .auth-dock-bed {

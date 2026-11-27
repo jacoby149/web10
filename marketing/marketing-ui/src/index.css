@@ -202,7 +202,7 @@
 .marketing-navbar [data-brand-variant="white"] { display: block; }
 .marketing-navbar [data-brand-variant="dark"] { display: none; }
 
-/* One ice-blue header across the primary marketing pages in both appearances. */
+/* Shared header across the primary pages; Light uses a neutral surface. */
 .marketing-navbar--shared {
   color-scheme: light;
   --color-background: #b5d4dc;
@@ -226,6 +226,13 @@
   margin: 0.75rem auto 0;
   border-radius: var(--marketing-nav-radius);
   background: transparent;
+}
+
+:root[data-theme="light"] .marketing-navbar--shared {
+  --color-background: #ffffff;
+  --color-navbar-edge: #d4d4d8;
+  --color-navbar-edge-light: var(--color-background);
+  --color-elevated: #f4f4f5;
 }
 
 #root:has(> .interior-theme) {
