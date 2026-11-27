@@ -94,7 +94,7 @@ a wrong logo is worse than no logo.
 |---|---|---|---|
 | **Full lockup** | `marketing/marketing-ui/public/brand/logo-lockup.png` (1200×400, moved from `layouts/images/logo_white.png` by D13) | Keys-on-keyring mark + lowercase thin-outline "web10" wordmark, white on transparent | Navbars, footers, hero, og-image. Dark backgrounds ONLY (it is white). Min height 24px; keep clear space ≥ the height of the "w" on all sides. |
 | **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Platform avatars and small surfaces such as Social's browser favicon. Dark backgrounds only. |
-| **Social app icon** | `marketing/marketing-ui/public/brand/social-app-icon.png` (catalog); `marketing/web10-social/public/{logo192.png,logo512.png,logo-maskable-crisp-512.png,apple-touch-icon.png}` (install) | The original keys in Social's Dark blue `10` accent, beside upright white lowercase `social` on charcoal. The export recolors the original alpha without changing its shape. Android uses an opaque full-bleed charcoal field with the entire lockup inside the maskable safe circle. | Social's listing, app detail, install prompt, startup splash and home screen. Use only the white keys for the tiny favicon. The conversation pair is illustration, not a second logo. |
+| **Social app icon** | `marketing/marketing-ui/public/brand/social-app-icon.png` (catalog); `marketing/web10-social/public/{logo192.png,logo512.png,logo-maskable-crisp-512.png,apple-touch-icon.png}` (install) | The original keys in Social's Dark blue `10` accent, beside upright white lowercase `social` on pure black (`#000000`). This is an artwork color, not an app theme color. The export recolors the original alpha without changing its shape. Android uses an opaque full-bleed black field with the entire lockup inside the maskable safe circle. | Social's listing, app detail, install prompt, startup splash and home screen. Use only the white keys for the tiny favicon. The conversation pair is illustration, not a second logo. |
 | **Dark counterparts (D108)** | `marketing/marketing-ui/public/brand/logo-lockup-dark.png`, `marketing/web10-social/public/keys-mark-dark.png` | Zinc-900 copies with exactly the original dimensions/alpha | Light-mode lockup and square mark; never put a dark backing behind them. White originals remain unchanged. |
 | **Share-card images (D109)** | `marketing/web10-social/public/og-image.png` (1200×1200, keys mark on `#09090b` + subtle violet glow), `marketing/marketing-ui/public/brand/og-image.png` (1200×630, lockup on `#09090b` + subtle glow; the shared copy is `.context/brand-assets/og-image.png`) | Opaque `og:image` assets for link previews | Share surfaces only (the app-root static tags + the social crawler card's brand fallback). Opaque ON PURPOSE: the receiving app composites `og:image` onto its own (white) card frame, so the image bakes in its own dark background — a transparent white mark is invisible there. Never use them in-app (in chrome, the transparent marks + the page's background are correct). |
 
@@ -416,7 +416,9 @@ web10 are compact secondary rows. Group Developer docs and API reference
 under For developers. Use present-day app-permissions language, drop the old
 protocol tagline and keep same-tab navigation with normal Back behavior.
 In the marketing navbar, use a labeled “Quick links” entry with a list icon,
-not an unlabeled chain icon. Keep the Social call to action higher emphasis.
+not an unlabeled chain icon. Open the directory in a new tab from that entry
+on desktop and phone; keep the original page open and the Social call to
+action higher emphasis.
 
 The job: a creator's manager lands here and in 30 seconds believes
 this is a company, not a weekend project. **Bulma comes out entirely**

@@ -282,6 +282,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 - [✓ 6.32.57 local] **Quick-links image ownership** — use the shared image component for the bundled Social icon; keep it decorative and retain the 48px footprint and unchanged click destination.
 
+- [✓ 6.32.58 local] **Quick links opens separately** — open the directory in a new tab from both navbar layouts, without opener access or replacing the original page. Verify ordinary links and Back still work inside the directory.
+
 - [✓ 6.32.11 local] **Social conversation pair** — use the lower two-person crop on white for the featured listing and canonical detail, and transparent for Social and Join chrome. Leave Hub and installed icons alone.
 - [✓ 6.31.1 local] **MK-REVOLUTION-STORE-ART** — three distinct app windows connect to one data key. Keep the shared intro layout, catalog, and other page illustrations unchanged.
 - [ ] **MK-CLASSIC-03 — observation window (Phase 3)** — 2–4 weeks, no flag: PostHog funnel comparison `/revolution` vs `/` (views, CTA clicks, signups), recorded against the Phase 0 baseline. Exit: `/revolution` signups ≥ `/` at equal-or-lower traffic → Phase 4; clearly worse → one copy/CTA iteration + one more window; too thin → extend once, then observational-only (stated plainly, no fake significance).
@@ -289,6 +291,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 - [ ] **MK-CLASSIC-05 — decision + ship (Phase 5)** — single end-of-window read; winner renders at `/` (flag retired, code simplified to the winner); loser stays at `/revolution` if it has ongoing value or is retired; outcome + decision recorded in `decisions.md` (new D number), lane ticked. Optional follow-up only if classic wins: a second experiment splitting pitch vs ask (classic hero, current Explore-only CTA) to attribute story vs signup-ask.
 
 ### Lane: social-appearance
+
+- [✓ 6.32.59 local] **Pure-black Social app icon** — use opaque `#000000` in the catalog and install exports; verify the existing Android maskable lockup stays inside the safe circle and the favicon stays unchanged. Device refresh remains unverified.
 
 - [✓ 6.32.55 local] **Final Social icon and upright headers** — use blue keys and white lowercase `social` in the catalog and install artwork; the normal Dark and Light headers retain themed keys and an accented `10` next to uniform upright type. Verify the narrow header and Android maskable safe zone; no device-refresh claim.
 

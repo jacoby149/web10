@@ -1,3 +1,9 @@
+6.32.59 || 27.11.2026
+fix(social): use pure black behind the existing blue keys and white lettering on the App Store and install icons. Refresh the PWA shell cache; leave the favicon and in-app theme unchanged.
+
+6.32.58 || 27.11.2026
+fix(marketing): Quick links opens a new tab from both navbar layouts without navigating away from the current page. Links within the directory stay same-tab.
+
 6.32.57 || 27.11.2026
 fix(marketing): render the Quick links Social icon through the shared image component so it passes media ownership checks without changing the layout.
 test(social): drive the Shorts swipe test through the observer registered on the next slide, not an unrelated player or feed observer.

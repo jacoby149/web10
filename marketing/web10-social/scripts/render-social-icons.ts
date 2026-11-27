@@ -8,7 +8,8 @@ async function dataUrl(path: string, type: string) {
 
 const keys = await dataUrl('public/keys-mark.png', 'image/png');
 const displayFont = await dataUrl('node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2', 'font/woff2');
-const charcoal = '#1b2026';
+const iconBackground = '#000000'; // Social app artwork only; see design.md §3.
+const faviconBackground = '#1b2026';
 const accent = '#a8ceff'; // Dark --color-brand-300, also the header's blue 10.
 const browser = await chromium.launch();
 
@@ -19,7 +20,7 @@ async function render(size: number, variant: 'social' | 'maskable' | 'keys') {
     const scale = variant === 'maskable' ? 0.76 : 1;
     await page.setContent(`<!doctype html><style>
       @font-face { font-family: Space; src: url(${displayFont}); font-weight: 300 700; }
-      body { margin: 0; height: 512px; display: grid; place-items: center; background: ${charcoal}; color: #fafafa; }
+      body { margin: 0; height: 512px; display: grid; place-items: center; background: ${variant === 'keys' ? faviconBackground : iconBackground}; color: #fafafa; }
       .lockup { display: flex; width: 448px; height: 192px; align-items: center; justify-content: center; gap: 20px; transform: scale(${scale}); }
       .keys { width: 168px; height: 176px; flex-shrink: 0; background: ${accent}; mask: url(${keys}) center / contain no-repeat; }
       .favicon { width: 380px; height: 380px; object-fit: contain; }
