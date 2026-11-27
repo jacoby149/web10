@@ -514,9 +514,10 @@ size and weight as `web10`. Keep the lockup and all controls on one line on
 narrow phones. The square catalog/install icon omits `web10` and puts blue keys
 beside white `social`; the two-person artwork remains an illustration on Join.
 
-Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
-mute choice across Posts/Video/Shorts and shared video renderers. Never persist
-it or couple it to Music; reload starts sound-on. Browser-blocked audible
+Video sound (operator correction, 27.11.2026): muted on a fresh load or reload,
+one in-memory video mute choice across Posts/Video/Shorts and shared video
+renderers. An explicit unmute carries across tabs in the same loaded app.
+Never persist it or couple it to Music. Browser-blocked audible
 autoplay needs a play action, not a silent fallback to muted. Changing mute
 never resumes paused media. Shorts tiles hide the still play badge whenever
 the real preview controls are shown, including touch-dwell—not CSS hover alone.

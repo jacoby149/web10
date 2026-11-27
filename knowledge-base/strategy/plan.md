@@ -4,6 +4,8 @@
 
 - [✓ 6.32.55 local] **Social More ecosystem links** — add What is web10 followed by Rate us on the App Store in desktop and phone More, visible signed in or out without changing access to personal destinations.
 
+- [✓ 6.32.55 local] **Muted video on fresh load** — the same in-memory choice starts muted across Posts, Video and Shorts and after reload; explicit unmute is shared until reload. Leave Music and existing playback controls alone.
+
 - [✓ 6.32.54 local] **One keys-and-script Social identity** — horizontal in Social and Join chrome, stacked on the catalog and install icons, keys only in the browser favicon. The conversation pair remains Join illustration; no app rename or device refresh claim.
 
 - [✓ 6.32.54 local] **Social chrome follow-up** — outline the Light Posts column, default the single-video comment thread to open with a URL-owned collapse state, and put the personal switch immediately below identity search with an explicit current identity and unchanged confirmation.
