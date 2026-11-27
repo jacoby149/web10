@@ -1,3 +1,6 @@
+6.32.67 || 27.11.2026
+research: reuse one private host-to-ClickHouse connection for untimed DAU reader-scope setup. Keep exact native IDs, existing execution caps, durable write checkpoints, frozen inputs and independent query parity. Do not alter the measured HTTP transport.
+
 6.32.66 || 27.11.2026
 fix(marketing): keep one neutral outline "Open web10 social" button on every tab. The shared pages no longer render the pale-blue brand fill; border, ink and hover follow the navbar palette in Light and Dark, desktop and mobile.
 

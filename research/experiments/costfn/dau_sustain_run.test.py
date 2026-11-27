@@ -26,6 +26,7 @@ import dau_sustain_readers as readers
 import dau_sustain_reference as reference
 import dau_sustain_run as run
 import dau_sustain_scope_proof as scope_proof
+from dau_sustain_scope_transport import ScopeTransport
 import dau_sustain_timed as timed
 import dau_sustain_workload as wl
 import engagement_window as window
@@ -757,6 +758,30 @@ class DiverseReference(unittest.TestCase):
 
 
 class DiverseNativeAudit(unittest.TestCase):
+    def test_scope_transport_uses_true_native_identity_and_preserves_setup_caps(self):
+        session = Mock(host_id=10, operation={}, ledger='durable-ledger')
+        client = Mock()
+
+        def result(statement, settings):
+            self.assertEqual(settings['max_threads'], 4)
+            self.assertEqual(settings['max_memory_usage'], 22 * 1024**3)
+            self.assertEqual(settings['max_execution_time'], 600)
+            self.assertEqual(settings['join_algorithm'], 'full_sorting_merge')
+            return Mock(query_id=settings['query_id'], column_names=['n'], result_rows=[(1,)])
+
+        client.query.side_effect = result
+        direct = ScopeTransport(session, client)
+        with patch.object(run.modern, 'admitted'), patch.object(run.modern, 'remaining', return_value=600), \
+                patch.object(run.modern, 'setup_memory_cap', return_value=22 * 1024**3):
+            rows, identity = direct.rows('probe', 'SELECT 1 AS n')
+            self.assertEqual(rows, [{'n': 1}])
+            self.assertEqual(session.record.call_args_list[0].args[0]['query_id'], identity)
+            self.assertEqual(session.record.call_args_list[1].args[0]['query_id'], identity)
+            client.query.side_effect = lambda *args, **kwargs: Mock(query_id='wrong')
+            with self.assertRaisesRegex(ValueError, 'different native identity'):
+                direct.rows('probe', 'SELECT 1 AS n')
+            self.assertFalse(session.record.call_args.args[0]['success'])
+
     def test_native_read_receipts_share_one_flush_but_verify_each_identity(self):
         session = Mock()
         rows = [dict(query_id=key, type='QueryFinish', exception_code=0) for key in ('a', 'b')]

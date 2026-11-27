@@ -11,6 +11,7 @@ from arm_satellite_counts import generation
 from arm_satellite_sql import literal as q
 from costfn_task import ParityDivergence, digest, read
 import dau_sustain_workload as wl
+import dau_sustain_scope_transport as transport
 import engagement_composition as composition
 import engagement_composition_setup as composition_setup
 import engagement_pairs as pairs
@@ -195,7 +196,18 @@ def prepare(root, session, oracle_index):
             raise ValueError('non-empty frozen Following page required')
         packets[reader] = profile, ids
         all_ids.update(ids)
-    independent = prepare_independent_keys(writer, sorted(all_ids))
+    # Initialize the durable write book with the original transport, including
+    # its saved exact canonical part types, then use one private connection for
+    # the untimed page-scope work. Previously recorded native IDs stay valid.
+    with transport.connect(session) as direct:
+        writer.session = direct
+        writer.book.session = direct
+        return prepare_routes(proof, packet_binding, session, direct, writer, banked, packets,
+            sorted(all_ids), source_generation, copy_hash)
+
+
+def prepare_routes(proof, packet_binding, original, session, writer, banked, packets, all_ids, source_generation, copy_hash):
+    independent = prepare_independent_keys(writer, all_ids)
     record = dict(scopes=dict(banked['scopes']))
     routes, verified = {}, {}
     for reader, (profile, ids) in packets.items():
@@ -222,7 +234,7 @@ def prepare(root, session, oracle_index):
             route['routes'].setdefault(label, {})[service] = item
     writer.query('dau_tally_settle', 'OPTIMIZE TABLE ' + sql.TABLE + ' FINAL')
     parts_hash, query_id = tally_parts(session)
-    if generation(session)[0] != source_generation:
+    if generation(original)[0] != source_generation:
         raise ValueError('canonical source changed while building reader furniture')
     value = dict(binding=packet_binding, routes=routes, parts_sha256=parts_hash,
         independent_key_source=independent, parts_native=native_finish(session, query_id))
