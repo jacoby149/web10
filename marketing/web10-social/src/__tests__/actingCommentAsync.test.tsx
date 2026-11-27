@@ -33,14 +33,20 @@ describe('acting comment async generations', () => {
 
   it('discards a stale top-level page and keeps the new pager usable', async () => {
     const pending = deferred<{ comments: typeof comment[]; nextCursor: string | null }>();
+    const current = deferred<typeof page>();
     const readComments = vi.fn().mockResolvedValue(page);
     const props = { postId: 'post', isOpen: true, count: 1, onCountChange: vi.fn(), readComments };
     const { rerender } = render(<CommentThread {...props} actionIdentity="A" />);
     await screen.findByTestId('view-more-comments');
     readComments.mockReturnValueOnce(pending.promise);
     fireEvent.click(screen.getByTestId('view-more-comments'));
+    readComments.mockReturnValueOnce(current.promise);
     rerender(<CommentThread {...props} actionIdentity="B" />);
-    await waitFor(() => expect(screen.getByTestId('view-more-comments')).not.toBeDisabled());
+    // Wait for B's actual response and its count effect, not an enabled pager
+    // that can still be observed during the handoff from A.
+    await act(async () => current.resolve({ ...page, comments: [{ ...comment, _id: 'current', text: 'Current' }] }));
+    expect(screen.getByTestId('comment-current')).toBeInTheDocument();
+    expect(screen.getByTestId('view-more-comments')).not.toBeDisabled();
     const countCalls = props.onCountChange.mock.calls.length;
     await act(async () => pending.resolve({ comments: [{ ...comment, _id: 'stale', text: 'Stale' }], nextCursor: 'stale-cursor' }));
     expect(screen.queryByTestId('comment-stale')).not.toBeInTheDocument();

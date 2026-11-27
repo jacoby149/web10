@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Link as LinkIcon } from 'lucide-react'
+import { List, Menu, X } from 'lucide-react'
 import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
@@ -60,9 +60,10 @@ function Navbar() {
           <Button variant={classic ? 'outline' : 'brand'} size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
             Open web10 social
           </Button>
-          <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground">
-            <Link to="/links" aria-label="Links">
-              <LinkIcon className="h-4 w-4" strokeWidth={1.75} />
+          <Button asChild variant="ghost" size="sm" className="min-h-11 px-2 text-muted-foreground hover:text-foreground">
+            <Link to="/links">
+              <List aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              Quick links
             </Link>
           </Button>
           <GitHubStarButton />
@@ -101,8 +102,8 @@ function Navbar() {
             </Button>
             <Button asChild variant="ghost" size="sm" className="w-full justify-center">
               <Link to="/links" onClick={() => setMobileOpen(false)}>
-                <LinkIcon className="h-4 w-4" strokeWidth={1.75} />
-                Links
+                <List aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                Quick links
               </Link>
             </Button>
             <GitHubStarButton className="w-full justify-center" onClose={() => setMobileOpen(false)} />

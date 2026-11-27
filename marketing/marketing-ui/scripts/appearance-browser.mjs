@@ -442,7 +442,12 @@ try {
           assert.equal(new URL(page.url()).pathname, '/docs/terms');
         }
       }
-      await page.goto(`${origin}/links`, { waitUntil: 'networkidle' });
+      if (width < 1024) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+      const entry = page.getByRole('link', { name: 'Quick links', exact: true });
+      await entry.waitFor();
+      await capture(page, `quick-links-navbar-${mode}-${label}`);
+      await entry.click();
+      await page.waitForURL(`${origin}/links`);
       const quickLinks = page.getByTestId('quick-links');
       await quickLinks.getByRole('heading', { name: 'Explore web10', exact: true }).waitFor();
       assert.equal(await page.getByRole('navigation', { name: 'main navigation', exact: true }).count(), 0);
@@ -517,7 +522,7 @@ try {
     receipts.push({ width, fixedArtPixels: ['hero', 'stats'], independentOfDeviceMotionPreference: true });
     await reducedPage.close();
   }
-  for (const width of [768, 1280]) {
+  for (const width of [768, 1024, 1280]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: 'light', reducedMotion: 'reduce' });
     await isolate(context);
     const page = await context.newPage();
