@@ -1377,7 +1377,8 @@ describe('Layout', () => {
     );
     for (const id of ['sidebar-brand-strip', 'topbar-mobile']) {
       const header = within(screen.getByTestId(id));
-      expect(header.getByTestId('social-header-wordmark')).toHaveTextContent(/^web10 social$/);
+      expect(header.getByTestId('social-header-wordmark')).toHaveTextContent(/^web10 Social$/);
+      expect(header.getByTestId('social-wordmark-signature').querySelector('path')).toHaveAttribute('d', expect.stringMatching(/^M/));
       expect(header.getByText('10', { exact: true })).toHaveClass('text-social-header-accent');
       const mark = header.getByTestId('theme-key-mark');
       expect(mark).toHaveAttribute('aria-hidden', 'true');

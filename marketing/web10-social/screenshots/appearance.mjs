@@ -99,7 +99,11 @@ try {
       assert.equal(colors.chrome, colors.background);
       assert.equal(colors.overflow, false);
       const wordmark = page.getByTestId('social-header-wordmark').filter({ visible: true });
-      assert.equal(await wordmark.innerText(), 'web10 social');
+      assert.equal(await wordmark.textContent(), 'web10 Social');
+      const signature = wordmark.getByTestId('social-wordmark-signature');
+      assert.ok((await signature.boundingBox()).width > 40);
+      assert.equal(await signature.locator('path').evaluate(el => getComputedStyle(el).fill),
+        mode === 'dark' ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)');
       assert.equal(await wordmark.getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color),
          mode === 'dark' ? 'rgb(168, 206, 255)' : 'rgb(6, 78, 174)');
       assert.equal(await page.getByTestId('social-header-mark').count(), 0);
@@ -145,7 +149,7 @@ try {
         assert.equal(await header.getByTestId('acting-identity-trigger').count(), 0);
         assert.equal(await header.getByTestId('social-header-wordmark').evaluate(el => {
           const rect = el.getBoundingClientRect();
-          return getComputedStyle(el).fontSize === '16px' && rect.right <= el.closest('header').lastElementChild.getBoundingClientRect().left;
+          return rect.right <= el.closest('header').lastElementChild.getBoundingClientRect().left;
         }), true, 'full-size wordmark fits beside header controls');
         await feed.getByTestId('nav-more-mobile').click();
         const profile = feed.getByTestId('more-profile-card');
@@ -230,6 +234,21 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.close();
     receipts.push({ width, responsive: true });
+  }
+  for (const width of [320, 375]) {
+    for (const colorScheme of ['light', 'dark']) {
+      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme });
+      await page.goto(`${base}?screen=appearance&anon=1`, { waitUntil: 'networkidle' });
+      const header = page.getByTestId('topbar-mobile');
+      await header.getByTestId('social-wordmark-signature').waitFor();
+      assert.equal(await header.evaluate(el => {
+        const [brand, controls] = el.children;
+        return brand.getBoundingClientRect().right <= controls.getBoundingClientRect().left
+          && controls.getBoundingClientRect().right <= el.getBoundingClientRect().right;
+      }), true, `${width}px ${colorScheme}: the complete lockup and signed-out controls fit`);
+      receipts.push({ width, colorScheme, signedOutBrandFits: true });
+      await page.close();
+    }
   }
   await writeFile(path.join(output, 'appearance-receipt.json'), JSON.stringify({ evidence: 'Real Chromium/UI/CSS with isolated data, not deployed/physical-phone evidence', receipts }, null, 2));
 } finally { await browser?.close(); server.kill('SIGTERM'); }

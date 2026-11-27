@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clapperboard, Flame, KeyRound, Music, Palette, Users, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SocialMark } from '@/components/shared/ThemeMark';
+import { SocialConversationIllustration, ThemeMark } from '@/components/shared/ThemeMark';
+import { SocialWordmark } from '@/components/shared/SocialWordmark';
 
 const destinations = [
   { label: 'Posts', description: 'Start a conversation.', path: '/feed', icon: Flame },
@@ -17,9 +18,9 @@ export default function JoinScreen({ onLogin }: { onLogin: () => void }) {
       <div aria-hidden="true" className="pointer-events-none absolute -right-48 top-0 -z-10 h-96 w-96 rounded-full bg-glow blur-3xl" />
       <div className="mx-auto max-w-6xl px-6 sm:px-8">
         <header className="flex min-h-24 items-center justify-between gap-4 border-b border-border/60">
-          <Link to="/join" aria-label="web10 social home" className="flex min-h-11 items-center gap-3 rounded-sm">
-            <SocialMark className="h-10 w-10" />
-            <span className="font-display text-lg font-medium tracking-tight">web10 social</span>
+          <Link to="/join" aria-label="web10 social home" className="flex min-h-11 items-center gap-2 rounded-sm">
+            <ThemeMark className="size-6" />
+            <SocialWordmark className="text-lg" accentClassName="text-brand-300" />
           </Link>
           <nav aria-label="Account" className="flex items-center gap-2">
             <Button asChild variant="ghost" size="icon" className="min-h-11 min-w-11">
@@ -55,7 +56,7 @@ export default function JoinScreen({ onLogin }: { onLogin: () => void }) {
 
             <div className="overflow-hidden rounded-lg border border-border bg-surface">
               <div className="flex items-center gap-4 border-b border-border bg-linear-to-br from-brand-muted/50 to-surface p-6 sm:p-8">
-                 <SocialMark className="h-16 w-16" />
+                <SocialConversationIllustration />
                 <div>
                   <p className="text-xs font-medium uppercase tracking-widest text-brand-300">Not just a feed</p>
                   <h2 className="mt-2 font-display text-2xl font-medium">A whole place to belong.</h2>

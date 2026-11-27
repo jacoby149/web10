@@ -20,6 +20,7 @@ import { PersonalProfileContext } from '@/context/PersonalProfileContext';
 import DockGlass from './DockGlass';
 import { SignInPrompt } from '@/components/shared/SignInPrompt';
 import { ThemeMark } from '@/components/shared/ThemeMark';
+import { SocialWordmark } from '@/components/shared/SocialWordmark';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -88,9 +89,7 @@ function HeaderBrand() {
   return (
     <span className="inline-flex shrink-0 items-center gap-1 min-[360px]:gap-2">
       <ThemeMark className="size-5 min-[360px]:size-6 md:size-7" />
-      <span data-testid="social-header-wordmark" className="whitespace-nowrap font-display text-base/none font-bold tracking-tight text-social-header-ink min-[360px]:text-xl/none md:text-2xl/none">
-        web<span className="text-social-header-accent">10</span> <span>social</span>
-      </span>
+      <SocialWordmark className="text-base text-social-header-ink min-[360px]:text-xl md:text-2xl" accentClassName="text-social-header-accent" />
     </span>
   );
 }

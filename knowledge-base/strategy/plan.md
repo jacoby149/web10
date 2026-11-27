@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.32.54 local] **One keys-and-script Social identity** — horizontal in Social and Join chrome, stacked on the catalog and install icons, keys only in the browser favicon. The conversation pair remains Join illustration; no app rename or device refresh claim.
+
 - [✓ 6.32.40 local] **Larger Social header wordmark with keys** — pair the theme-aware keys mark with larger type and keep the blue `10`. Fit the full lockup and controls on narrow phones without changing the installed app artwork.
 
 - [✓ 6.32.38 local] **Wordmark-only Social headers** — keep the blue `10` on desktop and phone; remove the tiny illustration from the headers without changing other brand surfaces.
