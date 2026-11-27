@@ -11,6 +11,20 @@ from realism_contract import FORMAT, identity, sha
 
 
 class RestoreTests(unittest.TestCase):
+    def test_untimed_dau_oracle_removes_only_the_exact_outer_client_timeout(self):
+        env = {'DAU_ORACLE_BATCH_UNTIMED': '1'}
+        args = ('run', '--rm', '-T', '--no-deps', 'api', 'uv', 'run', 'python',
+            '/research/dau_sustain_reference.py', '/dau-reader-oracles')
+        with patch.object(restore.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, b'', b'')) as call:
+            restore.command(['docker'], env, *args, timeout=7200)
+            self.assertIsNone(call.call_args.kwargs['timeout'])
+            restore.command(['docker'], {}, *args, timeout=7200)
+            self.assertEqual(call.call_args.kwargs['timeout'], 7200)
+            restore.command(['docker'], env, *args[:-1], '/different', timeout=7200)
+            self.assertEqual(call.call_args.kwargs['timeout'], 7200)
+            restore.command(['docker'], env, *args, timeout=600)
+            self.assertEqual(call.call_args.kwargs['timeout'], 600)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

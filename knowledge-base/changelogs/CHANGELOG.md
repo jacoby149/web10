@@ -1,3 +1,6 @@
+6.32.54 || 27.11.2026
+research: allow the admitted 150-reader canonical DAU setup worker to finish beyond the old two-hour outer client timeout. Keep the per-reader packets, original oracle source binding, native statement limits, and owned lease unchanged.
+
 6.32.53 || 27.11.2026
 research: enforce the DAU run's 60-second completion-collapse stop during measured windows, counting actual successful in-window completions rather than offers or HTTP errors. Bank the stop trace without inferring a physical bottleneck from the completion counter alone.
 
