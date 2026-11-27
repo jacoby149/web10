@@ -564,8 +564,10 @@ Both phone and desktop More include public ecosystem links before Coming soon:
 immediately below opens Social's canonical listing. Open both in a new tab so
 the reader can return to the current Social view; keep role gates unchanged.
 
-Social's top bar stays ice blue in Light mode. On desktop and phones in
-Dark mode it uses the desktop sidebar charcoal, with light ink and raised control
+Social's top bar uses the white surface token in Light mode, with neutral
+control fills and a thin bottom divider on desktop and phones. Blue stays in
+the wordmark accent, not the bar fill. On desktop and phones in Dark mode
+the top bar uses the desktop sidebar charcoal, with light ink and raised control
 fills, so the bar doesn't glare against the sidebar. Desktop uses the same
 64px height as marketing; the phone bar is a slightly more compact 60px.
 The desktop wordmark strip meets the bar without a vertical seam and leaves 12px before the first
@@ -863,10 +865,12 @@ Media islands retain dark background and text steps even in Light mode.
 Derive ambient glows from the blue fill. Do not use the text steps behind
 white action labels; hover and pressed gradients stay within the fill steps.
 
-Social's default top-bar tokens are `--color-social-header: #b5d4dc`,
-`--color-social-header-ink: #090c22`, `--color-social-header-tint: #d6e8ed`,
-`--color-social-header-tint-hover: #e3edf8`, and `--color-social-header-accent: #064eae`
-for the `10` in the wordmark. Dark overrides those values at every width with
+Social's Light top bar uses `surface` for `--color-social-header`, `foreground`
+for `--color-social-header-ink`, `elevated` for `--color-social-header-tint`,
+and `elevated` mixed with 30% `border` for `--color-social-header-tint-hover`.
+The bottom divider uses `border`, and `--color-social-header-accent` uses
+`brand-400` for the `10` in the wordmark. Dark overrides the header fill, ink,
+tint, hover tint, and accent at every width with
 the sidebar charcoal (`#1b2026`), the theme foreground, `#36414d`, `#414e5c`, and the dark `brand-300`
 respectively. These are not feed or menu tokens.
 

@@ -439,7 +439,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
-        <header data-testid="topbar-mobile" className="md:hidden flex shrink-0 items-center justify-between px-3 h-15 bg-social-header sticky top-0 z-20 gap-1">
+        <header data-testid="topbar-mobile" className="social-mobile-header md:hidden flex shrink-0 items-center justify-between px-3 h-15 bg-social-header sticky top-0 z-20 gap-1">
           <HeaderBrand />
           <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"

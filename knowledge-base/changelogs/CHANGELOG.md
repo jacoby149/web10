@@ -1,3 +1,6 @@
+6.32.63 || 27.11.2026
+fix(social): replace the Light-mode ice-blue top bar with a white surface, neutral controls, and a thin divider on desktop and phones. Keep the blue wordmark accent and Dark chrome unchanged.
+
 6.32.62 || 27.11.2026
 research: make one independent raw-history key scan for the complete DAU oracle target set, then check each certified reader's full tally counts under their own canonical history and policy. Keep this verification separate from the indexed pairs candidates used by the treatment.
 

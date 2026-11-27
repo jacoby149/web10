@@ -294,6 +294,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.63 local] **Neutral Light Social top bar** — the phone header and both desktop header segments use the white surface and a thin neutral divider. Chromium verifies both palettes and the blue wordmark accent; leave Dark chrome, the dock, and other apps unchanged.
+
 - [✓ 6.32.60 local] **Keys-only Social app icon** — compare the mark at the 56px tile size, keep the centered keys in the Android maskable safe circle, and leave the favicon unchanged. Device refresh remains unverified.
 
 - [✓ 6.32.59 local] **Pure-black Social app icon** — use opaque `#000000` in the catalog and install exports; verify the existing Android maskable lockup stays inside the safe circle and the favicon stays unchanged. Device refresh remains unverified.
