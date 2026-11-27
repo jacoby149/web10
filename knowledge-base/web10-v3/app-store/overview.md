@@ -139,7 +139,7 @@ decision and its rejects are in `../../strategy/decisions.md` (D49).
 
 ## The PWA Manifest Is the Store's Identity Source
 
-The store shows each app's **name and icon from its PWA manifest**, not
+The store normally shows each app's **name and icon from its PWA manifest**, not
 from the host:
 
 1. The app ships `manifest.json` at its own path —
@@ -176,7 +176,9 @@ The marketing site's store page (`marketing-ui`, `/app-store`) has two
 layers:
 
 **Featured (above the grid).** web10 social is the only featured app and
-keeps its **Flagship** badge. Its count comes from its registration, matched
+keeps its **Flagship** badge. The featured card and canonical detail use the
+bundled blue-keys-and-white-`social` icon, matching the install artwork.
+Its count comes from its registration, matched
 by display name first, then canonical host. Its registered copy is omitted
 from Browse to avoid duplication. **web10 hub** appears once in Browse with
 its existing keys icon and no Core badge. Its canonical registration supplies

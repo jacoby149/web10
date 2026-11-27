@@ -53,7 +53,8 @@ eight sound/twenty existing browser journeys pass; combined PR/device/rollout
 checks are separate gates.
 **Owns:** shared discover video renderers/sound store/playback lease cleanup, social Shorts sound/preview affordance, focused tests and native screenshot fixtures; serialized KB updates. No Music mute coupling, storage, auth, API, SDK, third-party iframe control or silent editor/probe change.
 - [✓ 6.5.0 local] **One app-wide video mute choice, default on** — default sound-on with in-memory-only carry across Posts/Video/Shorts and first-party video renderers, reset on reload; Music remains independent. Blocked audible autoplay offers play without auto-muting, state changes do not resume paused media, and retired leases do not block future previews. Hide the still Shorts badge when actual preview controls are visible, including touch dwell. All 113 focused video/379 pre-integration marketing tests, both builds, eight sound and twenty existing native-browser journeys pass; inspected desktop/375px captures. Full social/combined PR/physical-phone/deployment gates remain.
-- [ ] **Connected sound and Shorts preview acceptance** — after reviewed deployment, verify audible default-on play or a functional browser-required play gesture on physical Android Chrome and iOS Safari/PWA. Mute on Posts, navigate Video→Shorts, unmute, revisit, reload to sound-on, and confirm Music's separate sound state. Exercise direct-file/HLS, touch-dwell single controls, pause and one-player ownership without stale resume. Gates: 6.5.0, device/account/media access and normal rollout; no autoplay-bypass, saved preference or production writes implied. Acceptance: dated device/browser receipts, actual audible output, no duplicate marker and explicit browser limits.
+- [✓ 6.32.55 local] **Muted video on fresh load** — reverse the initial default without changing the shared app-lifetime choice, control semantics or Music. Prove clean-start mute, explicit unmute across tabs and muted reset after reload.
+- [ ] **Connected sound and Shorts preview acceptance** — after reviewed deployment, verify silent initial video playback on physical Android Chrome and iOS Safari/PWA. Unmute on Posts, navigate Video→Shorts and verify sound or a functional browser-required play gesture; revisit and reload to muted, and confirm Music's separate sound state. Exercise direct-file/HLS, touch-dwell single controls, pause and one-player ownership without stale resume. Gates: 6.32.55, device/account/media access and normal rollout; no autoplay-bypass, saved preference or production writes implied. Acceptance: dated device/browser receipts, silent arrival and actual audible output after unmute, no duplicate marker and explicit browser limits.
 
 ### Lane: release-6.2-promotion
 **Owns:** release-ancestry reconciliation and focused changelog/plan records; no runtime security-policy or production-setting changes.
@@ -277,6 +278,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 - [✓ 6.32.10 local] **Hub in App Store Browse** — one searchable, unbadged Hub card; Social alone is featured. Preserve Hub's keys icon, registration count and link.
 
+- [✓ 6.32.55 local] **Marketing quick-links page** — update the six destinations' hierarchy and wording without changing configured origins. Give the existing marketing navbar entry a visible Quick links label and list icon. Verify standalone desktop/375px Light and Dark, plus same-tab navigation and Back.
+
 - [✓ 6.32.11 local] **Social conversation pair** — use the lower two-person crop on white for the featured listing and canonical detail, and transparent for Social and Join chrome. Leave Hub and installed icons alone.
 - [✓ 6.31.1 local] **MK-REVOLUTION-STORE-ART** — three distinct app windows connect to one data key. Keep the shared intro layout, catalog, and other page illustrations unchanged.
 - [ ] **MK-CLASSIC-03 — observation window (Phase 3)** — 2–4 weeks, no flag: PostHog funnel comparison `/revolution` vs `/` (views, CTA clicks, signups), recorded against the Phase 0 baseline. Exit: `/revolution` signups ≥ `/` at equal-or-lower traffic → Phase 4; clearly worse → one copy/CTA iteration + one more window; too thin → extend once, then observational-only (stated plainly, no fake significance).
@@ -284,6 +287,14 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 - [ ] **MK-CLASSIC-05 — decision + ship (Phase 5)** — single end-of-window read; winner renders at `/` (flag retired, code simplified to the winner); loser stays at `/revolution` if it has ongoing value or is retired; outcome + decision recorded in `decisions.md` (new D number), lane ticked. Optional follow-up only if classic wins: a second experiment splitting pitch vs ask (classic hero, current Explore-only CTA) to attribute story vs signup-ask.
 
 ### Lane: social-appearance
+
+- [✓ 6.32.55 local] **Final Social icon and upright headers** — use blue keys and white lowercase `social` in the catalog and install artwork; the normal Dark and Light headers retain themed keys and an accented `10` next to uniform upright type. Verify the narrow header and Android maskable safe zone; no device-refresh claim.
+
+- [✓ 6.32.55 local] **Social More ecosystem links** — show What is web10 and the exact Social App Store review destination in order on desktop and phone, with role gates and current view unchanged.
+
+- [✓ 6.32.54 local] **One keys-and-script Social identity** — the capital-S outline is font-independent, the full lockup fits beside phone controls, the catalog matches the install icon, and the Android export keeps all artwork inside its maskable safe circle. Leave Hub and existing routing alone.
+
+- [✓ 6.32.54 local] **Social chrome follow-up** — Discover/Following get a Light-only outer outline with internal dividers intact, Watch comments default open without altering other thread surfaces, and the personal identity stays first below search even when groups are filtered. Preview, cancellation and explicit confirmation retain their existing authority.
 
 - [✓ 6.32.40 local] **Larger Social header wordmark with keys** — use the canonical Light/Dark keys alongside the larger wordmark on desktop and phones. Keep the signed-out 320px header usable and leave Join, App Store, launcher and splash artwork unchanged.
 

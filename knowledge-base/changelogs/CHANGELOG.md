@@ -1,5 +1,14 @@
 6.32.54 || 27.11.2026
 research: allow the admitted 150-reader canonical DAU setup worker to finish beyond the old two-hour outer client timeout. Keep the per-reader packets, original oracle source binding, native statement limits, and owned lease unchanged.
+6.32.55 || 27.11.2026
+social + marketing: use blue keys beside upright white lowercase `social` for the square catalog and install icon. Use one upright `web10 social` line in Social and Join headers, retaining the theme-aware keys and blue `10`. Keep the keys-only favicon and refresh the PWA shell cache.
+social: add What is web10 and Rate us on the App Store to desktop and phone More, with the rating link pointing directly to Social's listing.
+video: the shared player starts muted on every fresh load and reload. Explicit unmute still carries across in-app tabs; Music remains independently controlled.
+marketing: rebuild `/links` as a standalone quick-launch page with Social first, current Hub and permissions copy, a separate developer group and normal same-tab links. Label the marketing navbar entry Quick links and use a list icon.
+
+6.32.54 || 27.11.2026
+social + marketing: use one keys-and-script web10 Social identity: horizontal in the Social and Join headers, stacked in the App Store and install icons, and keys alone in the favicon. Keep the conversation pair as Join illustration and refresh the PWA shell cache.
+social: outline the Light-mode Posts column, open comments by default on Watch with a URL-owned collapse state, and make switching back to personal identity explicit below chooser search without skipping confirmation.
 
 6.32.53 || 27.11.2026
 research: enforce the DAU run's 60-second completion-collapse stop during measured windows, counting actual successful in-window completions rather than offers or HTTP errors. Bank the stop trace without inferring a physical bottleneck from the completion counter alone.

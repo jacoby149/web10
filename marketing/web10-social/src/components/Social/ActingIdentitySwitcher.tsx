@@ -199,9 +199,22 @@ export default function ActingIdentitySwitcher({ personalName, personalAvatar, o
     </button>
     {open && mountPanel(<section ref={panel} role="dialog" aria-modal={mobile} aria-label="Choose acting identity" className="fixed inset-x-0 bottom-0 z-50 max-h-[80dvh] overflow-y-auto rounded-t-lg border border-border bg-popover p-4 shadow-lg [&_button]:min-h-11 [&_button]:min-w-11 md:absolute md:inset-x-auto md:right-0 md:bottom-auto md:top-full md:mt-2 md:w-80 md:rounded-lg" data-testid="acting-identity-panel">
       <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-semibold">Acting identity</h2><Button type="button" variant="ghost" size="icon" aria-label="Close identities" onClick={() => { console.log('[social-identity] picker closed without applying'); closePicker(); }}><X className="h-4 w-4" /></Button></div>
-      <button type="button" aria-pressed={!pending} onClick={() => { setPending(undefined); console.log('[social-identity] personal choice previewed'); }} className="mb-3 flex min-h-11 w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-elevated focus-visible:ring-2 focus-visible:ring-ring"><span className="flex min-w-0 flex-1 items-center gap-2"><Avatar className="h-8 w-8" aria-hidden="true">{personalAvatar && <AvatarImage src={personalAvatar} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{(personalName || token.username)?.charAt(0).toUpperCase()}</AvatarFallback></Avatar><span className="min-w-0"><span className="block truncate text-sm">{token.username}</span><span className="block text-xs text-muted-foreground">Personal identity</span></span></span>{!pending && <Check className="h-4 w-4 text-brand-300" />}</button>
+      <p className="mb-3 break-words text-sm text-muted-foreground">Currently posting as <span className="font-medium text-foreground">{name}</span></p>
       <label className="block text-xs text-muted-foreground" htmlFor={searchId}>Search eligible groups</label>
       <input ref={input} id={searchId} value={query} onChange={(event) => setQuery(event.target.value)} className="my-2 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      <button type="button" data-testid="personal-identity-option" aria-pressed={!pending}
+        onClick={() => { setPending(undefined); console.log('[social-identity] personal choice previewed'); }}
+        className="mb-2 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-elevated focus-visible:ring-2 focus-visible:ring-ring">
+        <Avatar className="size-8 shrink-0" aria-hidden="true">
+          {personalAvatar && <AvatarImage src={personalAvatar} alt="" />}
+          <AvatarFallback className="bg-brand-muted text-brand-300">{(personalName || token.username)?.charAt(0).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{selected ? 'Switch to personal identity' : token.username}</span>
+          <span className="block truncate text-xs text-muted-foreground">{selected ? token.username : 'Personal identity'}</span>
+        </span>
+        {!pending && <Check aria-hidden="true" className="size-4 shrink-0 text-brand-300" />}
+      </button>
       {loading && <div className="h-16 animate-pulse rounded-lg bg-muted" aria-label="Loading identities" />}
       {error && <div role="alert" className="py-3 text-sm text-danger"><p>{error}</p><Button variant="ghost" onClick={() => setRetry((value) => value + 1)}>Retry</Button></div>}
       {!loading && !error && !identities.length ? <div className="my-3 rounded-lg border border-border bg-elevated p-3">

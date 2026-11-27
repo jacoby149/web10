@@ -15,7 +15,7 @@ const server = spawn('bunx', ['vite', '--host', '127.0.0.1', '--port', String(po
 let browser;
 const key = 'web10-marketing:theme';
 const appUrl = 'https://social.web10.app';
-const socialIconBlue = [4, 103, 242, 255];
+const socialIconCharcoal = [27, 32, 38, 255];
 const activeUsers = { users_1d: 0, users_30d: 0, users_90d: 0, users_1y: 0 };
 const receipts = [];
 const waitTheme = (page, value) => page.waitForFunction(theme => document.documentElement.dataset.theme === theme, value);
@@ -187,18 +187,28 @@ async function verifyLogo(page, variant = 'white') {
   assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
   assert.equal(await active.evaluate(el => el.complete && el.naturalWidth > 0), true);
 }
-async function verifyCatalogIcon(locator, expectedCorner) {
-  const corner = await locator.evaluate(async el => {
+async function verifyCatalogIcon(locator, expectedCorner, socialLockup = false) {
+  const { corner, blueOnLeft, whiteOnRight } = await locator.evaluate(async el => {
     const image = new Image();
     image.src = el.getAttribute('src');
     await image.decode();
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 1;
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
     const context = canvas.getContext('2d');
-    context.drawImage(image, 0, 0, 1, 1, 0, 0, 1, 1);
-    return [...context.getImageData(0, 0, 1, 1).data];
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let blueOnLeft = 0, whiteOnRight = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const x = (i / 4) % canvas.width;
+      const [r, g, b] = [pixels[i], pixels[i + 1], pixels[i + 2]];
+      if (x < canvas.width * .42 && r === 168 && g === 206 && b === 255 && pixels[i + 3] === 255) blueOnLeft++;
+      if (x > canvas.width * .43 && r === 250 && g === 250 && b === 250 && pixels[i + 3] === 255) whiteOnRight++;
+    }
+    return { corner: [...pixels.subarray(0, 4)], blueOnLeft, whiteOnRight };
   });
   assert.deepEqual(corner, expectedCorner);
+  if (socialLockup) assert.ok(blueOnLeft > 100 && whiteOnRight > 100, 'Social icon renders blue keys beside white type');
 }
 async function readInteriorPalette(page) {
   return page.getByRole('heading', { level: 1 }).first().evaluate(heading => {
@@ -358,7 +368,7 @@ try {
         if (name === 'app-store') {
           await page.getByTestId('browse-card-0').waitFor();
           assert.equal(await page.getByTestId('plug-slot-1').count(), 0);
-          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-conversation-pair.png"]'), socialIconBlue);
+          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-app-icon.png"]'), socialIconCharcoal, true);
           await verifyCatalogIcon(page.getByTestId('browse-section').getByRole('img', { name: 'web10 hub' }), [9, 9, 11, 255]);
           const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
             const css = getComputedStyle(el);
@@ -371,7 +381,7 @@ try {
         } else if (name !== 'home') {
           assert.deepEqual(await readInteriorPalette(page), interiorPalette, `${name} must match the shared interior in ${mode}`);
         }
-        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-conversation-pair.png"]'), socialIconBlue);
+        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-app-icon.png"]'), socialIconCharcoal, true);
         if (['app-store', 'freedom', 'docs', 'appearance'].includes(name)) {
           const art = await readInteriorIntro(page);
           assert.equal(art.kind, name === 'app-store' ? 'store' : name);
@@ -432,6 +442,32 @@ try {
           assert.equal(new URL(page.url()).pathname, '/docs/terms');
         }
       }
+      if (width < 1024) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+      const entry = page.getByRole('link', { name: 'Quick links', exact: true });
+      await entry.waitFor();
+      await capture(page, `quick-links-navbar-${mode}-${label}`);
+      await entry.click();
+      await page.waitForURL(`${origin}/links`);
+      const quickLinks = page.getByTestId('quick-links');
+      await quickLinks.getByRole('heading', { name: 'Explore web10', exact: true }).waitFor();
+      assert.equal(await page.getByRole('navigation', { name: 'main navigation', exact: true }).count(), 0);
+      await verifyLogo(page, mode === 'dark' ? 'white' : 'dark');
+      assert.deepEqual(await readInteriorPalette(page), interiorPalette);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      const actions = quickLinks.getByRole('region', { name: 'Apps and information' }).getByRole('link');
+      assert.equal(await actions.first().getAttribute('href'), process.env.VITE_SOCIAL_URL || 'https://social.web10.app');
+      assert.equal(await actions.nth(2).getAttribute('href'), process.env.VITE_AUTH_URL || 'https://auth.web10.app');
+      for (const action of await quickLinks.getByRole('link').all()) {
+        assert.ok((await action.boundingBox()).height >= 44);
+      }
+      await capture(page, `quick-links-${mode}-${label}`);
+      await quickLinks.getByRole('link', { name: /^App Store/ }).click();
+      await page.waitForURL(`${origin}/app-store`);
+      await page.getByRole('navigation', { name: 'main navigation', exact: true }).waitFor();
+      await page.goBack();
+      await quickLinks.waitFor();
+      receipts.push({ width, mode, quickLinks: 'standalone, same-tab, Back and theme verified' });
+      await page.goto(`${origin}/appearance`, { waitUntil: 'networkidle' });
     }
     assert.deepEqual(errors, []);
     receipts.push({ width, realNavigation: true, keyboardRadios: true, liveDevice: true, overrideReload: true, crossTab: true, paletteAndChrome: true, interiorTextAA: true, transparentThemeLogo: true, errors });
@@ -486,7 +522,7 @@ try {
     receipts.push({ width, fixedArtPixels: ['hero', 'stats'], independentOfDeviceMotionPreference: true });
     await reducedPage.close();
   }
-  for (const width of [768, 1280]) {
+  for (const width of [768, 1024, 1280]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: 'light', reducedMotion: 'reduce' });
     await isolate(context);
     const page = await context.newPage();

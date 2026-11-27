@@ -6,9 +6,9 @@ export function ThemeMark({ className }: { className: string }) {
   </span>;
 }
 
-/** The rounded, blue-backed Social conversation tile used in app chrome. */
-export function SocialMark({ className }: { className: string }) {
-  return <img src="/social-conversation-pair-blue.png" alt="" className={`${className} shrink-0 rounded-sm object-contain`} data-testid="social-header-mark" />;
+/** Join illustration, not part of the Social brand lockup. */
+export function SocialConversationIllustration() {
+  return <img src="/social-conversation-pair-blue.png" alt="" className="size-16 shrink-0 rounded-sm object-contain" data-testid="social-conversation-illustration" />;
 }
 
 /** The same bundled icon used by the manifest, for the in-app install prompt. */

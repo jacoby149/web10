@@ -331,7 +331,7 @@ describe('AppStore page', () => {
     });
     expect(screen.queryByTestId('plug-slot-1')).not.toBeInTheDocument();
     expect(within(screen.getByTestId('plug-slot-0')).getByRole('img', { name: 'web10 social' }))
-      .toHaveAttribute('src', '/brand/social-conversation-pair.png');
+      .toHaveAttribute('src', '/brand/social-app-icon.png');
     expect(within(screen.getByTestId('browse-section')).getByRole('img', { name: 'web10 hub' }))
       .toHaveAttribute('src', '/brand/icon-192.png');
   });

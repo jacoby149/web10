@@ -372,8 +372,8 @@ export default function WatchScreen() {
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [reposted, setReposted] = useState(false);
-  // The comment thread's open state (the "Comment" action toggles it).
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  // Watch shows one video. Its thread is open unless this URL opts out.
+  const commentsOpen = searchParams.get('comments') !== 'closed';
   // The comment thread's group scope — memoized so its array identity is
   // stable across renders. A fresh `[getDiscoverGroupId()]` literal here would
   // be a new array every render, and the thread's load effect (keyed on the
@@ -772,9 +772,9 @@ export default function WatchScreen() {
   // ── Queue navigation (a new history entry — back steps through the queue) ──
   const openQueuePost = useCallback((q: PostRecord) => {
     const params = new URLSearchParams(searchParams);
-    // Carry the ranking + relatedness; drop the playback position (a new video
-    // starts at 0).
+    // Carry the ranking + relatedness; a new video starts at 0 with comments open.
     params.delete('t');
+    params.delete('comments');
     navigate(`/watch/${q._id}?${params.toString()}`);
   }, [searchParams, navigate]);
 
@@ -919,14 +919,18 @@ export default function WatchScreen() {
           commentsOpen={commentsOpen}
           onToggleReaction={(kind) => void handleToggleReaction(kind)}
           onToggleRepost={handleRepost}
-          onComment={() => setCommentsOpen((o) => !o)}
+          onComment={() => setSearchParams(previous => {
+            const params = new URLSearchParams(previous);
+            if (commentsOpen) params.set('comments', 'closed');
+            else params.delete('comments');
+            return params;
+          })}
           onShare={handleShare}
           shared={copied}
           testId="watch"
         />
 
-        {/* The comment thread — the "Comment" action opens the shared threaded
-            comments (the Facebook/Instagram model, paged at both levels). */}
+        {/* The shared paged thread is open by default; Comment toggles it. */}
         {commentsOpen && (
           <div className="border-t border-border pt-3" data-testid="watch-comments">
             <CommentThread

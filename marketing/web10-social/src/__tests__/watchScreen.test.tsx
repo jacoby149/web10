@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
 
@@ -106,12 +106,18 @@ vi.mock('@/data/wapi', () => ({
   resetWapi: vi.fn(),
 }));
 
+function WatchHistory() {
+  const { search } = useLocation();
+  const navigate = useNavigate();
+  return <><output data-testid="watch-query">{search}</output><button onClick={() => navigate(-1)}>History back</button></>;
+}
+
 async function renderWatch(path = '/watch/post-cur') {
   const { default: WatchScreen } = await import('@/components/Watch/WatchScreen');
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/watch/:postId" element={<WatchScreen />} />
+        <Route path="/watch/:postId" element={<><WatchScreen /><WatchHistory /></>} />
         {/* The repost seam navigates here (the app-level composer lives on the
             feed route) — a marker so the navigation is assertable. */}
         <Route path="/feed" element={<div data-testid="feed-route" />} />
@@ -288,6 +294,26 @@ describe('WatchScreen (the watch page)', () => {
     await waitFor(() => expect(screen.getByTestId('watch-actions')).toBeInTheDocument());
     expect(screen.getByTestId('dislike-button')).toBeInTheDocument();
     expect(screen.getByTestId('repost-button')).toBeInTheDocument();
+  });
+
+  it('opens comments by default and lets Back restore the thread without clearing playback position', async () => {
+    await renderWatch('/watch/post-cur?t=12');
+    await screen.findByTestId('watch-comments');
+    fireEvent.click(screen.getByTestId('comment-button'));
+    expect(screen.queryByTestId('watch-comments')).not.toBeInTheDocument();
+    expect(screen.getByTestId('watch-query')).toHaveTextContent('?t=12&comments=closed');
+    fireEvent.click(screen.getByRole('button', { name: 'History back' }));
+    expect(await screen.findByTestId('watch-comments')).toBeInTheDocument();
+    expect(screen.getByTestId('watch-query')).toHaveTextContent('?t=12');
+  });
+
+  it('restores a collapsed thread from a direct URL and lets the reader reopen it', async () => {
+    await renderWatch('/watch/post-cur?comments=closed');
+    const toggle = await screen.findByTestId('comment-button');
+    expect(screen.queryByTestId('watch-comments')).not.toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(await screen.findByTestId('watch-comments')).toBeInTheDocument();
+    expect(screen.getByTestId('watch-query')).toBeEmptyDOMElement();
   });
 
   it('tapping the dislike thumb reports the dislike reaction to the data layer', async () => {
