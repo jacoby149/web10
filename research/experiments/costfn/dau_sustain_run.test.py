@@ -179,6 +179,17 @@ class ExpectedPreload(unittest.TestCase):
             run.preload_expected(root, dict(restore=dict(evidence={})), actions)
             self.assertEqual(actions.expected, {})
 
+    def test_saved_billboards_use_the_applied_reference(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.artifacts(root)
+            for name in ('ordinary', 'fixture'):
+                (root / ('reference-' + name) / 'expected-billboards.json').write_text(
+                    json.dumps(dict(rows=[dict(ad_mode='node')])))
+            actions = Mock(expected={})
+            run.preload_expected(root, {'read-setup': {}, 'billboard-fixtures': {}}, actions)
+            self.assertEqual(actions.expected['ordinary']['rows'], [dict(ad_mode='node')])
+
     def test_saved_read_setup_missing_an_artifact_refuses(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -187,6 +198,27 @@ class ExpectedPreload(unittest.TestCase):
             actions.expected = {}
             with self.assertRaisesRegex(ValueError, 'without its fixture reference artifact'):
                 run.preload_expected(root, {'read-setup': dict(evidence={})}, actions)
+
+
+class ParquetInfrastructure(unittest.TestCase):
+    def test_fresh_metadata_is_bound_to_the_current_store_without_settling_again(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'input').mkdir()
+            (root / 'input/manifest.json').write_text('{}')
+            action = Mock(root=root)
+            state = dict(canonical_generation='g', canonical_content_sha256='bytes')
+            with patch.object(run, 'setup') as setup, patch.object(run, 'certificates') as cert, \
+                    patch.object(run.modern, 'Session') as session:
+                setup.infrastructure.return_value = 'g'
+                cert.fingerprint.return_value = state
+                self.assertIs(run.Actions.base_infrastructure(action), cert.verify.return_value)
+                setup.infrastructure.assert_called_once_with(root, 'dau-parquet', initial=True, settle=False)
+                cert.bind.assert_called_once_with(root, session.return_value, 'g', dict(
+                    kind='DAU_VERIFIED_PARQUET_REBUILT',
+                    input_manifest_sha256=run.digest(root / 'input/manifest.json'),
+                    canonical_content_sha256='bytes'))
+                self.assertEqual(run.read(root / 'before-projection-fingerprint.json'), state)
 
 
 class StoreCounts(unittest.TestCase):

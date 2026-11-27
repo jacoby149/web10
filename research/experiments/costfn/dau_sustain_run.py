@@ -26,6 +26,7 @@ import engagement_cells as cells
 import engagement_certificates as certificates
 import engagement_composition as contract
 import engagement_modern as modern
+import engagement_setup as setup
 import engagement_window as window
 import hybrid_k20_full_store as full_store
 import hybrid_k20_run_current as current
@@ -59,6 +60,20 @@ PHASE_KEYS = ('CAL', 'W', 'A', 'B')
 class Actions(full_store.Actions):
     """The banked full-store setup chain; the DAU test measures the indexed
     complete path, so no hybrid/projected overlay is admitted here."""
+
+    def base_infrastructure(self):
+        # A verified Parquet import has canonical tables, not the prepared
+        # snapshot's host-local metadata, counters or fanout state.
+        generation = setup.infrastructure(self.root, 'dau-parquet', initial=True, settle=False)
+        session = modern.Session(self.root)
+        state = certificates.fingerprint(session)
+        if state['canonical_generation'] != generation:
+            raise ValueError('canonical generation changed during DAU infrastructure build')
+        save(self.root / 'before-projection-fingerprint.json', state)
+        certificates.bind(self.root, session, generation, dict(kind='DAU_VERIFIED_PARQUET_REBUILT',
+            input_manifest_sha256=digest(self.root / 'input/manifest.json'),
+            canonical_content_sha256=state['canonical_content_sha256']))
+        return certificates.verify(self.root)
 
 
 def admission_gate(approval):
@@ -736,8 +751,9 @@ def preload_expected(root, stored_steps, actions):
     (the empty doc_groups links insert stopped attempt 12 exactly that way)."""
     if 'read-setup' not in stored_steps:
         return
+    applied = 'billboard-fixtures' in stored_steps
     for name in ('ordinary', 'fixture'):
-        path = root / ('reference-' + name) / 'expected.json'
+        path = root / ('reference-' + name) / ('expected-billboards.json' if applied else 'expected.json')
         if not path.is_file():
             raise ValueError('saved read-setup without its ' + name + ' reference artifact')
         actions.expected[name] = read(path)
