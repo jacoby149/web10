@@ -124,9 +124,18 @@ p.serve.main_sql = main
 p.compile_query = compile_query
 f.documents.create_as = publish
 
+observe_utilization = None
+if f.admission.get('dau_calibration_utilization') is True:
+    from dau_calibration_diagnostics import api_observer
+
+    f.observation.FIELDS += ('phases_ms', 'unattributed_handler_ms')
+    observe_utilization = api_observer(f.ROOT, p.ch._get_client)
+
 
 async def application(scope, receive, send):
     if scope['type'] == 'http':
+        if observe_utilization is not None:
+            observe_utilization()
         method, path = scope['method'], scope['path']
         if method == 'POST' and path == '/v3/create':
             token = inside_publication.set(True)
