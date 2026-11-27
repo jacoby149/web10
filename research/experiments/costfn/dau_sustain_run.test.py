@@ -959,9 +959,13 @@ class DiverseCellPolicy(unittest.TestCase):
         original.assert_called_once()
 
     def test_unique_canonical_prepare_batches_full_keys_but_collision_still_partitions(self):
-        calls = []
+        calls, inside = [], []
         endpoint = SimpleNamespace(ch=SimpleNamespace(execute_query=lambda sql: calls.append(sql)))
-        bound = Mock(side_effect=lambda rows, reader, groups: (endpoint.ch.execute_query('SELECT trusted'), rows)[1])
+        def canonical(rows, reader, groups):
+            inside.append(arm_f_prepare.inside_batched_prepare.get())
+            endpoint.ch.execute_query('SELECT trusted')
+            return rows
+        bound = Mock(side_effect=canonical)
         endpoint._canonical_prepare_docs = bound
         arm_f_prepare.install(endpoint, batch_unique_ids=True)
         first, second = dict(author_key='a', doc_id='one'), dict(author_key='b', doc_id='two')
@@ -972,6 +976,8 @@ class DiverseCellPolicy(unittest.TestCase):
         self.assertIn("WHERE (author_key,doc_id) IN (('a','one'),('b','two'))", calls[0])
         endpoint._canonical_prepare_docs([first, dict(second, doc_id='one')], 'reader', scopes)
         self.assertEqual(len(calls), 3)
+        self.assertEqual(inside, [True, False, False])
+        self.assertFalse(arm_f_prepare.inside_batched_prepare.get())
         self.assertTrue(calls[1].endswith("WHERE author_key='a'"))
         self.assertTrue(calls[2].endswith("WHERE author_key='b'"))
 

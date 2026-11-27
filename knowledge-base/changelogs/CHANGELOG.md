@@ -1,3 +1,6 @@
+6.32.73 || 27.11.2026
+research: avoid feed parser cascades for the server's precise batched DAU prepare lookups, retaining live certification and compiled native policy. Cache the tallied page SQL only after exact route and target checks. Follow-up calibration profiling, not timed capacity evidence.
+
 6.32.72 || 27.11.2026
 research: bound reuse of deterministic SQL generation within the isolated DAU cell. Key canonical compile on the complete live-authorized inputs and cache the read-copy rewrite only for exact bound SQL. Keep native authorization, query execution and response contents uncached.
 

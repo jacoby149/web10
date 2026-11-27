@@ -13,6 +13,9 @@ from fastapi import HTTPException
 from sqlglot import exp
 
 
+inside_batched_prepare = ContextVar('F_batched_canonical_prepare', default=False)
+
+
 def install(endpoint, *, project=None, batch_unique_ids=False):
     canonical = endpoint._canonical_prepare_docs
     execute = endpoint.ch.execute_query
@@ -51,9 +54,11 @@ def install(endpoint, *, project=None, batch_unique_ids=False):
             # Its server-built permission SQL still runs before the full-key
             # narrowing, and its missing/ambiguous authority checks still run.
             token = selected_pairs.set(sorted((row['author_key'], row['doc_id']) for row in rows))
+            internal = inside_batched_prepare.set(True)
             try:
                 return canonical(rows, reader, readable)
             finally:
+                inside_batched_prepare.reset(internal)
                 selected_pairs.reset(token)
         result = [None] * len(rows)
         for author, indexed in partitions.items():

@@ -48,6 +48,7 @@ composition.tally.receipt['parts_sha256'] = proof['parts_sha256']
 ordinary_compile = p.compile_query
 ordinary_publish = f.documents.create_as
 inside_publication = ContextVar('dau_authorized_publication', default=False)
+render_tallied_main = memoize_sql(tallies.main)
 
 
 def certify(reader):
@@ -73,7 +74,7 @@ def main(compiled, pointers, profiles, scope):
     actual = next(row for row in reversed(current['fanout_scopes']) if row['is_main'])
     routing = checked_route(proof, actual['reader'], 'main', actual['readable'], [row['doc_id'] for row in pointers])
     current['engagement_tally_scopes'] = sorted(set(routing.values()))
-    return tallies.main(compiled, pointers, profiles, scope, routing, uniform=e.uniform, table=e.table)
+    return render_tallied_main(compiled, pointers, profiles, scope, routing, uniform=e.uniform, table=e.table)
 
 
 def compile_query(*args, **kwargs):

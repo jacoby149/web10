@@ -34,7 +34,7 @@ import engagement_window as window
 from arm_f_journal import Journal
 from arm_f_store import Store
 from arm_f_runtime import admitted
-from arm_f_prepare import install as install_full_key_prepare
+from arm_f_prepare import inside_batched_prepare, install as install_full_key_prepare
 import arm_satellite_api as p
 from arm_satellite_sql import literal as q
 from app.v3.endpoints import documents, groups, query as query_endpoint
@@ -428,6 +428,15 @@ def compile_query(*args, **kwargs):
         return compiled
     readable = args[1] if len(args) > 1 else kwargs['readable_groups_by_service']
     reader = kwargs.get('member_key', args[2] if len(args) > 2 else 'anon')
+    if inside_batched_prepare.get():
+        # The original prepare binder just issued its server-written canonical
+        # exact-key lookup. Keep live certification and compiled policy SQL;
+        # repeating the feed/ranking and tally recognizers cannot route this lookup.
+        if not read_certificate(reader)[0]:
+            raise ValueError('uncertified canonical DAU prepare lookup')
+        current.setdefault('fanout_scopes', []).append({'reader': reader, 'readable': readable,
+            'is_main': False, 'sql_sha256': hashlib.sha256(compiled.encode()).hexdigest()})
+        return compiled
     tree = sqlglot.parse_one(compiled, read='clickhouse')
     is_main = 'profile_body' in {item.alias_or_name for item in tree.expressions} and bool(tree.args.get('joins'))
     current.setdefault('fanout_scopes', []).append({'reader': reader, 'readable': readable,
