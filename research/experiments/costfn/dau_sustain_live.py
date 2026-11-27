@@ -15,6 +15,7 @@ from dau_sustain_dispatch import Dispatch
 import dau_sustain_memory as memory
 import dau_sustain_native_audit as native
 import dau_sustain_parity as parity
+import dau_sustain_scope_transport as transport
 import dau_sustain_timed as timed
 import dau_sustain_workload as wl
 import engagement_cells as cells
@@ -264,8 +265,13 @@ def preserve_precalibration_cell(root, session):
     if records.exists() and any(json.loads(line)['phase'] not in ('CAL', 'CAL-BURST')
             for line in records.read_text().splitlines()):
         raise ValueError('do not restart a cell that offered measured or warm-up traffic')
-    running, _ = session.rows('dau_calibration_retry_no_active_native',
-        'SELECT count() AS n FROM system.processes WHERE query_id!=currentQueryID()')
+    # The CLI poller itself concurrently issues SYSTEM FLUSH LOGS and looks
+    # like live work in system.processes. Use the verified synchronous
+    # private connection, not a filter that might hide old calibration work.
+    with transport.connect(session) as direct:
+        running, identity = direct.rows('dau_calibration_retry_no_active_native',
+            'SELECT count() AS n FROM system.processes WHERE query_id!=currentQueryID()')
+        native.native_finish(direct, identity)
     if int(running[0]['n']):
         raise ValueError('original native work remains active; do not replace calibration cell')
     stamp = datetime.now(UTC).strftime('%Y%m%dT%H%M%S%fZ')
