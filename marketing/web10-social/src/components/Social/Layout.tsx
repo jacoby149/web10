@@ -19,6 +19,7 @@ import { useActingAuthor } from '@/data/actingIdentity';
 import { PersonalProfileContext } from '@/context/PersonalProfileContext';
 import DockGlass from './DockGlass';
 import { SignInPrompt } from '@/components/shared/SignInPrompt';
+import { ThemeMark } from '@/components/shared/ThemeMark';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -83,10 +84,13 @@ const comingSoonItems = [
   { icon: Store, label: 'Marketplace', testId: 'nav-marketplace' },
 ];
 
-function Wordmark({ className }: { className?: string }) {
+function HeaderBrand() {
   return (
-    <span data-testid="social-header-wordmark" className={cn('whitespace-nowrap font-display text-lg font-bold tracking-tight text-social-header-ink', className)}>
-      web<span className="text-social-header-accent">10</span> <span>social</span>
+    <span className="inline-flex shrink-0 items-center gap-1 min-[360px]:gap-2">
+      <ThemeMark className="size-5 min-[360px]:size-6 md:size-7" />
+      <span data-testid="social-header-wordmark" className="whitespace-nowrap font-display text-base/none font-bold tracking-tight text-social-header-ink min-[360px]:text-xl/none md:text-2xl/none">
+        web<span className="text-social-header-accent">10</span> <span>social</span>
+      </span>
     </span>
   );
 }
@@ -280,7 +284,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           <div className="absolute -top-20 -left-20 h-40 w-40 rounded-full bg-brand/5 blur-3xl" />
         </div>
         <div className="social-desktop-header relative -mr-px flex h-16 shrink-0 items-center bg-social-header px-4" data-testid="sidebar-brand-strip">
-          <Wordmark />
+          <HeaderBrand />
         </div>
         <nav className="relative flex-1 px-2 pt-3 space-y-1" aria-label="Primary">
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
@@ -416,7 +420,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
         <header data-testid="topbar-mobile" className="md:hidden flex shrink-0 items-center justify-between px-3 h-15 bg-social-header sticky top-0 z-20 gap-1">
-          <Wordmark className="shrink-0 text-base" />
+          <HeaderBrand />
           <div className="flex shrink-0 items-center">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
               onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-social-header-ink hover:bg-social-header-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-social-header-ink">
@@ -428,7 +432,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 variant="brand"
                 size="sm"
                 data-testid="sign-in-button-mobile"
-                className="h-11 px-4 font-semibold"
+                className="h-11 px-2 font-semibold min-[360px]:px-4"
                 onClick={() => onLogin?.()}
               >
                 <LogIn className="w-4 h-4 mr-1.5" strokeWidth={2} />

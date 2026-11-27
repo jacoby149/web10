@@ -1,3 +1,9 @@
+6.32.40 || 27.11.2026
+style(social): enlarge the `web10 social` wordmark on phones and desktop and pair it with the original keys mark in both themes. Keep the mobile controls on one line and leave Join and installed app artwork unchanged.
+
+6.32.39 || 27.11.2026
+research: amend sustained DAU to census 150 already-authorized, non-empty Following scopes on the verified Parquet input; bind the c-32 guest requirement and retain the 28/22 GiB ClickHouse envelope. Source preflight only: stop the legacy serial/shared-oracle entry point; no provision, native result or draft change.
+
 6.32.38 || 27.11.2026
 style(social): use only the `web10 social` wordmark with the blue `10` in the desktop and phone headers. Keep the illustrated mark on Join, the App Store, the launcher, and the startup splash.
 

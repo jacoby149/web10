@@ -28,13 +28,13 @@ logical read bytes, largest individual statement memory, summed native duration
 `255003176` remains retained. Verify private archives by SHA-256 before cleanup;
 report estimated compute separately from storage and the invoice.
 
-## Sustained-DAU load test — preflight refused, no sizing or load result
+## Sustained-DAU load test — diverse-reader amendment, no new load result
 
 The [sustained-DAU load test contract](DAU-SUSTAINED-LOAD.md) defines the
 right-sized receipt against the realism contract's load (15 reads/s peak,
 2.9 reads/s average) on the frozen million-author store, on a DigitalOcean
-host at the derived budget requirement (16 cores / 32 threads / 32 GB RAM,
-dedicated-CPU class or closest, storage proven non-binding in calibration),
+CPU-Optimized c-32 (32 guest-visible logical CPUs, provider-paired 64 GiB RAM,
+unchanged 28/22 GiB ClickHouse limits, storage proven non-binding in calibration),
 under mixed load, with the clog criterion as
 the primary gate, exact ordered oracle gates, pre-declared stop criteria and
 a breaking-point clause. The gate is on the slope of the debt-carrying
@@ -46,8 +46,13 @@ matter, out of scope.
 The [banked preflight receipt](evidence/dau-sustain-20261127/RESULTS.md)
 records a verified Parquet restore and native reader-authority census on the
 closest c-16 host. One principal could read all 21 requested groups, not the
-150 distinct readers the contract requires. Calibration and sustained windows
-did not run. This receipt does not replace the full-store hybrid arm or Study L.
+150 distinct readers the original contract required. Calibration and sustained windows
+did not run. For the amendment, census 150 already-authorized readers with
+non-empty Following scopes, not 150 copies of one scope. The read-only census
+source is not a native receipt, and the legacy serial, shared-oracle runner
+cannot start sustained windows. See the [task block](task-block-load-test-diverse-readers.md)
+for the pending measurement gates. Neither receipt replaces the full-store
+hybrid arm or Study L.
 
 ## D117 row-model proving cell — complete; maximal model rejected
 
