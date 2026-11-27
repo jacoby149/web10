@@ -1,3 +1,6 @@
+6.32.65 || 27.11.2026
+fix(marketing): use the charcoal Dark Home navbar on App Store, Freedom, Docs and Appearance too, including their shared detail routes. Preserve the mobile glass shape, Light navbar and page canvases.
+
 6.32.64 || 27.11.2026
 research: reuse each DAU tally write's already-durable native receipt and collect paired read-verification receipts with one flush. Validate every exact native identity and do not repeat checks for identical frozen scope keys and targets.
 

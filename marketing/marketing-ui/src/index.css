@@ -202,15 +202,15 @@
 .marketing-navbar [data-brand-variant="white"] { display: block; }
 .marketing-navbar [data-brand-variant="dark"] { display: none; }
 
-/* Shared header across the primary pages; Light uses a neutral surface. */
+/* One neutral header palette per theme across the primary pages. */
 .marketing-navbar--shared {
   color-scheme: light;
-  --color-background: #b5d4dc;
-  --color-navbar-edge: #6a91a5;
-  --color-navbar-edge-light: #e2f1f5;
+  --color-background: #ffffff;
+  --color-navbar-edge: #d4d4d8;
+  --color-navbar-edge-light: var(--color-background);
   --color-foreground: #18232c;
   --color-muted-foreground: #344654;
-  --color-elevated: #d2e8ee;
+  --color-elevated: #f4f4f5;
   --color-muted: var(--color-elevated);
   --color-border: #657985;
   --color-input: var(--color-border);
@@ -228,14 +228,7 @@
   background: transparent;
 }
 
-:root[data-theme="light"] .marketing-navbar--shared {
-  --color-background: #ffffff;
-  --color-navbar-edge: #d4d4d8;
-  --color-navbar-edge-light: var(--color-background);
-  --color-elevated: #f4f4f5;
-}
-
-:root[data-theme="dark"] .marketing-navbar--shared[data-home="true"] {
+:root[data-theme="dark"] .marketing-navbar--shared {
   color-scheme: dark;
   --color-background: var(--color-interior-canvas);
   --color-navbar-edge: #535d68;
@@ -245,6 +238,7 @@
   --color-elevated: #36414d;
   --color-brand-muted: var(--color-elevated);
   --color-brand-300: #b5e6f8;
+  --color-brand-foreground: var(--color-classic-ink);
   --color-ring: var(--color-brand-300);
 }
 
@@ -376,10 +370,8 @@
   }
 }
 
-.marketing-navbar--shared [data-brand-variant="white"] { display: none; }
-.marketing-navbar--shared [data-brand-variant="dark"] { display: block; }
-:root[data-theme="dark"] .marketing-navbar--shared[data-home="true"] [data-brand-variant="white"] { display: block; }
-:root[data-theme="dark"] .marketing-navbar--shared[data-home="true"] [data-brand-variant="dark"] { display: none; }
+:root[data-theme="light"] .marketing-navbar--shared [data-brand-variant="white"] { display: none; }
+:root[data-theme="light"] .marketing-navbar--shared [data-brand-variant="dark"] { display: block; }
 
 /* One illustrated chapter opener; the content below keeps the shared palette. */
 .interior-intro {
