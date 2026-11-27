@@ -1,3 +1,6 @@
+6.32.66 || 27.11.2026
+fix(marketing): keep one neutral outline "Open web10 social" button on every tab. The shared pages no longer render the pale-blue brand fill; border, ink and hover follow the navbar palette in Light and Dark, desktop and mobile.
+
 6.32.65 || 27.11.2026
 fix(marketing): use the charcoal Dark Home navbar on App Store, Freedom, Docs and Appearance too, including their shared detail routes. Preserve the mobile glass shape, Light navbar and page canvases.
 

@@ -256,6 +256,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: homepage-classic-revival
 
+- [✓ 6.32.66 local] **One neutral navbar entry button** — the "Open web10 social" navbar button uses Home's neutral outline on every tab in both themes, desktop and mobile; the brand fill on the shared tabs is gone.
+
 - [✓ 6.32.65 local] **Charcoal Dark marketing tabs** — verify the shared charcoal navbar and white keys across primary and detail routes in desktop and 375px Chromium; keep the Light palette, mobile glass and existing content colors.
 
 - [✓ 6.32.63 local] **Neutral marketing navbar** — white in Light on Home and shared interior routes, charcoal with white keys on Dark Home only. Keep the Home hero, Dark interiors and mobile refraction unchanged.

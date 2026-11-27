@@ -57,7 +57,7 @@ function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Button variant={classic ? 'outline' : 'brand'} size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
+          <Button variant="outline" size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
             Open web10 social
           </Button>
           <Button asChild variant="ghost" size="sm" className="min-h-11 px-2 text-muted-foreground hover:text-foreground">
@@ -98,7 +98,7 @@ function Navbar() {
             </Link>
           ))}
           <div className="mt-2 flex flex-col gap-2">
-            <Button variant={classic ? 'outline' : 'brand'} size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
+            <Button variant="outline" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
               Open web10 social
             </Button>
             <Button asChild variant="ghost" size="sm" className="w-full justify-center">
