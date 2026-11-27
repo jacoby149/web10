@@ -1,6 +1,6 @@
 # web10 v3 Plan
 
-- [✓ 6.32.63 local] **Neutral Light Hub and marketing top bars** — use white for Hub, sign-in, and the shared marketing navbar; keep Dark and the mobile navigation treatments unchanged.
+- [✓ 6.32.63 local] **Neutral Hub and marketing top bars** — use white in Light for Hub, sign-in, and the shared marketing navbar. In Dark, use Social’s charcoal for Hub, sign-in, and Home; preserve the Dark marketing interior headers and mobile navigation treatments.
 
 - [✓ 6.32.63 local] **Neutral Light Social top bar** — use a white bar with neutral control fills and a thin divider at desktop and phone widths. Keep the blue wordmark accent and Dark chrome unchanged.
 

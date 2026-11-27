@@ -15,8 +15,9 @@ function Branding({ I, size = 'lg', tagline = true, hubHeader = false }: Brandin
   // <img>. If it fails to load, drop it and let the wordmark carry the brand
   // (design.md §1: "no broken image icons").
   const { resolved } = useTheme();
-  const logo = hubHeader ? I.config?.REACT_APP_LOGO_LIGHT || '/keys-mark-dark.png'
-    : (resolved === 'light' ? I.config?.REACT_APP_LOGO_LIGHT : I.config?.REACT_APP_LOGO_DARK) || I.logo;
+  const light = resolved === 'light';
+  const configuredLogo = light ? I.config?.REACT_APP_LOGO_LIGHT : I.config?.REACT_APP_LOGO_DARK;
+  const logo = configuredLogo || (hubHeader ? (light ? '/keys-mark-dark.png' : '/keys-mark.png') : I.logo);
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const showLogo = logo && failedLogo !== logo;
 

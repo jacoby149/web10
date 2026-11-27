@@ -89,7 +89,7 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
-- [✓ 6.32.63 local] **Neutral Light Hub and sign-in headers** — white fill, neutral controls and a thin divider in Light only; retain existing Dark, dock and credential behavior.
+- [✓ 6.32.63 local] **Neutral Hub and sign-in headers** — white fill in Light, Social’s charcoal in Dark, with theme-matched keys and a thin divider. Retain dock and credential behavior.
 
 - [✓ 6.32.30 local] **Group permissions in-page search** — reuse Hub's list search on desktop and phone; verify matching, clearing, and the no-results state without changing group authority.
 
@@ -256,7 +256,7 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: homepage-classic-revival
 
-- [✓ 6.32.63 local] **Neutral Light marketing navbar** — white material and a neutral edge on the homepage and shared interior routes. Keep the homepage hero, Dark palette and mobile refraction unchanged.
+- [✓ 6.32.63 local] **Neutral marketing navbar** — white in Light on Home and shared interior routes, charcoal with white keys on Dark Home only. Keep the Home hero, Dark interiors and mobile refraction unchanged.
 
 **Owns:** the marketing-ui classic page/route, classic design tokens (design.md §13 + marketing-ui `@theme`), the restored fractal hero asset, that page's telemetry events, the `home_classic` landing A/B flag and its variant controls, and serialized plan/changelog records. Contract: `homepage-classic-revival.md`. No API/SDK/auth surface (D60), no social/authenticator changes, no `/freedom`/`/everything` changes, no deployment (separate operator gate). D94's import cut and D103's PostHog-only tracking stand.
 

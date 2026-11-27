@@ -649,9 +649,9 @@ phone dock. Restore What is web10, App Store and Docs under More… in both
 layouts, not as permanent sidebar promos. Search lives in the body
 of the list it filters (App permissions, Group permissions, or Pending requests),
 at every width. Group permissions uses one filter across Manage and Belong.
-Hub and sign-in share a white header, neutral controls and a thin divider in
-Light, and retain the ice-blue header (`#b5d4dc`) in Dark. Both use transparent
-dark keys over the existing paper and charcoal page themes.
+Hub and sign-in share a white header with a thin divider in Light and Social’s
+sidebar charcoal (`#1b2026`) with a slate divider in Dark. Controls stay neutral
+and the transparent keys switch to the matching Light/Dark artwork.
 Account and consent behavior are unchanged by this shell change.
 
 The original 11.11.2026 change extended the social dock to `ui/`'s authenticated mobile
@@ -882,9 +882,10 @@ revived as the primary marketing surface (`homepage-classic-revival.md`)
 — uses a **fixed editorial palette** regardless of the visitor's D108 choice:
 a dark hero, paper content, and a charcoal footer. The rest of marketing uses the same visual
 language in its selected System/Light/Dark appearance. Home and the shared
-interior pages use a white navbar with neutral edges and hover fills in Light,
-retaining the ice-blue (`#b5d4dc`) treatment in Dark. Both use near-black type
-and the dark logo. Desktop uses a plain full-width bar. On
+interior pages use a white navbar with neutral edges, near-black type and the
+dark logo in Light. In Dark, Home uses Social’s charcoal (`#1b2026`), light
+type and the white logo without changing the navy hero; interior pages retain
+their ice-blue (`#b5d4dc`) navbar. Desktop uses a plain full-width bar. On
 mobile, use the social dock's glass layer order: live backdrop refraction on
 the rim, a frosted center, then the edge and undistorted controls. The closed
 capsule and expanded rounded menu both use the 18-unit displacement and 8px

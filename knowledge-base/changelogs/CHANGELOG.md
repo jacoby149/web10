@@ -1,6 +1,6 @@
 6.32.63 || 27.11.2026
 fix(social): replace the Light-mode ice-blue top bar with a white surface, neutral controls, and a thin divider on desktop and phones. Keep the blue wordmark accent and Dark chrome unchanged.
-fix(hub, marketing): extend the white Light-mode header treatment to Hub, sign-in, and the shared marketing navbar. Keep the existing Dark palettes and marketing’s mobile glass behavior.
+fix(hub, marketing): extend the white Light-mode header treatment to Hub, sign-in, and the shared marketing navbar. Use Social’s charcoal and matching light artwork for the Dark Hub, sign-in, and Home headers; keep the Home hero, Dark interior marketing palette, and mobile glass behavior.
 
 6.32.62 || 27.11.2026
 research: make one independent raw-history key scan for the complete DAU oracle target set, then check each certified reader's full tally counts under their own canonical history and policy. Keep this verification separate from the indexed pairs candidates used by the treatment.

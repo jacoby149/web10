@@ -92,7 +92,7 @@ try {
     assert.deepEqual(await header.evaluate(el => {
       const css = getComputedStyle(el);
       return [css.backgroundColor, css.borderBottomWidth];
-    }), mode === 'light' ? ['rgb(255, 255, 255)', '1px'] : ['rgb(181, 212, 220)', '0px']);
+    }), mode === 'light' ? ['rgb(255, 255, 255)', '1px'] : ['rgb(27, 32, 38)', '1px']);
     assert.equal(await header.getByRole('searchbox').count(), 0);
     assert.equal(await nav.getByRole('button').count(), 7);
     const more = nav.getByRole('button', { name: 'More…' });

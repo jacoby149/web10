@@ -9,11 +9,11 @@
  */
 
 @theme {
-  --color-hub-header: #b5d4dc;
-  --color-hub-ink: #090c22;
+  --color-hub-header: var(--color-hub-sidebar-dark);
+  --color-hub-ink: var(--color-foreground);
   --color-hub-sidebar-dark: #1b2026;
-  --color-hub-tint: #d6e8ed;
-  --color-hub-tint-hover: #e3edf8;
+  --color-hub-tint: #36414d;
+  --color-hub-tint-hover: #414e5c;
 
   /* neutrals — marketing charcoal and slate */
   --color-background: #2b2f32;
@@ -85,6 +85,7 @@
   --color-foreground: #232323;
   --color-surface: #ffffff;
   --color-hub-header: var(--color-surface);
+  --color-hub-ink: #090c22;
   --color-hub-tint: color-mix(in srgb, var(--color-surface), var(--color-foreground) 5%);
   --color-hub-tint-hover: color-mix(in srgb, var(--color-surface), var(--color-foreground) 10%);
   --color-elevated: #e3edf8;

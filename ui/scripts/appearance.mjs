@@ -48,7 +48,8 @@ try {
     await theme(page, mode);
     assert.equal(await page.getByRole('radio', { name: 'System', exact: true }).isChecked(), true);
     const logo = page.getByTestId('brand-logo').filter({ visible: true });
-    assert.equal(await logo.getAttribute('src'), '/keys-mark-dark.png');
+    const expectedLogo = mode === 'light' ? '/keys-mark-dark.png' : '/keys-mark.png';
+    assert.equal(await logo.getAttribute('src'), expectedLogo);
     assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
     assert.ok(await logo.evaluate(el => el.complete && el.naturalWidth > 0), 'configured artwork decoded');
     const artwork = await page.evaluate(async () => {
@@ -94,7 +95,8 @@ try {
     assert.deepEqual(await page.locator('.hub-header').evaluate(el => {
       const css = getComputedStyle(el);
       return [css.backgroundColor, css.borderBottomWidth];
-    }), mode === 'light' ? ['rgb(255, 255, 255)', '1px'] : ['rgb(181, 212, 220)', '0px']);
+    }), mode === 'light' ? ['rgb(255, 255, 255)', '1px'] : ['rgb(27, 32, 38)', '1px']);
+    assert.equal(await page.locator('.hub-header').getByTestId('brand-logo').getAttribute('src'), expectedLogo);
     await capture(page, `login-${mode}-${width}`);
     await page.getByRole('link', { name: 'Appearance', exact: true }).click();
     assert.equal(new URL(page.url()).searchParams.get('mode'), 'appearance');
