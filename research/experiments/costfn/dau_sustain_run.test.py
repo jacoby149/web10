@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import sqlglot
 
 import costfn_task
+import arm_f_native
 import dau_sustain_admission as binding
 import dau_sustain_cell_policy as cell_policy
 import dau_sustain_fixture_transfer as transfer
@@ -232,7 +233,7 @@ class ParquetInfrastructure(unittest.TestCase):
                 cert.fingerprint.return_value = state
                 self.assertIs(run.Actions.base_infrastructure(action), cert.verify.return_value)
                 setup.infrastructure.assert_called_once_with(root, 'dau-parquet', initial=True, settle=False,
-                    additional_groups=set())
+                    additional_groups=set(), reader_groups=None)
                 cert.bind.assert_called_once_with(root, session.return_value, 'g', dict(
                     kind='DAU_VERIFIED_PARQUET_REBUILT',
                     input_manifest_sha256=run.digest(root / 'input/manifest.json'),
@@ -820,6 +821,18 @@ class DiverseNativeAudit(unittest.TestCase):
 
 
 class DiverseCellPolicy(unittest.TestCase):
+    def test_fanout_classification_checks_each_reader_only_on_their_groups(self):
+        profile = dict(reader='ordinary', groups=['a', 'b'], dau_group_readers={'a': ['ordinary'], 'b': ['selected']})
+        admitted = dict(purpose='DAU_SUSTAINED_CONTRACT_RATE', dau_overnight=True)
+        self.assertEqual(arm_f_native.membership_requirements(admitted, profile),
+            {'a': {'ordinary'}, 'b': {'selected'}})
+        with self.assertRaisesRegex(ValueError, 'only apply'):
+            arm_f_native.membership_requirements({}, profile)
+        with self.assertRaisesRegex(ValueError, 'exact frozen reader coverage'):
+            arm_f_native.membership_requirements(admitted, dict(profile, dau_group_readers={'a': ['ordinary']}))
+        self.assertEqual(arm_f_native.membership_requirements({}, dict(reader='ordinary', groups=['a', 'b'])),
+            {'a': {'ordinary'}, 'b': {'ordinary'}})
+
     def test_writer_slot_keeps_native_journal_key_and_forbids_scope_drift(self):
         run_id = uuid.UUID('00000000-0000-0000-0000-000000000001')
         operation = str(uuid.uuid5(run_id, 'publication:9'))
