@@ -218,6 +218,27 @@ class ModernTests(unittest.TestCase):
         self.assertGreater(plan['comment_reactions'], 0)
         self.assertLessEqual(plan['post_reactions'], plan['actors'])
 
+    def test_bundle_reuses_syntax_but_rechecks_current_tally_scope(self):
+        current = {'request_id': 'c' * 32, 'engagement_mode': 'uniform', 'engagement_tally_verified': True,
+                   'engagement_tally_scopes': ['allowed']}
+        observer = SimpleNamespace(current=SimpleNamespace(get=lambda: current))
+        statement = ("SELECT * FROM counting_numbers_tally WHERE scope_key IN ('allowed') "
+                     "AND doc_id IN ('post') AND counter_name IN ('like')")
+        seen = []
+        def execute(sql, **kwargs):
+            seen.append(sql)
+            return SimpleNamespace(query_id='one')
+        with (tempfile.TemporaryDirectory() as directory,
+              patch.dict('os.environ', {'DAU_BUNDLE_ACTIVE': '1'}),
+              patch.object(engagement_observe, 'parse_sql', wraps=engagement_observe.parse_sql) as parse):
+            send = engagement_observe.install(execute, observer, directory)
+            send(statement)
+            current['engagement_tally_scopes'] = ['different']
+            with self.assertRaisesRegex(ValueError, 'unbound tally scope'):
+                send(statement)
+            self.assertEqual(parse.call_count, 1)
+        self.assertEqual(seen, [statement])
+
     def test_query_observer_accepts_driver_settings_moved_to_positional_by_binding(self):
         current = {'request_id': 'd' * 32}
         observer = SimpleNamespace(current=SimpleNamespace(get=lambda: current))

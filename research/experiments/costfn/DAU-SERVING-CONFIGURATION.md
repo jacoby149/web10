@@ -14,7 +14,7 @@ setting was the sole bottleneck, or that this configuration serves production.
 | ClickHouse background merges | Pool size 8, merge/mutation ratio 2; minimum free entries for mutation / entire-partition optimize / lower merge-size threshold: 4 / 4 / 8 |
 | API → ClickHouse transport | Retain actual thread-local clients; use one persistent pool manager per API process, retaining up to 16 connections per host, non-blocking. This is not a global admission semaphore. |
 | Descriptor limits | API 65,536 soft/hard; ClickHouse 262,144 soft/hard; raise owned driver soft limit to at least 65,536 within its existing hard limit |
-| SQL preparation | Retain the existing exact-input SQL caches and full-key prepare, and reuse follow-up syntax and rendering keyed on the exact compiled SQL, scope and targets. All live policy/route checks still run. No credential decision or response caching. |
+| SQL preparation | Retain the existing exact-input SQL caches and full-key prepare. Reuse follow-up syntax and rendering keyed on exact compiled SQL, scope and targets. Query classification and execution guards share a bounded, 128-entry exact rendered SQL syntax cache. All live policy/route checks still run. No credential decision or response caching. |
 | Store, memory and traffic | Same frozen input and banked oracles; 28/22 GiB ClickHouse container/server limits and existing API memory cap; same phases and offered rates |
 
 Twenty-four potential synchronous API handlers at one ClickHouse query
@@ -37,7 +37,7 @@ The four read listeners bind only to host loopback. Native writes still go
 through live authorization and the single original publication journal on
 port 6098, which also handles login. Read processes accept only the measured
 query and content-views routes (plus readiness) and do not start fanout
-maintenance or rebuild tasks. Runtime receipts remain keyed to the same
+maintenance, rebuild tasks, or the publisher's node startup DDL and background workers. Runtime receipts remain keyed to the same
 request IDs. Existing delivery side effects from reads are unchanged.
 The bundle API container declares a 610-second graceful shutdown window
 instead of adding a separate worker kill timer.

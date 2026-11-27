@@ -1,4 +1,5 @@
 """Private query ledger for modern cells; no production or import-time I/O."""
+from functools import lru_cache
 import hashlib
 import inspect
 import os
@@ -12,10 +13,14 @@ from arm_f_failure import details
 from arm_f_observe import append
 
 
-def uniform_guard(sql, current):
+def parse_sql(sql):
+    return sqlglot.parse_one(sql, read='clickhouse')
+
+
+def uniform_guard(sql, current, *, parse=parse_sql):
     if current.get('engagement_mode') not in ('uniform', 'projection'):
         return
-    tree = sqlglot.parse_one(sql, read='clickhouse')
+    tree = parse(sql)
     if any(table.name.startswith('counting_numbers') for table in tree.find_all(exp.Table)):
         if not current.get('engagement_tally_verified'):
             raise ValueError('uniform treatment attempted an undeclared cached-counter fallback')
@@ -45,9 +50,9 @@ def uniform_guard(sql, current):
     return dict(candidate_doc_id_attachment_scope=True, deletion_wins_timestamp_ties=True)
 
 
-def classify(sql, callers, current):
+def classify(sql, callers, current, *, parse=parse_sql):
     try:
-        tree = sqlglot.parse_one(sql, read='clickhouse')
+        tree = parse(sql)
     except Exception:
         return 'unclassified'
     tables = {table.name for table in tree.find_all(exp.Table)}
@@ -84,6 +89,9 @@ def install(original, observer, directory, *, operation=None):
     directory = Path(directory)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     signature = inspect.signature(original)
+    # Both consumers only inspect the syntax tree. Scope and attachment checks
+    # are still executed against the current request on every native call.
+    parse = lru_cache(maxsize=128)(parse_sql) if os.environ.get('DAU_BUNDLE_ACTIVE') == '1' else parse_sql
     def query(sql=None, *args, **kwargs):
         if sql is None:
             sql = kwargs.pop('query')
@@ -124,7 +132,7 @@ def install(original, observer, directory, *, operation=None):
                 callers.append(frame.f_code.co_name)
         finally:
             del frame
-        stage = classify(rendered, callers, current)
+        stage = classify(rendered, callers, current, parse=parse)
         if os.environ.get('HYBRID_K20_PROJECTED') == '1':
             from hybrid_k20_projected import STAGES
             stage = next((name for name in STAGES if '/* ' + name + ' */' in rendered), stage)
@@ -132,7 +140,7 @@ def install(original, observer, directory, *, operation=None):
             stage=stage, success=False)
         started = time.perf_counter()
         try:
-            proof = uniform_guard(rendered, current)
+            proof = uniform_guard(rendered, current, parse=parse)
             if proof:
                 row['attachment_execution_guard'] = proof
             result = original(**bound.arguments) if bound is not None else original(sql, *args, **kwargs)

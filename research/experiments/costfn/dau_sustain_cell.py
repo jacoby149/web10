@@ -166,4 +166,13 @@ async def application(scope, receive, send):
         import anyio.to_thread
         limiter = anyio.to_thread.current_default_thread_limiter()
         limiter.total_tokens = int(os.environ['DAU_THREAD_TOKENS'])
+        if os.environ['DAU_WORKER_ROLE'] == 'read':
+            # Read workers install all serving/auth hooks at import. Only the
+            # publisher runs node startup DDL and background write workers.
+            for event in ('startup', 'shutdown'):
+                message = await receive()
+                if message['type'] != 'lifespan.' + event:
+                    raise RuntimeError('unexpected read-worker lifespan event')
+                await send({'type': 'lifespan.' + event + '.complete'})
+            return
     return await composition.application(scope, receive, send)
