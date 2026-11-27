@@ -61,9 +61,10 @@ function Navbar() {
             Open web10 social
           </Button>
           <Button asChild variant="ghost" size="sm" className="min-h-11 px-2 text-muted-foreground hover:text-foreground">
-            <Link to="/links">
+            <Link to="/links" target="_blank" rel="noopener noreferrer">
               <List aria-hidden="true" className="size-4" strokeWidth={1.75} />
               Quick links
+              <span className="sr-only"> (opens in a new tab)</span>
             </Link>
           </Button>
           <GitHubStarButton />
@@ -101,9 +102,10 @@ function Navbar() {
               Open web10 social
             </Button>
             <Button asChild variant="ghost" size="sm" className="w-full justify-center">
-              <Link to="/links" onClick={() => setMobileOpen(false)}>
+              <Link to="/links" target="_blank" rel="noopener noreferrer" onClick={() => setMobileOpen(false)}>
                 <List aria-hidden="true" className="size-4" strokeWidth={1.75} />
                 Quick links
+                <span className="sr-only"> (opens in a new tab)</span>
               </Link>
             </Button>
             <GitHubStarButton className="w-full justify-center" onClose={() => setMobileOpen(false)} />

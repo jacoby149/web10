@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image'
 import { ArrowRight, ArrowUpRight, BookOpen, Code2, Compass, Shield, Store } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
@@ -56,7 +57,7 @@ export default function LinksPage() {
 
         <section aria-label="Apps and information" className="space-y-3">
           <a href={SOCIAL_ORIGIN} className={`flex min-h-20 items-center gap-4 rounded-xl border border-brand/40 bg-brand-muted p-4 transition-colors hover:border-brand ${focus}`}>
-            <img src={SOCIAL_CATALOG_ICON} alt="" width={48} height={48} className="size-12 shrink-0 rounded-md" />
+            <ReliableImage src={SOCIAL_CATALOG_ICON} alt="" width={48} height={48} className="size-12 shrink-0 rounded-md" />
             <span className="min-w-0 flex-1">
               <span className="block font-display text-lg font-bold text-foreground">Open web10 social</span>
               <span className="block text-sm text-muted-foreground">Discover posts, watch videos, and share your own.</span>

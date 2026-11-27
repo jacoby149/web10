@@ -443,31 +443,39 @@ try {
         }
       }
       if (width < 1024) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
-      const entry = page.getByRole('link', { name: 'Quick links', exact: true });
+      const entry = page.getByRole('link', { name: 'Quick links (opens in a new tab)', exact: true });
       await entry.waitFor();
       await capture(page, `quick-links-navbar-${mode}-${label}`);
-      await entry.click();
-      await page.waitForURL(`${origin}/links`);
-      const quickLinks = page.getByTestId('quick-links');
+      const originalUrl = page.url();
+      const [directory] = await Promise.all([context.waitForEvent('page'), entry.click()]);
+      await directory.waitForURL(`${origin}/links`);
+      assert.equal(page.url(), originalUrl);
+      assert.equal(await directory.evaluate(() => window.opener === null), true);
+      const quickLinks = directory.getByTestId('quick-links');
       await quickLinks.getByRole('heading', { name: 'Explore web10', exact: true }).waitFor();
-      assert.equal(await page.getByRole('navigation', { name: 'main navigation', exact: true }).count(), 0);
-      await verifyLogo(page, mode === 'dark' ? 'white' : 'dark');
-      assert.deepEqual(await readInteriorPalette(page), interiorPalette);
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      assert.equal(await directory.getByRole('navigation', { name: 'main navigation', exact: true }).count(), 0);
+      await verifyLogo(directory, mode === 'dark' ? 'white' : 'dark');
+      assert.deepEqual(await readInteriorPalette(directory), interiorPalette);
+      assert.equal(await directory.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       const actions = quickLinks.getByRole('region', { name: 'Apps and information' }).getByRole('link');
       assert.equal(await actions.first().getAttribute('href'), process.env.VITE_SOCIAL_URL || 'https://social.web10.app');
+      assert.deepEqual(await actions.first().locator('img').evaluate(async el => {
+        await el.decode();
+        const { width, height } = el.getBoundingClientRect();
+        return [el.getAttribute('alt'), width, height];
+      }), ['', 48, 48]);
       assert.equal(await actions.nth(2).getAttribute('href'), process.env.VITE_AUTH_URL || 'https://auth.web10.app');
       for (const action of await quickLinks.getByRole('link').all()) {
         assert.ok((await action.boundingBox()).height >= 44);
       }
-      await capture(page, `quick-links-${mode}-${label}`);
+      await capture(directory, `quick-links-${mode}-${label}`);
       await quickLinks.getByRole('link', { name: /^App Store/ }).click();
-      await page.waitForURL(`${origin}/app-store`);
-      await page.getByRole('navigation', { name: 'main navigation', exact: true }).waitFor();
-      await page.goBack();
+      await directory.waitForURL(`${origin}/app-store`);
+      await directory.getByRole('navigation', { name: 'main navigation', exact: true }).waitFor();
+      await directory.goBack();
       await quickLinks.waitFor();
-      receipts.push({ width, mode, quickLinks: 'standalone, same-tab, Back and theme verified' });
-      await page.goto(`${origin}/appearance`, { waitUntil: 'networkidle' });
+      await directory.close();
+      receipts.push({ width, mode, quickLinks: 'navbar opens new tab; directory links keep same-tab, Back and theme' });
     }
     assert.deepEqual(errors, []);
     receipts.push({ width, realNavigation: true, keyboardRadios: true, liveDevice: true, overrideReload: true, crossTab: true, paletteAndChrome: true, interiorTextAA: true, transparentThemeLogo: true, errors });

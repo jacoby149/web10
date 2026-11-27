@@ -1,5 +1,15 @@
 # web10 v3 Plan
 
+- [✓ 6.32.61 local] **Responsive deployment badge** — keep tap handling, date formatting, and paint work lightweight while preserving the panel’s existing details and dismissal.
+
+- [✓ 6.32.60 local] **Keys-only Social app icon** — center pale blue keys without lettering on the pure-black field, leaving in-app branding unchanged.
+
+- [✓ 6.32.59 local] **Pure-black Social app icon** — replace the charcoal field on the catalog and install icons without changing the lockup, favicon, or in-app theme.
+
+- [✓ 6.32.58 local] **Quick links opens separately** — open the directory in a new tab from the desktop navbar and phone menu; preserve same-tab navigation inside it.
+
+- [✓ 6.32.57 local] **Quick-links image ownership** — use the shared image component without changing the Social tile size, artwork, or destination.
+
 - [✓ 6.32.55 local] **Final Social icon and upright headers** — put blue keys and white lowercase `social` side by side in the square icon. Social and Join headers use one upright `web10 social` line, with theme-aware keys and the blue `10`.
 
 - [✓ 6.32.55 local] **Social More ecosystem links** — add What is web10 followed by Rate us on the App Store in desktop and phone More, visible signed in or out without changing access to personal destinations.
