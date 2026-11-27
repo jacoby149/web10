@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import sqlglot
+from sqlglot import exp
 
 from arm_f_native import save
 from arm_satellite_batch import final_sql
@@ -19,6 +21,8 @@ from dau_sustain_native_audit import native_finish
 
 
 ROUTES = {'main': ('posts', 'comments', 'reactions'), 'reactions': ('reactions',), 'comments': ('comments',)}
+REFERENCE_IDS = 'dau_oracle_targets'
+RAW_KEYS = 'dau_oracle_ref_keys'
 
 
 def tally_parts(session):
@@ -88,6 +92,53 @@ def build_page_scope(writer, record, reader, service, groups, source_generation,
     return key
 
 
+def independent_key_source():
+    """Scan raw canonical versions once; do not consult pairs or tally state."""
+    return (f'INSERT INTO {RAW_KEYS} SELECT DISTINCT collection_name, target,author_key,doc_id FROM ('
+        "SELECT collection_name,author_key,doc_id,arrayJoin(arrayDistinct([ref_value,multiIf("
+        "collection_name='reactions',JSONExtractString(body,'target_id'),"
+        "collection_name='comments',JSONExtractString(body,'parent_id'),'')])) AS target "
+        "FROM engagement_documents WHERE collection_name IN ('posts','comments','reactions')) "
+        f'WHERE target IN (SELECT doc_id FROM {REFERENCE_IDS})')
+
+
+def prepare_independent_keys(writer, ids):
+    if not ids or len(ids) != len(set(ids)):
+        raise ValueError('distinct complete independent oracle target domain required')
+    writer.query('dau_oracle_targets_ddl', f'CREATE TABLE {REFERENCE_IDS} (doc_id String) ENGINE=MergeTree ORDER BY doc_id')
+    for offset in range(0, len(ids), 128):
+        raw = ','.join('(' + q(doc) + ')' for doc in ids[offset:offset + 128])
+        writer.query(f'dau_oracle_targets_{offset}', f'INSERT INTO {REFERENCE_IDS} VALUES ' + raw)
+    rows, ident = writer.rows('dau_oracle_target_check', f'SELECT doc_id FROM {REFERENCE_IDS} ORDER BY doc_id')
+    if [row['doc_id'] for row in rows] != ids:
+        raise ValueError('independent key scan does not cover the exact oracle target domain')
+    writer.query('dau_oracle_keys_ddl', f'CREATE TABLE {RAW_KEYS} (service String, target String, author_key String,doc_id String) '
+        'ENGINE=MergeTree ORDER BY (service,target,author_key,doc_id)')
+    _, complete = writer.query('dau_oracle_keys_scan', independent_key_source())
+    return dict(targets=len(ids), target_census=native_finish(writer, ident), canonical_scan=native_finish(writer, complete))
+
+
+def bounded_independent_oracle(service, groups, reader, ids):
+    """Restrict only complete history partitions of the independent raw oracle."""
+    statement = sql.oracle(service, groups, reader, ids)
+    tree = sqlglot.parse_one(statement, read='clickhouse')
+    destination = f'SELECT author_key,doc_id FROM {RAW_KEYS} WHERE service=' + q(service) + ' AND target IN (' + targets(ids) + ')'
+    seen = set()
+    for table in list(tree.find_all(exp.Table)):
+        if table.name == 'engagement_documents':
+            predicate = '(author_key,doc_id) IN (' + destination + ')'
+        elif table.name == 'doc_groups':
+            predicate = 'doc_id IN (SELECT doc_id FROM (' + destination + '))'
+        else:
+            continue
+        seen.add(table.name)
+        table.find_ancestor(exp.Select).where(sqlglot.parse_one('SELECT 1 WHERE ' + predicate,
+            read='clickhouse').args['where'].this, copy=False)
+    if seen != {'engagement_documents', 'doc_groups'}:
+        raise ValueError('raw tally oracle lost document or attachment history')
+    return tree.sql(dialect='clickhouse')
+
+
 def prepare(root, session, oracle_index):
     """Extend the already-certified tally table on the quiescent working copy."""
     source = root / 'dau-reader-oracles'
@@ -118,8 +169,7 @@ def prepare(root, session, oracle_index):
         return value
     from costfn_seed_resume import setup_writes
     writer = setup_writes(session, root / 'task-setup/dau-scopes', 'engagement_documents', 'doc_groups')
-    record = dict(scopes=dict(banked['scopes']))
-    routes = {}
+    packets, all_ids = {}, set()
     for entry in entries:
         path = source / f"reader-{entry['index']:03d}" / 'oracle.json'
         if digest(path) != entry['sha256']:
@@ -132,11 +182,18 @@ def prepare(root, session, oracle_index):
         ids = sorted(set(packet['ids']) | {row['doc_id'] for row in packet['rows']})
         if not ids:
             raise ValueError('non-empty frozen Following page required')
+        packets[reader] = profile, ids
+        all_ids.update(ids)
+    independent = prepare_independent_keys(writer, sorted(all_ids))
+    record = dict(scopes=dict(banked['scopes']))
+    routes = {}
+    for reader, (profile, ids) in packets.items():
         route = routes[reader] = dict(index=profile['index'], groups=profile['groups'],
             readable_by_kind=profile['actual_readable_by_kind'], routes={})
         for label, service, groups in expected_scopes(profile):
             key = build_page_scope(writer, record, reader, service, groups, source_generation, copy_hash, ids)
-            found, native_id = session.rows('dau_independent_' + key[:12], sql.oracle(service, groups, reader, ids))
+            found, native_id = session.rows('dau_exact_independent_' + key[:12],
+                bounded_independent_oracle(service, groups, reader, ids))
             expected = {(row['doc_id'], row['counter_name']): int(row['value']) for row in found}
             observed, stored_id = tally.stored(session, key, ids)
             if len(found) != len(expected) or observed != expected:
@@ -148,6 +205,7 @@ def prepare(root, session, oracle_index):
     parts_hash, query_id = tally_parts(session)
     if generation(session)[0] != source_generation:
         raise ValueError('canonical source changed while building reader furniture')
-    value = dict(binding=packet_binding, routes=routes, parts_sha256=parts_hash, parts_native=native_finish(session, query_id))
+    value = dict(binding=packet_binding, routes=routes, parts_sha256=parts_hash,
+        independent_key_source=independent, parts_native=native_finish(session, query_id))
     save(proof, value)
     return value
