@@ -35,17 +35,19 @@ The offline cache stores the **app shell** — the built JS/CSS/HTML, the manife
 On `install`, the worker precaches the known shell:
 
 - `/` and `/index.html` (the SPA entry — the offline fallback target),
-- `/manifest.json`, the blue Social app icons (`logo192.png`, `logo512.png`, `logo-maskable-bottom-512.png`, `favicon.ico`, `apple-touch-icon.png`), the conversation artwork (`social-conversation-pair-blue.png` for Social and Join), and the separate platform keys and share-card images,
+- `/manifest.json`, the blue Social app icons (`logo192.png`, `logo512.png`, `logo-maskable-crisp-512.png`, `favicon.ico`, `apple-touch-icon.png`), the conversation artwork (`social-conversation-pair-blue.png` for Social and Join), and the separate platform keys and share-card images,
 - the vendored libs (`/hls.min.js`, `/wapi.js`),
 - **the hashed build assets** — Vite emits `/assets/index-<hash>.js` / `.css` whose names are unknown at authoring time, so the worker fetches `/index.html` at install, regexes out the `/assets/...` references, and precaches those too. This is what makes a *fresh* install work offline, not just a revisit.
 
-Android launchers can choose the dedicated 512px `maskable` icon rather
-than padding the ordinary square icon. Blue fills the entire bitmap. The
+Android can use the dedicated 512px `maskable` icon for both the launcher and
+the native startup splash. At splash size, upscaling the small in-app artwork
+softens the hair and clothing lines. Export from the [full-bleed source](../../strategy/brand/social-logo-options/README.md)
+instead. Blue fills the entire bitmap. The
 upper artwork stays inside the safe circle (radius: 40% of the icon width),
 while both lower silhouettes run through the bottom edge and are intentionally
 cropped by the launcher shape. Keep the ordinary manifest icons and iOS touch
-icon separate. The previous maskable URL stays available for cached manifests.
-Installed launchers can cache their existing icon independently of the shell.
+icon separate. Previous maskable URLs stay available for cached manifests.
+Android can retain installed artwork independently of the shell cache.
 
 ### Runtime (fetch)
 

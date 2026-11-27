@@ -8,3 +8,13 @@ These PNG drafts and previews are here for comparison, not bundled with the app.
 - [Two-person App Store card preview](web10-social-two-person-lower-card.png)
 
 The transparent source artwork is `marketing/web10-social/public/social-conversation-pair.png`; Social uses it directly on the ice-blue bar. The App Store copy, `marketing/marketing-ui/public/brand/social-conversation-pair.png`, composites that artwork onto `#0467f2` (the operator's swatch converted to sRGB). Join retains a 192px copy of that blue composite (`social-conversation-pair-blue.png`), rounded in CSS. The install icons use the same artwork and blue with more breathing room around the figures for launcher crops. The white drafts above are retained for comparison.
+
+For the Android launcher and startup splash, downsample the [full-bleed source](web10-social-two-person-full-bleed.png) directly, not the 256px chrome crop. From the repository root, with ImageMagick:
+
+```sh
+magick knowledge-base/strategy/brand/social-logo-options/web10-social-two-person-full-bleed.png \
+  -colorspace sRGB -filter Lanczos -resize 464x464 \
+  -background '#0467f2' -alpha remove -alpha off \
+  -gravity NorthWest -splice 24x113 -extent 512x512 \
+  PNG24:marketing/web10-social/public/logo-maskable-crisp-512.png
+```
