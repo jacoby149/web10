@@ -885,7 +885,9 @@ language in its selected System/Light/Dark appearance. Home and the shared
 interior pages use a white navbar with neutral edges, near-black type and the
 dark logo in Light. In Dark, both use Social’s charcoal (`#1b2026`), light type
 and the white logo. The navbar palette does not change the navy Home hero or
-the interior canvases. Desktop uses a plain full-width bar. On
+the interior canvases. The navbar's Social entry keeps one neutral outline
+button on every tab — the shared pages do not carry a brand fill Home does
+not have. Desktop uses a plain full-width bar. On
 mobile, use the social dock's glass layer order: live backdrop refraction on
 the rim, a frosted center, then the edge and undistorted controls. The closed
 capsule and expanded rounded menu both use the 18-unit displacement and 8px
