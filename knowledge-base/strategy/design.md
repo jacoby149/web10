@@ -94,7 +94,7 @@ a wrong logo is worse than no logo.
 |---|---|---|---|
 | **Full lockup** | `marketing/marketing-ui/public/brand/logo-lockup.png` (1200×400, moved from `layouts/images/logo_white.png` by D13) | Keys-on-keyring mark + lowercase thin-outline "web10" wordmark, white on transparent | Navbars, footers, hero, og-image. Dark backgrounds ONLY (it is white). Min height 24px; keep clear space ≥ the height of the "w" on all sides. |
 | **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Platform avatars, favicons, PWA icons and app-store tiles. Dark backgrounds only. Social's app icon is the exception below. |
-| **Social app icon** | `marketing/marketing-ui/public/brand/social-conversation-pair.png` (catalog); `marketing/web10-social/public/{logo192.png,logo512.png,apple-touch-icon.png,favicon.ico}` (browser and install) | Pink-and-blue conversation pair on solid `#0467f2`, sampled from the operator's blue swatch in sRGB | Social's App Store listing, app detail, install prompt, home-screen and browser icons. Not a theme token or a replacement for the platform keys. |
+| **Social app icon** | `marketing/marketing-ui/public/brand/social-conversation-pair.png` (catalog); `marketing/web10-social/public/{logo192.png,logo512.png,logo-maskable-512.png,apple-touch-icon.png,favicon.ico}` (browser and install) | Pink-and-blue conversation pair on solid `#0467f2`, sampled from the operator's blue swatch in sRGB. The Android maskable export extends the blue to the edges and keeps the pair inside the mask-safe circle. | Social's App Store listing, app detail, install prompt, home-screen and browser icons. Not a theme token or a replacement for the platform keys. |
 | **Dark counterparts (D108)** | `marketing/marketing-ui/public/brand/logo-lockup-dark.png`, `marketing/web10-social/public/keys-mark-dark.png` | Zinc-900 copies with exactly the original dimensions/alpha | Light-mode lockup and square mark; never put a dark backing behind them. White originals remain unchanged. |
 | **Share-card images (D109)** | `marketing/web10-social/public/og-image.png` (1200×1200, keys mark on `#09090b` + subtle violet glow), `marketing/marketing-ui/public/brand/og-image.png` (1200×630, lockup on `#09090b` + subtle glow; the shared copy is `.context/brand-assets/og-image.png`) | Opaque `og:image` assets for link previews | Share surfaces only (the app-root static tags + the social crawler card's brand fallback). Opaque ON PURPOSE: the receiving app composites `og:image` onto its own (white) card frame, so the image bakes in its own dark background — a transparent white mark is invisible there. Never use them in-app (in chrome, the transparent marks + the page's background are correct). |
 
@@ -531,8 +531,8 @@ Below the profile card, More's action order is People, Messages, Appearance,
 Settings, Monetization, then admin-only Node Settings. Keep the card premier;
 People is the first ordinary navigation row.
 
-Social's top bar stays ice blue in Light mode and on phones. On desktop in
-Dark mode it uses the same charcoal as the sidebar, with light ink and raised control
+Social's top bar stays ice blue in Light mode. On desktop and phones in
+Dark mode it uses the desktop sidebar charcoal, with light ink and raised control
 fills, so the bar doesn't glare against the sidebar. Desktop uses the same
 64px height as marketing; the phone bar is a slightly more compact 60px.
 The desktop wordmark strip meets the bar without a vertical seam and leaves 12px before the first
@@ -833,7 +833,7 @@ white action labels; hover and pressed gradients stay within the fill steps.
 Social's default top-bar tokens are `--color-social-header: #b5d4dc`,
 `--color-social-header-ink: #090c22`, `--color-social-header-tint: #d6e8ed`,
 `--color-social-header-tint-hover: #e3edf8`, and `--color-social-header-accent: #064eae`
-for the `10` in the wordmark. Desktop Dark overrides those values with
+for the `10` in the wordmark. Dark overrides those values at every width with
 the sidebar charcoal (`#1b2026`), the theme foreground, `#36414d`, `#414e5c`, and the dark `brand-300`
 respectively. These are not feed or menu tokens.
 

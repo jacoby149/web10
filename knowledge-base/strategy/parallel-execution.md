@@ -282,6 +282,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.31 local] **Social mobile Dark header and Android icon** — share the desktop Dark palette and provide Android a mask-safe blue app icon. Chromium verifies rendered chrome and icon pixels; installed-device refresh is not verified.
+
 - [✓ 6.32.28 local] **Social Discover topic alignment** — line up topic chips with the post column at desktop widths, including beside the Top 10 rail; preserve mobile gutters and URL filters.
 
 - [✓ 6.32.27 local] **Social rounded blue icon and taller headers** — restore the blue-backed icon in both layouts, align the desktop header at 64px, leave 12px between the desktop bell and account picker, and make the phone header 60px. Notifications open below the bar in both layouts; exports stay unchanged.

@@ -1,3 +1,6 @@
+6.32.31 || 26.11.2026
+fix(social): match the phone's Dark header to desktop charcoal and provide Android launchers a full-bleed blue maskable app icon. Keep the Light header, phone dock, and iOS touch icon unchanged.
+
 6.32.30 || 26.11.2026
 fix(hub): restore in-page search for Group permissions on desktop and phone. Filter the existing Manage and Belong lists with the same query and announce when no groups match.
 

@@ -29,7 +29,7 @@
   --color-brand-muted: #102c54;
   --color-brand-foreground: #fafafa;
 
-  /* Ice-blue toolbar in Light and on phones; desktop Dark is scoped below. */
+  /* Ice-blue toolbar in Light; Dark is scoped to the app shell below. */
   --color-social-header: #b5d4dc;
   --color-social-header-ink: #090c22;
   --color-social-header-accent: #064eae;
@@ -306,15 +306,15 @@
   :root[data-theme="dark"] .social-sidebar { background-color: var(--color-social-sidebar-dark); }
 }
 
-@media (width >= 48rem) {
-  :root[data-theme="dark"] .social-shell {
-    --color-social-header: var(--color-social-sidebar-dark);
-    --color-social-header-ink: var(--color-foreground);
-    --color-social-header-accent: var(--color-brand-300);
-    --color-social-header-tint: #36414d;
-    --color-social-header-tint-hover: #414e5c;
-  }
+:root[data-theme="dark"] .social-shell {
+  --color-social-header: var(--color-social-sidebar-dark);
+  --color-social-header-ink: var(--color-foreground);
+  --color-social-header-accent: var(--color-brand-300);
+  --color-social-header-tint: #36414d;
+  --color-social-header-tint-hover: #414e5c;
+}
 
+@media (width >= 48rem) {
   :root[data-theme="dark"] .social-desktop-header {
     border-bottom: 1px solid var(--color-social-header-tint);
   }
