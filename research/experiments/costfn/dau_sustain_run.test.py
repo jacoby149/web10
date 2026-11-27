@@ -7,11 +7,13 @@ import sys
 import unittest
 from pathlib import Path
 import tempfile
+import uuid
 from unittest.mock import AsyncMock, Mock, patch
 
 import sqlglot
 
 import costfn_task
+import dau_sustain_cell_policy as cell_policy
 from dau_sustain_dispatch import Dispatch
 import dau_sustain_memory as memory
 import dau_sustain_native_audit as native_audit
@@ -226,7 +228,8 @@ class ParquetInfrastructure(unittest.TestCase):
                 setup.infrastructure.return_value = 'g'
                 cert.fingerprint.return_value = state
                 self.assertIs(run.Actions.base_infrastructure(action), cert.verify.return_value)
-                setup.infrastructure.assert_called_once_with(root, 'dau-parquet', initial=True, settle=False)
+                setup.infrastructure.assert_called_once_with(root, 'dau-parquet', initial=True, settle=False,
+                    additional_groups=set())
                 cert.bind.assert_called_once_with(root, session.return_value, 'g', dict(
                     kind='DAU_VERIFIED_PARQUET_REBUILT',
                     input_manifest_sha256=run.digest(root / 'input/manifest.json'),
@@ -591,6 +594,7 @@ class DiverseDispatch(unittest.IsolatedAsyncioTestCase):
             await workload.read(dict(reader_index=1, slot=4, phase='A'), dict(reader='reader', index=1, groups=['following']))
             await workload.write(dict(writer_index=0, slot=0))
             http.sequence.assert_awaited_once_with('private-token', ['following'], phase='A')
+            self.assertEqual(http.post.call_args.args[0], '/v3/create')
             self.assertEqual(http.post.call_args.kwargs.keys(), {'operation'})
             for path in output.glob('*/*.json'):
                 self.assertNotIn('token', path.read_text())
@@ -810,6 +814,39 @@ class DiverseNativeAudit(unittest.TestCase):
                 ('reader', {'comments': ['other']}, ['target'])):
             with self.assertRaises(ValueError):
                 scope_proof.checked_route(proof, actor, 'comments', groups, ids)
+
+
+class DiverseCellPolicy(unittest.TestCase):
+    def test_writer_slot_keeps_native_journal_key_and_forbids_scope_drift(self):
+        run_id = uuid.UUID('00000000-0000-0000-0000-000000000001')
+        operation = str(uuid.uuid5(run_id, 'publication:9'))
+        groups = ['writer/followers', 'discover']
+        expected = {'writer': set(groups)}
+        payload = dict(service='posts', groups=groups, body=dict(text='dau sustain 9', status='active'))
+        self.assertEqual(cell_policy.publication(str(run_id), 'writer', expected, payload, operation,
+            has_origin=False, delegated=False), str(uuid.uuid5(uuid.NAMESPACE_URL, 'writer:' + operation + ':publish')))
+        for actor, value, identity, origin, delegated in (
+                ('other', payload, operation, False, False),
+                ('writer', dict(payload, author_as='discover'), operation, False, False),
+                ('writer', dict(payload, groups=['following', 'discover']), operation, False, False),
+                ('writer', dict(payload, groups=['discover', 'discover']), operation, False, False),
+                ('writer', dict(payload, body=dict(text='dau sustain 09', status='active')), operation, False, False),
+                ('writer', payload, str(run_id), False, False),
+                ('writer', payload, operation, True, False), ('writer', payload, operation, False, True)):
+            with self.assertRaises(ValueError):
+                cell_policy.publication(str(run_id), actor, expected, value, identity, has_origin=origin, delegated=delegated)
+
+    def test_boot_bundle_requires_every_reader_and_disjoint_existing_writer_groups(self):
+        approved = approval(dau_overnight=True, dau_reader_criterion=readers.CRITERION, composition_admitted=True)
+        provider = 'example.test'
+        discover = provider + '/groups/web10/discover'
+        writers = dict(provider=provider, discover=discover, actors=[dict(reader=f'writer-{i}',
+            groups=[provider + f'/groups/users/writer-{i}/followers', discover]) for i in range(wl.WRITER_ACTORS)])
+        proof = dict(routes={f'reader-{i}': dict(index=i, groups=[f'following-{i}']) for i in range(wl.READERS)})
+        self.assertEqual(len(cell_policy.validate(approved, proof, writers)), wl.WRITER_ACTORS)
+        proof['routes']['reader-0']['groups'].append(writers['actors'][0]['groups'][0])
+        with self.assertRaisesRegex(ValueError, 'outside Following'):
+            cell_policy.validate(approved, proof, writers)
 
 
 if __name__ == '__main__':

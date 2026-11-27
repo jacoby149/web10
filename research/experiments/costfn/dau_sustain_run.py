@@ -13,6 +13,7 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 import time
+import uuid
 
 from arm_f_native import save
 from arm_f_reads import rowset
@@ -22,6 +23,9 @@ import arm_f_run as arm_run
 import arm_t
 import arm_satellite_sql as sql
 import dau_sustain_readers as readers
+from dau_sustain_cell_policy import validate as validate_cell, writer_population
+import dau_sustain_reference as references
+import dau_sustain_scope_proof as scope_proof
 import dau_sustain_workload as wl
 import engagement_billboards as ads
 import engagement_cells as cells
@@ -66,7 +70,11 @@ class Actions(full_store.Actions):
     def base_infrastructure(self):
         # A verified Parquet import has canonical tables, not the prepared
         # snapshot's host-local metadata, counters or fanout state.
-        generation = setup.infrastructure(self.root, 'dau-parquet', initial=True, settle=False)
+        selection = self.root / 'dau-diverse-reader-selection.json'
+        groups = set()
+        if selection.exists():
+            groups = {group for row in read(selection)['readers'] for group in row['groups']}
+        generation = setup.infrastructure(self.root, 'dau-parquet', initial=True, settle=False, additional_groups=groups)
         session = modern.Session(self.root)
         state = certificates.fingerprint(session)
         if state['canonical_generation'] != generation:
@@ -842,9 +850,39 @@ def verify_preflight_binding(root, stored):
         raise ValueError('saved Parquet input binding changed')
 
 
+def prepare_mixed_cell(root, session, settled_ledger):
+    """Bind the isolated runtime to setup proof; do not schedule traffic here."""
+    approval = read(root / 'admission.json')
+    selection = read(root / 'dau-diverse-reader-selection.json')
+    preflight = read(root / 'dau-diverse-reader-preflight.json')
+    if (preflight['status'] != 'SELECTED' or selection['readers_count'] != wl.READERS
+            or preflight['selection_sha256'] != digest(root / 'dau-diverse-reader-selection.json')):
+        raise ValueError('exact frozen reader preflight is required before cell preparation')
+    composition = read(root / 'composition-proof.json')
+    if composition['droplet_id'] != session.host_id or set(composition['gates']) != set(contract.GATES):
+        raise ValueError('indexed composition must be certified on this host before DAU preparation')
+    for name, value in composition['gates'].items():
+        contract.gate(name, value)
+    index = references.prepare(root, session, settled_ledger)
+    proof = scope_proof.prepare(root, session, index)
+    writers = writer_population(root, session, selection)
+    validate_cell(approval, proof, writers)
+    destination = root / 'dau-cell-bundle.json'
+    run_id = read(destination)['run_id'] if destination.exists() else str(uuid.uuid4())
+    # Bound only the admitted W/A/B window plus the native read bound at drain.
+    writer_slot_cap = sum(item['duration_s'] for item in wl.PHASES if item['duration_s']) + 1800
+    value = dict(host_id=session.host_id, task_id=approval['costfn_task_id'], run_id=run_id,
+        writer_slot_cap=writer_slot_cap, scope_proof=proof, writers=writers)
+    if destination.exists() and read(destination) != value:
+        raise ValueError('saved DAU cell bundle differs from current validated preparation')
+    if not destination.exists():
+        save(destination, value)
+    return dict(bundle_sha256=digest(destination), readers=len(proof['routes']), writers=len(writers['actors']))
+
+
 def run(root, *, note=None):
-    raise ValueError('sustained windows blocked: the indexed mixed-load cell and native delivery reconciliation '
-        'are not certified for the diverse-reader contract; only --reader-preflight-only may run')
+    raise ValueError('sustained windows blocked: mixed-load launch and native receipt stages are not connected; '
+        'only --reader-preflight-only may run')
 
 
 def _historical_run(root, *, note=None):

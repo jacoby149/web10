@@ -63,6 +63,10 @@ def copy_fence(current):
     current['engagement_copy_checked'] = True
 
 
+def use_uniform_copy():
+    return uniform
+
+
 def main_sql(compiled, pointers, profile_pairs, scope):
     if MODE == 'baseline':
         return old_main(compiled, pointers, profile_pairs, scope)
@@ -108,7 +112,7 @@ def checked_query(sql=None, *args, **kwargs):
             current.setdefault('fanout_view_checks', []).append(dict(query_id=result.query_id,
                 method=('aggregate' if aggregate_views else 'raw') + '; independent quiet canonical check after HTTP', values=values))
         return result
-    if uniform and current is not None and current.get('request_id') != 'unlabelled':
+    if use_uniform_copy() and current is not None and current.get('request_id') != 'unlabelled':
         from clickhouse_connect.driver.binding import bind_query
         literal = bind_query(sql, params)[0] if params else sql
         tree = sqlglot.parse_one(literal, read='clickhouse')

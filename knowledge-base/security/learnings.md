@@ -35,6 +35,16 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-27: Isolated benchmark read certificates do not authorize writes
+
+The opt-in sustained DAU cell checks the live resolved reader scope against
+its frozen indexed certificate. It also restricts writes to a named slot,
+existing writer and two exact destinations outside selected Following groups.
+The normal token, group and native journal checks still run. The writer's
+canonical lookups cannot be rerouted to the immutable read copy. Frozen
+certificates and journal receipts are evidence inputs, not grants; neither
+the production API nor auth policy changed. Live mixed-load proof is open.
+
 ### 2026-11-19: Row-model completeness cannot rely on a fat canonical fallback
 
 The isolated source prototype binds full author/document identity, exact version

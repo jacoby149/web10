@@ -406,6 +406,13 @@ def generation():
     return hashlib.sha256(json.dumps(rows, sort_keys=True).encode()).hexdigest()
 
 
+def read_certificate(reader):
+    """Default F certificate; an explicitly admitted research cell may specialize it."""
+    fresh = generation() == p.counts['canonical_generation']
+    return (reader == p.profile['reader'] and fresh,
+        'unbuilt_reader' if fresh else 'uncertified_generation')
+
+
 def candidate(compiled, group, after, limit):
     tree = sqlglot.parse_one(compiled, read='clickhouse')
     tree.set('qualify', None)
@@ -427,11 +434,11 @@ def compile_query(*args, **kwargs):
         'is_main': is_main, 'sql_sha256': hashlib.sha256(compiled.encode()).hexdigest()})
     # No global journal/reader lock across ClickHouse I/O. Immutable-receipt
     # generation is checked before/after; uncertified state takes canonical reads.
-    fresh = generation() == p.counts['canonical_generation']
-    if reader != p.profile['reader'] or not fresh:
+    certified, reason = read_certificate(reader)
+    if not certified:
         if admission.get('engagement_completion_admitted') is True:
             raise ValueError('uncertified completion dispatch refused before canonical fallback execution')
-        current['fanout'] = {'path': 'canonical_fallback', 'reason': 'unbuilt_reader' if fresh else 'uncertified_generation'}
+        current['fanout'] = {'path': 'canonical_fallback', 'reason': reason}
         return compiled
     if not is_main:
         return p.compile_query(*args, **kwargs)
@@ -470,7 +477,7 @@ def compile_query(*args, **kwargs):
             row['created_ms'] = p.serve.created_ms(row['created_at'])
         return rows
     rows = f.merge_page(sources, size, fetch, resolve)
-    if generation() != p.counts['canonical_generation']:
+    if not read_certificate(reader)[0]:
         raise ValueError('canonical generation changed during bounded read')
     if not columns:
         raise ValueError('empty result schema not established')

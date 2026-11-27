@@ -1,0 +1,134 @@
+"""Admitted research-only indexed cell with scoped, journaled publication."""
+
+from contextvars import ContextVar
+import hashlib
+import json
+import os
+from pathlib import Path
+
+from fastapi import HTTPException
+from starlette.responses import JSONResponse
+import sqlglot
+from sqlglot import exp
+
+import arm_f_infrastructure as infrastructure
+from arm_satellite_sql import literal as q
+import dau_sustain_cell_policy as policy
+from dau_sustain_scope_proof import checked_route
+import engagement_composition_api as composition
+import engagement_tally_queries as tallies
+
+
+e = composition.e
+f, p = e.f, e.p
+bundle = json.loads(Path(os.environ['DAU_CELL_BUNDLE']).read_bytes())
+proof, writers = bundle['scope_proof'], bundle['writers']
+allowed = policy.validate(f.admission, proof, writers)
+if (bundle['host_id'] != p.host or bundle['task_id'] != f.admission['costfn_task_id']
+        or proof['binding']['copy_hash'] != e.proof['parts_sha256']
+        or proof['binding']['canonical_generation'] != p.counts['canonical_generation']
+        or f.generation() != p.counts['canonical_generation']
+        or {group for row in proof['routes'].values() for group in row['groups']} - set(f.build['group_members'])):
+    raise RuntimeError('DAU cell does not match certified canonical source, scopes and fanout classification')
+
+
+def authority_parts():
+    # Only the two canonical publication tables may append. A create through
+    # this cell cannot change grants, existing docs or selected Following links.
+    tables = sorted(set(infrastructure.CANONICAL_TABLES) - {'documents', 'doc_groups'})
+    rows = p.run("SELECT table,name,rows,data_version FROM system.parts WHERE database='web10' AND active AND table IN ("
+        + ','.join(map(q, tables)) + ') ORDER BY table,name')
+    return hashlib.sha256(json.dumps(rows, sort_keys=True, default=str).encode()).hexdigest()
+
+
+authority = authority_parts()
+composition.tally.receipt['parts_sha256'] = proof['parts_sha256']
+ordinary_compile = p.compile_query
+ordinary_publish = f.documents.create_as
+inside_publication = ContextVar('dau_authorized_publication', default=False)
+
+
+def certify(reader):
+    if reader not in proof['routes']:
+        return False, 'unbuilt_reader'
+    current = p.observer.current.get()
+    fresh = authority_parts() == authority
+    if current is not None:
+        current['dau_authority_parts_match'] = fresh
+    return fresh, 'uncertified_authority'
+
+
+def scope_for(label, reader, readable):
+    packet = proof['routes'].get(reader, {}).get('routes', {}).get(label)
+    if not packet:
+        raise ValueError('missing certified DAU scope')
+    sample = next(iter(packet.values()))['verified_ids']
+    return next(iter(checked_route(proof, reader, label, readable, sample).values()))
+
+
+def main(compiled, pointers, profiles, scope):
+    current = p.observer.current.get()
+    actual = next(row for row in reversed(current['fanout_scopes']) if row['is_main'])
+    routing = checked_route(proof, actual['reader'], 'main', actual['readable'], [row['doc_id'] for row in pointers])
+    current['engagement_tally_scopes'] = sorted(set(routing.values()))
+    return tallies.main(compiled, pointers, profiles, scope, routing, uniform=e.uniform, table=e.table)
+
+
+def compile_query(*args, **kwargs):
+    compiled = p._compile(*args, **kwargs)
+    tree = sqlglot.parse_one(compiled, read='clickhouse')
+    source = tree.args.get('from_')
+    service = source.this.name if source and isinstance(source.this, exp.Table) else None
+    if service not in ('reactions', 'comments') or not any(list(x.find_all(exp.AggFunc)) for x in tree.expressions):
+        return ordinary_compile(*args, **kwargs)  # Canonical prepare subreads retain the existing compiler.
+    reader = kwargs.get('member_key', args[2] if len(args) > 2 else 'anon')
+    readable = args[1] if len(args) > 1 else kwargs['readable_groups_by_service']
+    ids = e.queries.literal_targets(tree)
+    route = checked_route(proof, reader, service, readable, ids)[service]
+    p.observer.current.get()['engagement_tally_scopes'] = [route]
+    return tallies.stored(tree, service, route, ids, uniform=e.uniform)
+
+
+def publish(request, data, real_author, client_id, **kwargs):
+    context = f.context.get()
+    try:
+        payload = f.payload(data)
+        doc = policy.publication(bundle['run_id'], real_author, allowed, payload,
+            (context or {}).get('operation_id'), has_origin=bool(request.headers.get('origin')), delegated=bool(client_id))
+        slot = int(payload['body']['text'].removeprefix('dau sustain '))
+        if slot >= bundle['writer_slot_cap'] or writers['actors'][slot % len(writers['actors'])]['reader'] != real_author:
+            raise ValueError('publication does not match the frozen writer rotation')
+        # Check by doc ID (not just author) because attachments are keyed by ID.
+        current = p.observer.current.get() or {}
+        result = f.original_query('SELECT doc_id FROM documents WHERE doc_id=' + q(doc) + ' LIMIT 1',
+            settings={'log_comment': 'F_WRITE:' + current['request_id']})
+        if result.result_rows:
+            raise ValueError('publication would reuse a canonical attachment identity')
+    except ValueError as error:
+        raise HTTPException(403, str(error)) from error
+    # Original current token/group authorization, exact_target check, journal,
+    # native create and fanout/index reconciliation all remain in effect.
+    return ordinary_publish(request, data, real_author, client_id, **{**kwargs, 'exact_targets': True})
+
+
+f.read_certificate = certify
+e.use_uniform_copy = lambda: e.uniform and not inside_publication.get()
+p.scope_for = scope_for
+p.serve.main_sql = main
+p.compile_query = compile_query
+f.documents.create_as = publish
+
+
+async def application(scope, receive, send):
+    if scope['type'] == 'http':
+        method, path = scope['method'], scope['path']
+        if method == 'POST' and path == '/v3/create':
+            token = inside_publication.set(True)
+            try:
+                return await f.application(scope, receive, send)
+            finally:
+                inside_publication.reset(token)
+        if ((method == 'POST' and path not in ('/v3/query', '/v3/contentViews', '/v3/login'))
+                or (method != 'POST' and (method, path) != ('GET', '/docs'))):
+            return await JSONResponse({'detail': 'route is outside the admitted DAU workload'}, status_code=403)(scope, receive, send)
+    return await composition.application(scope, receive, send)
