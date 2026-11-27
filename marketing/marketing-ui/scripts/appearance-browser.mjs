@@ -430,9 +430,11 @@ try {
           }
           const current = page.getByRole('link', { name: name === 'home' ? 'Home' : 'Freedom', exact: true }).filter({ visible: true }).first();
           assert.equal(await current.evaluate(el => getComputedStyle(el).backgroundColor), dark ? 'rgb(54, 65, 77)' : 'rgb(225, 242, 246)');
+          // One neutral outline entry across all tabs — the shared pages
+          // must not reintroduce a brand fill the Home navbar doesn't have.
           const social = page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true });
-          assert.equal(await social.evaluate(el => getComputedStyle(el).backgroundColor), name === 'home' ? 'rgba(0, 0, 0, 0)' : 'rgb(194, 223, 237)');
-          if (dark && name === 'freedom') assert.equal(await social.evaluate(el => getComputedStyle(el).color), 'rgb(9, 12, 34)');
+          assert.equal(await social.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
+          assert.equal(await social.evaluate(el => getComputedStyle(el).color), dark ? 'rgb(250, 250, 250)' : 'rgb(24, 35, 44)');
           if (width < 1024) {
             await capture(page, `${name}-navigation-${mode}-${label}`);
             await page.getByRole('button', { name: 'Close menu', exact: true }).click();
