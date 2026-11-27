@@ -122,6 +122,12 @@ async def workload(*, phases, readers, writer_count, read, write, observe, recor
         finally:
             sampling_stop.set()
             await observer
+    except Exception:
+        abort.set()
+        writer_abort.set()
+        await writer
+        await asyncio.gather(reader_dispatch.drain(None), writer_dispatch.drain(None))
+        raise
     finally:
         writer_abort.set()
         await writer

@@ -139,7 +139,8 @@ def resource_debt(session, phase, in_flight, disk):
         "AND table IN ('documents','engagement_documents','content_events','doc_groups') GROUP BY table")
     by_table = {row['table']: int(row['n']) for row in parts}
     values = {'parts:' + table: by_table.get(table, 0) for table in ('documents', 'engagement_documents', 'content_events', 'doc_groups')}
-    rows, _ = session.rows('dau_timed_debt', "SELECT (SELECT coalesce(sum(bytes_to_process),0) FROM system.merges WHERE database='web10') "
+    rows, _ = session.rows('dau_timed_debt', "SELECT (SELECT coalesce(sum(total_size_bytes_compressed*(1-least(1.,greatest(0.,progress)))),0) "
+        "FROM system.merges WHERE database='web10') "
         "AS merge_bytes,(SELECT count() FROM system.mutations WHERE database='web10' AND is_done=0) AS pending,"
         "(SELECT value FROM system.metrics WHERE metric='MemoryTracking') AS tracked")
     rss = restore.command(['ps', '-eo', 'rss='], None, timeout=10).decode()
@@ -162,19 +163,24 @@ async def credentials(http, readers, writers):
 async def calibration(driver, readers, record, observe, abort, bound):
     dispatcher = Dispatch(limit=2048, record=record, abort=abort)
     origin = asyncio.get_running_loop().time()
-    for phase in CALIBRATION:
-        if abort.is_set():
-            break
-        finished = asyncio.Event()
-        observer = asyncio.create_task(observe(phase['name'], dispatcher, origin, finished))
-        try:
-            await dispatcher.offer(list(timed.assign_readers([phase], readers)), origin=origin,
-                end=origin + phase['duration_s'], operation=lambda entry: driver.read(entry, readers[entry['reader_index']]),
-                classify=classify)
-        finally:
-            finished.set()
-            await observer
-        origin += phase['duration_s']
+    try:
+        for phase in CALIBRATION:
+            if abort.is_set():
+                break
+            finished = asyncio.Event()
+            observer = asyncio.create_task(observe(phase['name'], dispatcher, origin, finished))
+            try:
+                await dispatcher.offer(list(timed.assign_readers([phase], readers)), origin=origin,
+                    end=origin + phase['duration_s'], operation=lambda entry: driver.read(entry, readers[entry['reader_index']]),
+                    classify=classify)
+            finally:
+                finished.set()
+                await observer
+            origin += phase['duration_s']
+    except Exception:
+        abort.set()
+        await dispatcher.drain(None)
+        raise
     return dispatcher, await dispatcher.drain(bound)
 
 
@@ -245,6 +251,32 @@ def saturation_observation(phase, elapsed, records):
     return None
 
 
+def preserve_precalibration_cell(root, session):
+    """Keep a refused calibration before booting a new cell on the same store."""
+    cell = root / 'cells/dau-sustain'
+    if not cell.exists():
+        return None
+    output = cell / 'live'
+    records = output / 'reads.jsonl'
+    if (any((output / name).exists() for name in ('calibration.json', 'storage.json', 'raw-views-before.json',
+            'live-receipt.json', 'saturation-stop.json')) or any((output / 'publication-acks').glob('*.json'))):
+        raise ValueError('calibration completed or live work began; a calibration-only retry is not safe')
+    if records.exists() and any(json.loads(line)['phase'] not in ('CAL', 'CAL-BURST')
+            for line in records.read_text().splitlines()):
+        raise ValueError('do not restart a cell that offered measured or warm-up traffic')
+    running, _ = session.rows('dau_calibration_retry_no_active_native',
+        'SELECT count() AS n FROM system.processes WHERE query_id!=currentQueryID()')
+    if int(running[0]['n']):
+        raise ValueError('original native work remains active; do not replace calibration cell')
+    stamp = datetime.now(UTC).strftime('%Y%m%dT%H%M%S%fZ')
+    saved = cell.with_name('dau-sustain-refused-calibration-' + stamp)
+    cell.rename(saved)
+    save(root / ('dau-preserved-calibration-' + stamp + '.json'), dict(cell=saved.name,
+        committed_publications=0, measured_or_warmup_offers=0, native_work_active=0,
+        preparation_reused=True, restored_deliveries_untouched=True))
+    return saved
+
+
 async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     """Run the measured HTTP contract; keep all results private until proof holds.
 
@@ -257,10 +289,11 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     packets = private_packets(root)
     selected = [packets[index]['profile'] for index in range(wl.READERS)]
     writers = bundle['writers']['actors']
+    session = modern.Session(root)
+    preserve_precalibration_cell(root, session)
     cell = cells.boot(root, 'dau-sustain', 'ordinary', 'uniform', aggregate=True, dau=True)
     output = cell / 'live'
     output.mkdir(mode=0o700)
-    session = modern.Session(root)
     http = HTTP(cell, session, cell / 'http')
     envelope = approval['dau_envelope']
     pids = service_pid(session, 'clickhouse'), service_pid(session, 'api')
@@ -276,7 +309,7 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
     resources = record_to(output / 'resources.jsonl')
     started_utc = datetime.now(UTC)
 
-    async def observe(phase, dispatch, origin, stop):
+    async def sample_window(phase, dispatch, origin, stop):
         loop = asyncio.get_running_loop()
         while not stop.is_set():
             values = await asyncio.to_thread(sample_debt, session, phase, len(dispatch.pending))
@@ -294,6 +327,13 @@ async def run(root, *, sample_debt, verify_storage, verify_delivery_stability):
                 await asyncio.wait_for(stop.wait(), 10)
             except TimeoutError:
                 pass
+
+    async def observe(phase, dispatch, origin, stop):
+        try:
+            await sample_window(phase, dispatch, origin, stop)
+        except Exception:
+            abort.set()
+            raise
 
     try:
         journal_path = cell / 'fanout-state/journal/intents.sqlite'
