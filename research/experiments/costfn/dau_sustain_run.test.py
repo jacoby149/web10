@@ -5,7 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 import tempfile
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import sqlglot
 
@@ -14,7 +14,9 @@ from dau_sustain_dispatch import Dispatch
 import dau_sustain_memory as memory
 import dau_sustain_parity as parity
 import dau_sustain_readers as readers
+import dau_sustain_reference as reference
 import dau_sustain_run as run
+import dau_sustain_timed as timed
 import dau_sustain_workload as wl
 import engagement_window as window
 
@@ -553,12 +555,46 @@ class DiverseReaderPreflight(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '28/22 GiB'):
             run.diverse_host_admission(value)
 
+    def test_overnight_backstop_is_exact_and_amended_only(self):
+        value = approval(dau_overnight=True, dau_reader_criterion=readers.CRITERION)
+        value['dau_host'].update(size='c-32', expected_guest_logical_cpus=32)
+        value['dau_envelope'].update(container_bytes=28 * 1024**3, server_bytes=22 * 1024**3)
+        with patch.object(run.full_store, 'source_guard'):
+            with self.assertRaisesRegex(ValueError, 'host class'):
+                run.admission_gate(value)
+            value['dau_host']['backstop_h'] = 24
+            run.admission_gate(value)
+            del value['dau_reader_criterion']
+            with self.assertRaisesRegex(ValueError, 'requires the amended'):
+                run.admission_gate(value)
+
     def test_legacy_serial_shared_oracle_cannot_start_a_measurement(self):
         with self.assertRaisesRegex(ValueError, 'sustained windows blocked'):
             run.run('/does/not/exist')
 
 
 class DiverseDispatch(unittest.IsolatedAsyncioTestCase):
+    async def test_http_workload_uses_each_reader_token_and_banks_only_private_response(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder)
+            http = Mock(capture=reference.core_feed.wire())
+            http.sequence = AsyncMock(return_value=dict(phase='A', path_mode='F_DOCUMENT_STREAM_V1', rows=[1]))
+            http.post = AsyncMock(return_value=(dict(author_key='writer', doc_id='doc', groups=['self', 'discover']),
+                dict(request_id='write1')))
+            workload = timed.HTTPWorkload(http, output, run_id='00000000-0000-0000-0000-000000000001',
+                reader_tokens={'reader': 'private-token'}, writers=[dict(reader='writer', groups=['self', 'discover'])],
+                writer_tokens={'writer': 'private-writer-token'})
+            await workload.read(dict(reader_index=1, slot=4, phase='A'), dict(reader='reader', index=1, groups=['following']))
+            await workload.write(dict(writer_index=0, slot=0))
+            http.sequence.assert_awaited_once_with('private-token', ['following'], phase='A')
+            self.assertEqual(http.post.call_args.kwargs.keys(), {'operation'})
+            for path in output.glob('*/*.json'):
+                self.assertNotIn('token', path.read_text())
+            http.sequence.return_value['path_mode'] = 'canonical_fallback'
+            with self.assertRaisesRegex(ValueError, 'declared indexed path'):
+                await workload.read(dict(reader_index=1, slot=5, phase='A'),
+                    dict(reader='reader', index=1, groups=['following']))
+
     async def test_slow_reads_do_not_reduce_offers_and_drain_does_not_cancel(self):
         saved, release = [], asyncio.Event()
         dispatch = Dispatch(limit=2, record=saved.append)
@@ -592,6 +628,36 @@ class DiverseDispatch(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(dispatch.counts['completed'], 0)
         self.assertEqual(saved[0]['error_class'], 'parity')
         self.assertNotIn('private', json.dumps(saved))
+
+    async def test_workload_carries_reads_across_phases_while_writer_runs(self):
+        read_records, writer_records, samples, actors = [], [], [], []
+        release = asyncio.Event()
+        abort = asyncio.Event()
+
+        async def read(entry, actor):
+            actors.append((entry['phase'], actor['reader']))
+            await release.wait()
+
+        async def write(entry):
+            self.assertEqual(entry['writer_index'], 0)
+
+        async def observe(phase, dispatch, origin, stop):
+            samples.append((phase, len(dispatch.pending)))
+            if phase == 'D':
+                release.set()
+            await stop.wait()
+
+        phases = [dict(name=name, rate=20.0, duration_s=0.1) for name in ('W', 'A', 'B')]
+        result = await timed.workload(phases=phases,
+            readers=[dict(index=0, reader='reader-0'), dict(index=1, reader='reader-1')],
+            writer_count=1, read=read, write=write, observe=observe, record_read=read_records.append,
+            record_write=writer_records.append, classify=lambda exc: ('error', True), drain_bound=0.4,
+            max_reads=10, max_writes=2, abort=abort)
+        self.assertEqual(actors, [(phase, reader) for phase in ('W', 'A', 'B') for reader in ('reader-0', 'reader-1')])
+        self.assertTrue(result['drain_ok'])
+        self.assertEqual(result['reader_accounting']['completed'], 6)
+        self.assertEqual(len(writer_records), 1)
+        self.assertEqual(samples[-1], ('D', 6))
 
 
 class DiverseParityAndMemory(unittest.TestCase):
@@ -654,6 +720,28 @@ class DiverseParityAndMemory(unittest.TestCase):
             self.assertEqual(sample['api']['process_rss_bytes'], 2048)
             with self.assertRaisesRegex(ValueError, 'cap differs'):
                 memory.sample(1, 2, engine_cap=cap - 1, server_cap=22 * 1024**3, proc=proc, cgroups=cgroups)
+
+
+class DiverseReference(unittest.TestCase):
+    def test_ordering_does_not_touch_main_or_view_request_and_keeps_id_binding(self):
+        capture = reference.core_feed.wire()
+        ordered = reference.ordered_capture(capture)
+        self.assertEqual(capture['requests'][0], ordered['requests'][0])
+        self.assertEqual(capture['requests'][3], ordered['requests'][3])
+        identifier = '00000000-0000-0000-0000-000000000001'
+        for item, column in zip(ordered['requests'][1:3], ('ref_value', 'post_id'), strict=True):
+            payload = reference.core_feed.payload(item['payload'], '', ['a'], [identifier])
+            self.assertIn("'" + identifier + "'", payload['sql'])
+            order = sqlglot.parse_one(payload['sql'], read='clickhouse').args['order']
+            self.assertEqual([item.this.name for item in order.expressions], [column])
+
+    def test_banked_pins_only_affect_exact_full_keys(self):
+        rows = [dict(author_key='other', doc_id='same'), dict(author_key='original', doc_id='same')]
+        creative = dict(author_key='advertiser', doc_id='creative')
+        ledger = dict(posts=[dict(post=['original', 'same'], placement='node', ad=creative)])
+        self.assertEqual(reference.apply_billboards(rows, ledger), [rows[0], dict(rows[1], node_ad=creative)])
+        with self.assertRaisesRegex(ValueError, 'serving-produced ads'):
+            reference.apply_billboards([dict(rows[0], ad=creative)], ledger)
 
 
 if __name__ == '__main__':

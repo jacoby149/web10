@@ -47,5 +47,10 @@ owned cleanup; retain the original snapshot. Only a banked sustained result
 updates draft v8. The final receipt and summary must distinguish achieved
 rates, debt slopes, drain, whole-node memory, parity, and estimated compute.
 
-The offline dispatcher, exact comparison, and memory-accounting components
-are source controls, not an enabled runner or a native receipt.
+The source now has a quiescent reader-oracle batch, an HTTP workload adapter,
+an open-loop phase driver, exact comparison and memory accounting. The
+previously unordered reaction and comment aggregates are explicitly ordered by
+their existing group key on both oracle and request paths; the first-page and
+views requests are unchanged. This remains source control, not an enabled runner
+or a native receipt. The certified mixed-load cell and native reconciliation
+are still required before opening the timed entry point.

@@ -84,10 +84,13 @@ def admission_gate(approval):
     if approval.get('purpose') != 'DAU_SUSTAINED_CONTRACT_RATE':
         raise ValueError('sustained-DAU admission purpose required')
     host = approval.get('dau_host')
+    backstop = 24 if approval.get('dau_overnight') is True else 12
     if not (host and host.get('region') and host.get('size') and host.get('price_hourly')
             and host.get('storage_gib') and host.get('storage_class')
-            and host.get('backstop_h') == 12 and host.get('compute_ceiling_usd') == 25.0):
+            and host.get('backstop_h') == backstop and host.get('compute_ceiling_usd') == 25.0):
         raise ValueError('budget-sized host class declared at admission required')
+    if backstop == 24 and 'dau_reader_criterion' not in approval:
+        raise ValueError('overnight backstop requires the amended reader admission')
     derived = (host.get('cores') == 16 and host.get('threads') == 32 and host.get('ram_gb') == 32)
     note = host.get('class_note')
     if 'dau_reader_criterion' not in approval and not derived and not (type(note) is str and note.strip()):
@@ -840,8 +843,8 @@ def verify_preflight_binding(root, stored):
 
 
 def run(root, *, note=None):
-    raise ValueError('sustained windows blocked: shared-oracle scheduler cannot execute the diverse-reader contract; '
-        'only --reader-preflight-only is implemented for the amendment')
+    raise ValueError('sustained windows blocked: the indexed mixed-load cell and native delivery reconciliation '
+        'are not certified for the diverse-reader contract; only --reader-preflight-only may run')
 
 
 def _historical_run(root, *, note=None):
