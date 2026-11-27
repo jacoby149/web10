@@ -68,7 +68,7 @@ def admission_gate(approval):
         raise ValueError('sustained-DAU admission purpose required')
     host = approval.get('dau_host')
     if not (host and host.get('region') and host.get('size') and host.get('price_hourly')
-            and host.get('storage_gib') and host.get('storage_class') == 'NVMe'
+            and host.get('storage_gib') and host.get('storage_class')
             and host.get('backstop_h') == 12 and host.get('compute_ceiling_usd') == 25.0):
         raise ValueError('budget-sized host class declared at admission required')
     derived = (host.get('cores') == 16 and host.get('threads') == 32 and host.get('ram_gb') == 32)

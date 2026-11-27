@@ -1,5 +1,5 @@
 6.32.32 || 27.11.2026
-research: generate the sustained-DAU ClickHouse server memory limit from the bound admission instead of mounting the retired host's fixed 80 GiB setting. The container and server limits now use the same admission, and the live equality check remains. No workload or gate change.
+research: generate the sustained-DAU ClickHouse server memory limit from the bound admission instead of mounting the retired host's fixed 80 GiB setting. The container and server limits now use the same admission, and the live equality check remains. Admit the declared class-provided local storage without requiring an NVMe label; calibration still has to demonstrate headroom. No workload or measurement-gate change.
 
 6.32.31 || 26.11.2026
 fix(social): match the phone's Dark header to desktop charcoal and provide Android launchers a full-bleed blue maskable app icon. Keep the Light header, phone dock, and iOS touch icon unchanged.
