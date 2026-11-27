@@ -72,6 +72,7 @@ def build(root, *, step0_root=None):
     output = root / 'F-build'
     output.mkdir(mode=0o700, exist_ok=False)
     profile = json.loads((root / 'profile/inventory.json').read_bytes())
+    expected_members = membership_requirements(session.operation, profile)
     result = dict(kind='CONFIG_F_CANONICAL_BUILD', outcome='BUILDING', P_Step0_T2=step0_status,
         Step0_reference='PR#1572 cited, not re-measured' if scoped else str(baseline), Step0_receipt_sha256=step0_digest,
         droplet_id=session.host_id, dataset_id=session.operation['dataset_id'], cutoff=f.CUTOFF,
@@ -101,10 +102,11 @@ def build(root, *, step0_root=None):
             # Read count and recipient set together even when the lane is seek.
             sql = f.MEMBERS.replace('{group_id:String}', q(group)) + ' FORMAT JSON'
             keys = [row['member_key'] for row in json.loads(query('F_members_' + str(index), sql))['data']]
-            if profile['reader'] not in keys or len(keys) != len(set(keys)):
+            if not expected_members[group] <= set(keys) or len(keys) != len(set(keys)):
                 raise ValueError('canonical reader membership/recipient set differs')
             result['group_members'][group] = len(keys)
-        small = [group for group, number in result['group_members'].items() if number < f.CUTOFF]
+        small = [group for group, number in result['group_members'].items()
+            if number < f.CUTOFF and profile['reader'] in expected_members[group]]
         # One full canonical pass, not group->author inference or another satellite.
         candidates = json.loads(query('F_canonical_recent', recent_canonical(small) + ' FORMAT JSON'))['data'] if small else []
         identities = []
@@ -147,6 +149,21 @@ def build(root, *, step0_root=None):
         result['updated_utc'] = datetime.now(UTC).isoformat()
         save(output / 'result.json', result)
     return result
+
+
+def membership_requirements(operation, profile):
+    groups = profile['groups']
+    expected = {group: {profile['reader']} for group in groups}
+    if 'dau_group_readers' not in profile:
+        return expected
+    if (operation.get('purpose') != 'DAU_SUSTAINED_CONTRACT_RATE'
+            or operation.get('dau_overnight') is not True):
+        raise ValueError('per-group reader requirements only apply to the admitted DAU cell')
+    supplied = profile['dau_group_readers']
+    if (set(supplied) != set(groups) or any(not readers or len(set(readers)) != len(readers) or
+            any(type(reader) is not str or not reader for reader in readers) for readers in supplied.values())):
+        raise ValueError('every classified group needs its exact frozen reader coverage')
+    return {group: set(readers) for group, readers in supplied.items()}
 
 
 if __name__ == '__main__':

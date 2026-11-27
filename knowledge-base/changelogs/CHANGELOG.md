@@ -1,3 +1,6 @@
+6.32.47 || 27.11.2026
+research: repair the indexed DAU bootstrap to verify current recipients against each frozen reader's own Following memberships. Reuse completed same-generation metadata and keep the original membership refusal, rather than rebuilding the restored store or requiring one reader to belong to all groups.
+
 6.32.46 || 27.11.2026
 research: stage the original paired fixture from the retained image on the single admitted c-32, verify its bytes and native authority rows, and load only disjoint fixture keys after the frozen census. Bind the exact guest and armed timer before execution; source controls are not a native restore or run result.
 

@@ -76,9 +76,17 @@ class Actions(full_store.Actions):
         # snapshot's host-local metadata, counters or fanout state.
         selection = self.root / 'dau-diverse-reader-selection.json'
         groups = set()
+        reader_groups = None
         if selection.exists():
-            groups = {group for row in read(selection)['readers'] for group in row['groups']}
-        generation = setup.infrastructure(self.root, 'dau-parquet', initial=True, settle=False, additional_groups=groups)
+            reader_groups = {row['reader']: row['groups'] for row in read(selection)['readers']}
+            groups = {group for scope in reader_groups.values() for group in scope}
+        epoch = self.root / 'cells/infra-dau-parquet/epoch.json'
+        stop = self.root / 'cells/fanout-bootstrap/F-build/result.json'
+        if reader_groups is not None and epoch.is_file() and stop.is_file() and not (self.root / 'fanout-template').exists():
+            generation = self.resume_fanout_setup(epoch, stop, groups, reader_groups)
+        else:
+            generation = setup.infrastructure(self.root, 'dau-parquet', initial=True, settle=False,
+                additional_groups=groups, reader_groups=reader_groups)
         session = modern.Session(self.root)
         state = certificates.fingerprint(session)
         if state['canonical_generation'] != generation:
@@ -88,6 +96,29 @@ class Actions(full_store.Actions):
             input_manifest_sha256=digest(self.root / 'input/manifest.json'),
             canonical_content_sha256=state['canonical_content_sha256']))
         return certificates.verify(self.root)
+
+    def resume_fanout_setup(self, epoch, stop, groups, reader_groups):
+        """Retain verified derived metadata and repair only the failed bootstrap."""
+        failed, saved = read(stop), read(epoch)
+        if (failed.get('outcome'), failed.get('failure_message')) != (
+                'STOP', 'canonical reader membership/recipient set differs'):
+            raise ValueError('saved bootstrap stop is not the diverse membership failure')
+        session = modern.Session(self.root)
+        generation = certificates.fingerprint(session)['canonical_generation']
+        if generation != saved['canonical_generation']:
+            raise ValueError('canonical generation changed since the completed metadata preparation')
+        from engagement_cells import digest as file_digest
+        metadata = self.root / 'metadata/result.json'
+        parity = read(self.root / 'metadata-parity/result.json')
+        if (parity.get('outcome') != 'BOUNDED_SPOT_PASS' or parity.get('metadata_sha256') != file_digest(metadata)
+                or read(metadata).get('canonical_generation') != generation):
+            raise ValueError('completed metadata no longer matches its saved parity receipt')
+        rows, _ = session.rows('dau_failed_bootstrap_empty', 'SELECT count() AS n FROM fanout')
+        if int(rows[0]['n']):
+            raise ValueError('failed membership bootstrap has written pointers; refuse adoption')
+        setup.build_fanout(self.root, read(self.root / 'profile-ordinary.json'),
+            read(self.root / 'profile-fixture.json'), additional_groups=groups, reader_groups=reader_groups, repair=True)
+        return generation
 
 
 def admission_gate(approval):
