@@ -1,3 +1,6 @@
+6.32.30 || 26.11.2026
+fix(hub): restore in-page search for Group permissions on desktop and phone. Filter the existing Manage and Belong lists with the same query and announce when no groups match.
+
 6.32.28 || 26.11.2026
 style: put Hub desktop navigation in a Social-style charcoal sidebar in Dark mode and restore What is web10, App Store, and Docs under More… there and in the phone dock. Align Social’s Discover topic chips with the desktop post column without changing filters or the phone gutter.
 

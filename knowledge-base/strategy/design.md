@@ -612,7 +612,8 @@ destinations in the desktop sidebar from 768px up. Dark uses Social's
 `#1b2026` charcoal; Light uses the console's surface token. Keep the glass
 phone dock. Restore What is web10, App Store and Docs under More… in both
 layouts, not as permanent sidebar promos. Search lives in the body
-of the list it filters (App permissions or Pending requests), at every width.
+of the list it filters (App permissions, Group permissions, or Pending requests),
+at every width. Group permissions uses one filter across Manage and Belong.
 Hub and sign-in share an ice-blue header (`#b5d4dc`) with
 transparent dark keys, plus marketing-inspired paper and charcoal themes.
 Account and consent behavior are unchanged by this shell change.

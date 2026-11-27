@@ -85,6 +85,8 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
+- [✓ 6.32.30 local] **Group permissions in-page search** — reuse Hub's list search on desktop and phone; verify matching, clearing, and the no-results state without changing group authority.
+
 - [✓ 6.32.28 local] **Hub desktop sidebar and More menu** — desktop navigation moves to the sidebar, with Social charcoal in Dark; the desktop sidebar and phone dock both restore ecosystem links under More…. In-page search and role gates stay unchanged.
 
 - [✓ 6.32.13 local] **Hub top-bar navigation and in-page search** — desktop header navigation from 768px, phone dock retained, App permissions and Pending requests search in their lists. Verified in both themes at 375/768/1280/1440px with Chromium fixtures; no live auth or deployment claim.
