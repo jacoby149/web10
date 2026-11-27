@@ -292,6 +292,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: social-appearance
 
+- [✓ 6.32.59 local] **Pure-black Social app icon** — use opaque `#000000` in the catalog and install exports; verify the existing Android maskable lockup stays inside the safe circle and the favicon stays unchanged. Device refresh remains unverified.
+
 - [✓ 6.32.55 local] **Final Social icon and upright headers** — use blue keys and white lowercase `social` in the catalog and install artwork; the normal Dark and Light headers retain themed keys and an accented `10` next to uniform upright type. Verify the narrow header and Android maskable safe zone; no device-refresh claim.
 
 - [✓ 6.32.55 local] **Social More ecosystem links** — show What is web10 and the exact Social App Store review destination in order on desktop and phone, with role gates and current view unchanged.

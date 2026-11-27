@@ -1,3 +1,6 @@
+6.32.59 || 27.11.2026
+fix(social): use pure black behind the existing blue keys and white lettering on the App Store and install icons. Refresh the PWA shell cache; leave the favicon and in-app theme unchanged.
+
 6.32.58 || 27.11.2026
 fix(marketing): Quick links opens a new tab from both navbar layouts without navigating away from the current page. Links within the directory stay same-tab.
 
