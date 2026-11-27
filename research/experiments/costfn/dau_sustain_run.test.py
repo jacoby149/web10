@@ -995,7 +995,10 @@ class DiverseLiveReceipt(unittest.TestCase):
             session.rows.assert_not_called()
             records.write_text('{"phase":"CAL"}\n')
             session.rows.return_value = ([{'n': 0}], 'native')
-            prior = live.preserve_precalibration_cell(root, session)
+            session.native.return_value = dict(query_id='native', type='QueryFinish', exception_code=0)
+            with patch.object(live.transport, 'connect') as connect:
+                connect.return_value.__enter__.return_value = session
+                prior = live.preserve_precalibration_cell(root, session)
             self.assertFalse(live_output.exists())
             self.assertEqual((prior / 'live/reads.jsonl').read_text(), '{"phase":"CAL"}\n')
 

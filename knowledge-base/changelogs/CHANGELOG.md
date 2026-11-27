@@ -1,3 +1,6 @@
+6.32.69 || 27.11.2026
+research: use the synchronous private native connection for the DAU calibration retry's quiescence check. Do not mistake the CLI poller's own SYSTEM FLUSH LOGS for prior live traffic; retain an exact receipt and refuse real active native work.
+
 6.32.68 || 27.11.2026
 research: use the live ClickHouse compressed merge-size and progress fields in DAU calibration. Preserve the original refused calibration and drain submitted requests on an observer error before any same-host calibration-only retry; do not rerun measured windows.
 
