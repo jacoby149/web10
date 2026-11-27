@@ -15,7 +15,7 @@ const server = spawn('bunx', ['vite', '--host', '127.0.0.1', '--port', String(po
 let browser;
 const key = 'web10-marketing:theme';
 const appUrl = 'https://social.web10.app';
-const socialIconCharcoal = [27, 32, 38, 255];
+const socialIconBlack = [0, 0, 0, 255];
 const activeUsers = { users_1d: 0, users_30d: 0, users_90d: 0, users_1y: 0 };
 const receipts = [];
 const waitTheme = (page, value) => page.waitForFunction(theme => document.documentElement.dataset.theme === theme, value);
@@ -187,8 +187,8 @@ async function verifyLogo(page, variant = 'white') {
   assert.equal(await logo.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
   assert.equal(await active.evaluate(el => el.complete && el.naturalWidth > 0), true);
 }
-async function verifyCatalogIcon(locator, expectedCorner, socialLockup = false) {
-  const { corner, blueOnLeft, whiteOnRight } = await locator.evaluate(async el => {
+async function verifyCatalogIcon(locator, expectedCorner, socialKeys = false) {
+  const { corner, blueOnLeft, blueOnRight, whitePixels } = await locator.evaluate(async el => {
     const image = new Image();
     image.src = el.getAttribute('src');
     await image.decode();
@@ -198,17 +198,21 @@ async function verifyCatalogIcon(locator, expectedCorner, socialLockup = false) 
     const context = canvas.getContext('2d');
     context.drawImage(image, 0, 0);
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    let blueOnLeft = 0, whiteOnRight = 0;
+    let blueOnLeft = 0, blueOnRight = 0, whitePixels = 0;
     for (let i = 0; i < pixels.length; i += 4) {
       const x = (i / 4) % canvas.width;
       const [r, g, b] = [pixels[i], pixels[i + 1], pixels[i + 2]];
-      if (x < canvas.width * .42 && r === 168 && g === 206 && b === 255 && pixels[i + 3] === 255) blueOnLeft++;
-      if (x > canvas.width * .43 && r === 250 && g === 250 && b === 250 && pixels[i + 3] === 255) whiteOnRight++;
+      if (pixels[i + 3] !== 255) continue;
+      if (r === 168 && g === 206 && b === 255) {
+        if (x < canvas.width / 2) blueOnLeft++;
+        else blueOnRight++;
+      }
+      if (r >= 250 && g >= 250 && b >= 250) whitePixels++;
     }
-    return { corner: [...pixels.subarray(0, 4)], blueOnLeft, whiteOnRight };
+    return { corner: [...pixels.subarray(0, 4)], blueOnLeft, blueOnRight, whitePixels };
   });
   assert.deepEqual(corner, expectedCorner);
-  if (socialLockup) assert.ok(blueOnLeft > 100 && whiteOnRight > 100, 'Social icon renders blue keys beside white type');
+  if (socialKeys) assert.ok(blueOnLeft > 100 && blueOnRight > 100 && whitePixels === 0, 'Social icon renders blue keys without white lettering');
 }
 async function readInteriorPalette(page) {
   return page.getByRole('heading', { level: 1 }).first().evaluate(heading => {
@@ -330,7 +334,8 @@ try {
         await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
         await page.getByRole('heading', { level: 1 }).first().waitFor();
         await waitTheme(page, mode);
-        await verifyLogo(page, 'dark');
+        const darkHome = mode === 'dark' && name === 'home';
+        await verifyLogo(page, darkHome ? 'white' : 'dark');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${name} at ${width}`);
         const chrome = await page.evaluate(() => ({ background: getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim(), native: getComputedStyle(document.documentElement).colorScheme, chrome: document.querySelector('meta[name="theme-color"]').content }));
         assert.equal(chrome.background, mode === 'light' ? '#fafafa' : '#2b2f32');
@@ -351,15 +356,16 @@ try {
             inset: rect.left > 0 && rect.right < innerWidth && rect.top >= 12,
             supportsFrost: CSS.supports('backdrop-filter', 'blur(1px)') && matchMedia('(prefers-reduced-transparency: no-preference)').matches };
         });
-        assert.equal(nav.ink, 'rgb(24, 35, 44)');
+        assert.equal(nav.ink, darkHome ? 'rgb(250, 250, 250)' : 'rgb(24, 35, 44)');
+        const solidNavbar = mode === 'light' ? 'rgb(255, 255, 255)' : darkHome ? 'rgb(27, 32, 38)' : 'rgb(181, 212, 220)';
+        assert.equal(nav.token, mode === 'light' ? '#ffffff' : darkHome ? '#1b2026' : '#b5d4dc');
         if (width < 1024) {
-          assert.equal(nav.token, '#b5d4dc');
           assert.ok(nav.inset && nav.radius >= 32, 'the closed navbar floats as a capsule');
           assert.equal(nav.color, 'rgba(0, 0, 0, 0)', 'the outer bar must not become its own backdrop');
           assert.equal(nav.frost, nav.supportsFrost ? 'blur(12px) saturate(1.4)' : 'none');
-          if (!nav.supportsFrost) assert.equal(nav.bedColor, 'rgb(181, 212, 220)');
+          if (!nav.supportsFrost) assert.equal(nav.bedColor, solidNavbar);
         } else {
-          assert.equal(nav.color, 'rgb(181, 212, 220)');
+          assert.equal(nav.color, solidNavbar);
           assert.equal(nav.radius, 0);
           assert.equal(nav.inset, false);
           assert.equal(nav.bedDisplay, 'none');
@@ -368,7 +374,7 @@ try {
         if (name === 'app-store') {
           await page.getByTestId('browse-card-0').waitFor();
           assert.equal(await page.getByTestId('plug-slot-1').count(), 0);
-          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-app-icon.png"]'), socialIconCharcoal, true);
+          await verifyCatalogIcon(page.getByTestId('plug-slot-0').locator('img[src="/brand/social-app-icon.png"]'), socialIconBlack, true);
           await verifyCatalogIcon(page.getByTestId('browse-section').getByRole('img', { name: 'web10 hub' }), [9, 9, 11, 255]);
           const calmCard = await page.getByTestId('plug-slot-0').locator(':scope > div').evaluate(el => {
             const css = getComputedStyle(el);
@@ -381,7 +387,7 @@ try {
         } else if (name !== 'home') {
           assert.deepEqual(await readInteriorPalette(page), interiorPalette, `${name} must match the shared interior in ${mode}`);
         }
-        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-app-icon.png"]'), socialIconCharcoal, true);
+        if (name === 'app-detail') await verifyCatalogIcon(page.locator('img[src="/brand/social-app-icon.png"]'), socialIconBlack, true);
         if (['app-store', 'freedom', 'docs', 'appearance'].includes(name)) {
           const art = await readInteriorIntro(page);
           assert.equal(art.kind, name === 'app-store' ? 'store' : name);
@@ -423,7 +429,7 @@ try {
             receipts.push({ width, mode, page: name, expandedNavbarOptics: await verifyNavbarOptics(page) });
           }
           const current = page.getByRole('link', { name: name === 'home' ? 'Home' : 'Freedom', exact: true }).filter({ visible: true }).first();
-          assert.equal(await current.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(225, 242, 246)');
+          assert.equal(await current.evaluate(el => getComputedStyle(el).backgroundColor), darkHome ? 'rgb(54, 65, 77)' : 'rgb(225, 242, 246)');
           const social = page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true });
           assert.equal(await social.evaluate(el => getComputedStyle(el).backgroundColor), name === 'home' ? 'rgba(0, 0, 0, 0)' : 'rgb(194, 223, 237)');
           if (width < 1024) {

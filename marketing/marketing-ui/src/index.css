@@ -202,7 +202,7 @@
 .marketing-navbar [data-brand-variant="white"] { display: block; }
 .marketing-navbar [data-brand-variant="dark"] { display: none; }
 
-/* One ice-blue header across the primary marketing pages in both appearances. */
+/* Shared header across the primary pages; Light uses a neutral surface. */
 .marketing-navbar--shared {
   color-scheme: light;
   --color-background: #b5d4dc;
@@ -226,6 +226,26 @@
   margin: 0.75rem auto 0;
   border-radius: var(--marketing-nav-radius);
   background: transparent;
+}
+
+:root[data-theme="light"] .marketing-navbar--shared {
+  --color-background: #ffffff;
+  --color-navbar-edge: #d4d4d8;
+  --color-navbar-edge-light: var(--color-background);
+  --color-elevated: #f4f4f5;
+}
+
+:root[data-theme="dark"] .marketing-navbar--shared[data-home="true"] {
+  color-scheme: dark;
+  --color-background: var(--color-interior-canvas);
+  --color-navbar-edge: #535d68;
+  --color-navbar-edge-light: #414e5c;
+  --color-foreground: #fafafa;
+  --color-muted-foreground: #e5e9ee;
+  --color-elevated: #36414d;
+  --color-brand-muted: var(--color-elevated);
+  --color-brand-300: #b5e6f8;
+  --color-ring: var(--color-brand-300);
 }
 
 #root:has(> .interior-theme) {
@@ -358,6 +378,8 @@
 
 .marketing-navbar--shared [data-brand-variant="white"] { display: none; }
 .marketing-navbar--shared [data-brand-variant="dark"] { display: block; }
+:root[data-theme="dark"] .marketing-navbar--shared[data-home="true"] [data-brand-variant="white"] { display: block; }
+:root[data-theme="dark"] .marketing-navbar--shared[data-home="true"] [data-brand-variant="dark"] { display: none; }
 
 /* One illustrated chapter opener; the content below keeps the shared palette. */
 .interior-intro {

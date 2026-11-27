@@ -836,6 +836,22 @@ class DiverseNativeAudit(unittest.TestCase):
         self.assertNotIn("role = 'root'", sql)
         self.assertEqual(sqlglot.parse_one(sql, read='clickhouse').key, 'insert')
 
+    def test_shared_raw_history_is_independent_of_tally_and_index_and_keeps_authority(self):
+        key_source = scope_proof.independent_key_source()
+        self.assertIn('FROM engagement_documents', key_source)
+        self.assertIn("JSONExtractString(body,'parent_id')", key_source)
+        self.assertIn("JSONExtractString(body,'target_id')", key_source)
+        self.assertNotIn('pairs_refs', key_source)
+        self.assertNotIn('deleted=0', key_source)
+        oracle = scope_proof.bounded_independent_oracle('comments', ['following'], 'reader', ['doc'])
+        self.assertIn('dau_oracle_ref_keys', oracle)
+        self.assertIn('engagement_documents', oracle)
+        self.assertIn('doc_groups', oracle)
+        self.assertIn('user_blacklist', oracle)
+        self.assertNotIn('counting_numbers', oracle)
+        self.assertNotIn('pairs_refs', oracle)
+        self.assertEqual(sqlglot.parse_one(oracle, read='clickhouse').key, 'select')
+
     def test_route_refuses_uncertified_principal_scope_and_page_target(self):
         binding = dict(canonical_generation='generation', copy_hash='copy')
         readable = {'comments': ['discover']}

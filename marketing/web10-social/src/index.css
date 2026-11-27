@@ -29,12 +29,12 @@
   --color-brand-muted: #102c54;
   --color-brand-foreground: #fafafa;
 
-  /* Ice-blue toolbar in Light; Dark is scoped to the app shell below. */
-  --color-social-header: #b5d4dc;
-  --color-social-header-ink: #090c22;
-  --color-social-header-accent: #064eae;
-  --color-social-header-tint: #d6e8ed;
-  --color-social-header-tint-hover: #e3edf8;
+  /* Neutral toolbar in Light; Dark is scoped to the app shell below. */
+  --color-social-header: var(--color-surface);
+  --color-social-header-ink: var(--color-foreground);
+  --color-social-header-accent: var(--color-brand-400);
+  --color-social-header-tint: var(--color-elevated);
+  --color-social-header-tint-hover: color-mix(in srgb, var(--color-elevated), var(--color-border) 30%);
   --color-social-sidebar-dark: #1b2026;
 
   /* text-tile palette — text-only posts on the 9:16 wall (design.md §13).
@@ -319,6 +319,10 @@
   --color-social-header-accent: var(--color-brand-300);
   --color-social-header-tint: #36414d;
   --color-social-header-tint-hover: #414e5c;
+}
+
+:root[data-theme="light"] :is(.social-desktop-header, .social-mobile-header) {
+  border-bottom: 1px solid var(--color-border);
 }
 
 @media (width >= 48rem) {

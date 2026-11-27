@@ -564,8 +564,10 @@ Both phone and desktop More include public ecosystem links before Coming soon:
 immediately below opens Social's canonical listing. Open both in a new tab so
 the reader can return to the current Social view; keep role gates unchanged.
 
-Social's top bar stays ice blue in Light mode. On desktop and phones in
-Dark mode it uses the desktop sidebar charcoal, with light ink and raised control
+Social's top bar uses the white surface token in Light mode, with neutral
+control fills and a thin bottom divider on desktop and phones. Blue stays in
+the wordmark accent, not the bar fill. On desktop and phones in Dark mode
+the top bar uses the desktop sidebar charcoal, with light ink and raised control
 fills, so the bar doesn't glare against the sidebar. Desktop uses the same
 64px height as marketing; the phone bar is a slightly more compact 60px.
 The desktop wordmark strip meets the bar without a vertical seam and leaves 12px before the first
@@ -640,15 +642,16 @@ inset; on a uniform backdrop, displacement must add no lines.
 
 ### Authenticator mobile navigation glass (11.11.2026)
 
-**Hub refresh (26.11.2026):** Keep the ice-blue header and put role-appropriate
+**Hub refresh (26.11.2026):** Put role-appropriate
 destinations in the desktop sidebar from 768px up. Dark uses Social's
 `#1b2026` charcoal; Light uses the console's surface token. Keep the glass
 phone dock. Restore What is web10, App Store and Docs under More… in both
 layouts, not as permanent sidebar promos. Search lives in the body
 of the list it filters (App permissions, Group permissions, or Pending requests),
 at every width. Group permissions uses one filter across Manage and Belong.
-Hub and sign-in share an ice-blue header (`#b5d4dc`) with
-transparent dark keys, plus marketing-inspired paper and charcoal themes.
+Hub and sign-in share a white header with a thin divider in Light and Social’s
+sidebar charcoal (`#1b2026`) with a slate divider in Dark. Controls stay neutral
+and the transparent keys switch to the matching Light/Dark artwork.
 Account and consent behavior are unchanged by this shell change.
 
 The original 11.11.2026 change extended the social dock to `ui/`'s authenticated mobile
@@ -863,10 +866,12 @@ Media islands retain dark background and text steps even in Light mode.
 Derive ambient glows from the blue fill. Do not use the text steps behind
 white action labels; hover and pressed gradients stay within the fill steps.
 
-Social's default top-bar tokens are `--color-social-header: #b5d4dc`,
-`--color-social-header-ink: #090c22`, `--color-social-header-tint: #d6e8ed`,
-`--color-social-header-tint-hover: #e3edf8`, and `--color-social-header-accent: #064eae`
-for the `10` in the wordmark. Dark overrides those values at every width with
+Social's Light top bar uses `surface` for `--color-social-header`, `foreground`
+for `--color-social-header-ink`, `elevated` for `--color-social-header-tint`,
+and `elevated` mixed with 30% `border` for `--color-social-header-tint-hover`.
+The bottom divider uses `border`, and `--color-social-header-accent` uses
+`brand-400` for the `10` in the wordmark. Dark overrides the header fill, ink,
+tint, hover tint, and accent at every width with
 the sidebar charcoal (`#1b2026`), the theme foreground, `#36414d`, `#414e5c`, and the dark `brand-300`
 respectively. These are not feed or menu tokens.
 
@@ -877,9 +882,10 @@ revived as the primary marketing surface (`homepage-classic-revival.md`)
 — uses a **fixed editorial palette** regardless of the visitor's D108 choice:
 a dark hero, paper content, and a charcoal footer. The rest of marketing uses the same visual
 language in its selected System/Light/Dark appearance. Home and the shared
-interior pages use the same ice-blue navbar in Light and Dark (`#b5d4dc` as the
-solid fill),
-near-black type, and the dark logo. Desktop uses a plain full-width bar. On
+interior pages use a white navbar with neutral edges, near-black type and the
+dark logo in Light. In Dark, Home uses Social’s charcoal (`#1b2026`), light
+type and the white logo without changing the navy hero; interior pages retain
+their ice-blue (`#b5d4dc`) navbar. Desktop uses a plain full-width bar. On
 mobile, use the social dock's glass layer order: live backdrop refraction on
 the rim, a frosted center, then the edge and undistorted controls. The closed
 capsule and expanded rounded menu both use the 18-unit displacement and 8px
