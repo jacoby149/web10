@@ -1,3 +1,6 @@
+6.32.51 || 27.11.2026
+research: bind the sustained DAU measured phase to the completed same-host preparation handoff, so a merged repair can execute as a successor without changing the original admission or losing its source and receipt lineage.
+
 6.32.50 || 27.11.2026
 research: pin the DAU publication audit boundary to the exact completed bootstrap journal entry before issuing traffic. Do not count cache setup as a publication or conceal any later partial or unexpected write.
 

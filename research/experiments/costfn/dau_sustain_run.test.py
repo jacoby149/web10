@@ -898,6 +898,28 @@ class DiverseCellPolicy(unittest.TestCase):
 
 
 class DiverseLiveReceipt(unittest.TestCase):
+    def test_live_successor_uses_repair_source_only_after_same_host_prepare(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            approved = approval()
+            run.save(root / 'admission.json', approved)
+            predecessor = costfn_task.Task(root, approved, approved['hybrid_k20_source_commit'])
+            keys = {'retained-fixture-import', 'steady-state', 'furniture', *('gate:' + name for name in run.contract.GATES)}
+            prep = root / 'costfn-task-indexed-prep.json'
+            run.save(prep, dict(identity=predecessor.identity, status='NEEDS_REPAIR', steps={name: {} for name in keys}))
+            with self.assertRaisesRegex(ValueError, 'completed exact same-task'):
+                run.measurement_task(root, approved, 'f' * 40)
+            run.save(prep, dict(run.read(prep), status='COMPLETE'))
+            run.save(root / 'composition-proof.json', {'proof': 1})
+            run.save(root / 'dau-diverse-reader-selection.json', {'readers': 150})
+            task = run.measurement_task(root, approved, 'f' * 40)
+            self.assertEqual(task.path.name, 'costfn-task-diverse.json')
+            self.assertEqual(task.identity['source_start'], approved['hybrid_k20_source_commit'])
+            self.assertEqual(task.initial_source, 'f' * 40)
+            run.save(root / 'composition-proof.json', {'proof': 2})
+            with self.assertRaisesRegex(ValueError, 'basis changed'):
+                run.measurement_task(root, approved, 'f' * 40)
+
     def test_achieved_rate_excludes_responses_finishing_after_the_window(self):
         phase = dict(name='A', rate=3, duration_s=1)
         records = [dict(phase='A', offered_s=0, started_s=0.01, finished_s=0.9, error_class=None),
