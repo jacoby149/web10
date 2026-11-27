@@ -33,8 +33,9 @@ report estimated compute separately from storage and the invoice.
 The [sustained-DAU load test contract](DAU-SUSTAINED-LOAD.md) defines the
 right-sized receipt against the realism contract's load (15 reads/s peak,
 2.9 reads/s average) on the frozen million-author store, on a DigitalOcean
-host sized to the budget (≥64 threads / ≥128 GB / NVMe, storage proven
-non-binding in calibration), under mixed load, with the clog criterion as
+host at the derived budget requirement (16 cores / 32 threads / 32 GB RAM,
+dedicated-CPU class or closest, storage proven non-binding in calibration),
+under mixed load, with the clog criterion as
 the primary gate, exact ordered oracle gates, pre-declared stop criteria and
 a breaking-point clause. The gate is on the slope of the debt-carrying
 quantities, not their level: start/end/slope banked per window, all flat or

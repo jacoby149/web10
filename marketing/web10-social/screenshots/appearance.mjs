@@ -101,7 +101,7 @@ try {
       const mark = page.getByTestId('social-header-mark').filter({ visible: true });
       assert.equal((await mark.locator('..').textContent()).trim(), 'web10 social');
       assert.equal(await mark.locator('..').getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color),
-        mode === 'dark' && width >= 768 ? 'rgb(168, 206, 255)' : 'rgb(6, 78, 174)');
+        mode === 'dark' ? 'rgb(168, 206, 255)' : 'rgb(6, 78, 174)');
       assert.equal(await mark.getAttribute('src'), '/social-conversation-pair-blue.png');
       assert.deepEqual(await mark.evaluate(el => {
         const css = getComputedStyle(el);

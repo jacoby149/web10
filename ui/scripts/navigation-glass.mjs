@@ -61,6 +61,8 @@ try {
           { allowed_origin: 'https://social.web10.app', permissions: { profile: ['readOwn'], posts: ['readOwn', 'create'], media: ['readOwn', 'create'] } },
           { allowed_origin: 'https://web10.app', permissions: { profile: ['readOwn'] } },
         ];
+        value.v3ManagedGroups = [{ group_id: 'web10.app/groups/users/creator/design-team' }, { group_id: 'web10.app/groups/users/creator/film-club' }];
+        value.v3Groups = [{ group_id: 'web10.app/groups/users/reader/film-night' }, { group_id: 'web10.app/groups/users/reader/book-club' }];
       },
     });
   });
@@ -217,6 +219,22 @@ try {
       assert.equal(await page.getByTestId('auth-dock-refraction').isVisible(), true);
       receipts.push({ width, contrast, flatDifference, difference, resize: true, safeArea: true, fallbacks: true });
     }
+    await nav.getByRole('button', { name: 'Group permissions' }).click();
+    const groups = page.getByTestId('groups-page');
+    const groupSearch = groups.getByRole('searchbox', { name: 'Search group permissions' });
+    const groupCards = groups.getByTestId('group-card-header');
+    await groupSearch.fill(' FILM ');
+    assert.match(await groupCards.first().innerText(), /film-club/);
+    assert.equal(await groupCards.count(), 1);
+    if (width === 1440 || width === 375) await capture(page, `auth-group-search-${width}`);
+    await groups.getByTestId('groups-tab-belong').click();
+    assert.match(await groupCards.first().innerText(), /film-night/);
+    assert.equal(await groupCards.count(), 1);
+    await groupSearch.fill('no matching group');
+    await groups.getByRole('status').filter({ hasText: 'No groups match' }).waitFor();
+    assert.equal(await groupCards.count(), 0);
+    await groupSearch.clear();
+    assert.equal(await groupCards.count(), 2);
     // Existing mock interface state setters exercise non-admin/signed-out gates.
     await page.evaluate(() => window.I.setIsAdmin(false));
     await nav.getByRole('button', { name: 'Config' }).waitFor({ state: 'detached' });

@@ -71,6 +71,10 @@ def admission_gate(approval):
             and host.get('storage_gib') and host.get('storage_class') == 'NVMe'
             and host.get('backstop_h') == 12 and host.get('compute_ceiling_usd') == 25.0):
         raise ValueError('budget-sized host class declared at admission required')
+    derived = (host.get('cores') == 16 and host.get('threads') == 32 and host.get('ram_gb') == 32)
+    note = host.get('class_note')
+    if not derived and not (type(note) is str and note.strip()):
+        raise ValueError('derived host requirement (16 cores / 32 threads / 32 GB RAM) or a declared closest-class note required')
     envelope = approval.get('dau_envelope')
     if not (envelope and all(type(envelope.get(key)) is int and envelope[key] > 0
             for key in ('container_bytes', 'server_bytes', 'api_bytes', 'minio_bytes'))
@@ -88,12 +92,12 @@ def admission_gate(approval):
 
 
 def restore_parquet(root, approval):
-    """The sized host cannot restore the snapshot (the snapshot lives in
-    nyc3; no >=32-vCPU 400GB+ droplet exists there). Its store is the banked
-    verified-input Parquet rebuild — the snapshot's own frozen files,
-    transferred byte-verified — through the unchanged banked restore path,
-    then the declared DAU envelope overlay replaces the banked 28/22 GiB
-    frame for the sized host."""
+    """The sized host's store is the banked verified-input Parquet rebuild —
+    the snapshot's own frozen files, transferred byte-verified — through the
+    unchanged banked restore path, then the declared DAU envelope overlay
+    replaces the banked 28/22 GiB frame for the sized host. (The store
+    source is the verified input on every admitted host; the 26 November
+    host-spec change re-pointed the host class, not the provenance.)"""
     project = 'web10-costfn-frozen-satellite-dau-' + str(approval['droplet_id'])
     arm_run.operation(root)  # P-subordinate vehicle the sessions require; idempotent.
     imported = (root / 'restore.json').is_file()
@@ -148,10 +152,13 @@ def restore_parquet(root, approval):
 
 
 def apply_envelope_overlay(root, approval):
-    """Replace the banked 28/22 GiB frame with the admission-declared sized
-    envelope: 100 GiB container, 80 GiB server cap via the committed
+    """Replace the banked compose memory shape with the admission-declared
+    DAU envelope: container cap, server cap via the committed
     clickhouse-config/dau-memory.xml, plus declared api/minio caps. The
-    banked input bind and the store volume survive the rewrite verbatim."""
+    banked input bind and the store volume survive the rewrite verbatim. The
+    envelope is admission-bound, never host-class-bound, so re-pointing the
+    host class (26 November: the derived 16-core / 32-thread / 32 GB
+    requirement) only changes the admission, not this rewrite."""
     envelope = approval['dau_envelope']
     overlay_path = Path(root) / 'restore.overlay.json'
     if not overlay_path.is_file():

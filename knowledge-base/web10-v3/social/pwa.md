@@ -35,9 +35,15 @@ The offline cache stores the **app shell** — the built JS/CSS/HTML, the manife
 On `install`, the worker precaches the known shell:
 
 - `/` and `/index.html` (the SPA entry — the offline fallback target),
-- `/manifest.json`, the blue Social app icons (`logo192.png`, `logo512.png`, `favicon.ico`, `apple-touch-icon.png`), both conversation marks (`social-conversation-pair.png` for Social and `social-conversation-pair-blue.png` for Join), and the separate platform keys and share-card images,
+- `/manifest.json`, the blue Social app icons (`logo192.png`, `logo512.png`, `logo-maskable-512.png`, `favicon.ico`, `apple-touch-icon.png`), the conversation artwork (`social-conversation-pair-blue.png` for Social and Join), and the separate platform keys and share-card images,
 - the vendored libs (`/hls.min.js`, `/wapi.js`),
 - **the hashed build assets** — Vite emits `/assets/index-<hash>.js` / `.css` whose names are unknown at authoring time, so the worker fetches `/index.html` at install, regexes out the `/assets/...` references, and precaches those too. This is what makes a *fresh* install work offline, not just a revisit.
+
+Android launchers can choose the dedicated 512px `maskable` icon rather
+than padding the ordinary square icon. The blue fills the entire bitmap;
+the characters sit inside the central circle with a radius of 40% of the
+icon width. Keep the ordinary manifest icons and iOS touch icon separate.
+Installed launchers can cache their existing icon independently of the shell.
 
 ### Runtime (fetch)
 
