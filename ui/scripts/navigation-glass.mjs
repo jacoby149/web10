@@ -89,7 +89,10 @@ try {
     if (width >= 768 && mode === 'dark') assert.equal(await sidebar.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(27, 32, 38)');
     assert.equal(await nav.getByRole('link').count(), 0);
     const header = page.getByTestId('hub-header');
-    assert.equal(await header.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(181, 212, 220)');
+    assert.deepEqual(await header.evaluate(el => {
+      const css = getComputedStyle(el);
+      return [css.backgroundColor, css.borderBottomWidth];
+    }), mode === 'light' ? ['rgb(255, 255, 255)', '1px'] : ['rgb(27, 32, 38)', '1px']);
     assert.equal(await header.getByRole('searchbox').count(), 0);
     assert.equal(await nav.getByRole('button').count(), 7);
     const more = nav.getByRole('button', { name: 'More…' });

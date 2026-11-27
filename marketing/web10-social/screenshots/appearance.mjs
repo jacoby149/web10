@@ -129,12 +129,22 @@ try {
       assert.equal(colors.native, mode);
       assert.equal(colors.chrome, colors.background);
       assert.equal(colors.overflow, false);
+      const mobile = width < 768;
+      const headers = mobile ? ['topbar-mobile'] : ['topbar-desktop', 'sidebar-brand-strip'];
+      for (const id of headers) {
+        const paint = await page.getByTestId(id).evaluate(el => {
+          const css = getComputedStyle(el);
+          return [css.backgroundColor, css.borderBottomWidth, css.borderBottomWidth === '0px' ? null : css.borderBottomColor];
+        });
+        assert.deepEqual(paint, mode === 'light' ? ['rgb(255, 255, 255)', '1px', 'rgb(212, 212, 216)']
+          : ['rgb(27, 32, 38)', mobile ? '0px' : '1px', mobile ? null : 'rgb(54, 65, 77)'], `${mode} ${id} palette`);
+      }
       const wordmark = page.getByTestId('social-header-wordmark').filter({ visible: true });
       assert.equal(await wordmark.textContent(), 'web10 social');
       assert.deepEqual(await wordmark.getByText('social', { exact: true }).evaluate(el => {
         const word = getComputedStyle(el), lockup = getComputedStyle(el.parentElement);
         return [word.color, word.fontFamily === lockup.fontFamily, word.fontSize === lockup.fontSize, word.fontWeight === lockup.fontWeight, word.fontStyle];
-      }), [mode === 'dark' ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)', true, true, true, 'normal']);
+      }), [mode === 'dark' ? 'rgb(250, 250, 250)' : 'rgb(24, 24, 27)', true, true, true, 'normal']);
       assert.equal(await wordmark.getByText('10', { exact: true }).evaluate(el => getComputedStyle(el).color),
          mode === 'dark' ? 'rgb(168, 206, 255)' : 'rgb(6, 78, 174)');
       assert.equal(await page.getByTestId('social-header-mark').count(), 0);

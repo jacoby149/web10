@@ -106,9 +106,12 @@ body {
 }
 
 .hub-header {
-  color-scheme: light;
   background: var(--color-hub-header);
   color: var(--color-hub-ink);
+  border-bottom: 1px solid var(--color-hub-tint);
+}
+:root[data-theme="light"] .hub-header {
+  border-bottom: 1px solid var(--color-border);
 }
 @media (prefers-reduced-transparency: reduce) {
   .auth-dock-rim { display: none; }
