@@ -111,6 +111,21 @@ def native_finish(session, query_id):
     return value
 
 
+def native_finishes(session, query_ids):
+    """One native-log flush; validate every exact identity independently."""
+    if not query_ids or len(set(query_ids)) != len(query_ids):
+        raise ValueError('distinct native completion IDs required')
+    session.query('dau_native_batch_flush', 'SYSTEM FLUSH LOGS')
+    rows, _ = session.rows('dau_native_batch_receipts', 'SELECT query_id,toString(type) AS type,exception_code,'
+        'read_rows,read_bytes,query_duration_ms,memory_usage,written_rows,written_bytes FROM system.query_log '
+        'WHERE query_id IN (' + ','.join(map(q, query_ids)) + ") AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing')")
+    result = {row['query_id']: row for row in rows}
+    if (len(rows) != len(query_ids) or set(result) != set(query_ids)
+            or any(row['type'] != 'QueryFinish' or int(row['exception_code']) for row in result.values())):
+        raise ValueError('native batch receipt missing, duplicated or unsuccessful')
+    return result
+
+
 def settled_views(before, after, measured_end, *, append_only_verified):
     """Prove invariance, not just equality of a serving response and an aggregate.
 
