@@ -96,6 +96,7 @@ def build(root, *, step0_root=None, retained_empty_ddl=None):
     try:
         result['envelope'] = session.verify_envelope()
         before, _ = counts.generation(session)
+        result['canonical_generation_at_start'] = before
         if retained_empty_ddl is None:
             query('F_ddl', f.DDL)
             result['actual_ddl'] = query('F_show_create', 'SHOW CREATE TABLE fanout')
@@ -108,13 +109,20 @@ def build(root, *, step0_root=None, retained_empty_ddl=None):
             if actual_ddl != retained_empty_ddl or len(native_count) != 1 or int(native_count[0]['n']) != 0:
                 raise ValueError('retained fanout changed or is not empty')
             result.update(actual_ddl=actual_ddl, ddl_reused=True)
-        for index, group in enumerate(profile['groups']):
-            # Read count and recipient set together even when the lane is seek.
-            sql = f.MEMBERS.replace('{group_id:String}', q(group)) + ' FORMAT JSON'
-            keys = [row['member_key'] for row in json.loads(query('F_members_' + str(index), sql))['data']]
-            if not expected_members[group] <= set(keys) or len(keys) != len(set(keys)):
-                raise ValueError('canonical reader membership/recipient set differs')
-            result['group_members'][group] = len(keys)
+        if 'dau_group_readers' in profile:
+            for offset in range(0, len(profile['groups']), 32):
+                batch = profile['groups'][offset:offset + 32]
+                rows = json.loads(query('F_dau_members_' + str(offset), batch_members_sql(batch)))['data']
+                result['group_members'].update(verified_group_counts(batch, expected_members, rows))
+                save(output / 'result.json', result)
+        else:
+            for index, group in enumerate(profile['groups']):
+                # Read count and recipient set together even when the lane is seek.
+                sql = f.MEMBERS.replace('{group_id:String}', q(group)) + ' FORMAT JSON'
+                keys = [row['member_key'] for row in json.loads(query('F_members_' + str(index), sql))['data']]
+                if not expected_members[group] <= set(keys) or len(keys) != len(set(keys)):
+                    raise ValueError('canonical reader membership/recipient set differs')
+                result['group_members'][group] = len(keys)
         small = [group for group, number in result['group_members'].items()
             if number < f.CUTOFF and profile['reader'] in expected_members[group]]
         # One full canonical pass, not group->author inference or another satellite.
@@ -174,6 +182,27 @@ def membership_requirements(operation, profile):
             any(type(reader) is not str or not reader for reader in readers) for readers in supplied.values())):
         raise ValueError('every classified group needs its exact frozen reader coverage')
     return {group: set(readers) for group, readers in supplied.items()}
+
+
+def batch_members_sql(groups):
+    if not 1 <= len(groups) <= 32 or len(set(groups)) != len(groups):
+        raise ValueError('bounded distinct groups required for one exact recipient batch')
+    return ("SELECT group_id,member_key FROM (SELECT group_id,member_key,deleted,row_number() OVER ("
+        "PARTITION BY group_id,member_key ORDER BY updated_at DESC,deleted DESC) AS rn FROM group_members WHERE group_id IN ("
+        + ','.join(map(q, groups)) + ")) WHERE rn=1 AND deleted=0 AND member_key NOT IN ('anyone','authenticated','anon') "
+        'ORDER BY group_id,member_key FORMAT JSON')
+
+
+def verified_group_counts(groups, expected, rows):
+    members = {group: set() for group in groups}
+    for row in rows:
+        group, member = row['group_id'], row['member_key']
+        if group not in members or member in members[group]:
+            raise ValueError('canonical recipient batch returned an unexpected or duplicate row')
+        members[group].add(member)
+    if any(not expected[group] <= keys for group, keys in members.items()):
+        raise ValueError('canonical reader membership/recipient set differs')
+    return {group: len(keys) for group, keys in members.items()}
 
 
 if __name__ == '__main__':
