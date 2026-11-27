@@ -4,9 +4,15 @@ import hashlib
 import json
 
 from arm_f_native import save
+from arm_satellite_batch import final_sql
 from arm_satellite_counts import generation
+from arm_satellite_sql import literal as q
 from costfn_task import ParityDivergence, digest, read
 import dau_sustain_workload as wl
+import engagement_composition as composition
+import engagement_composition_setup as composition_setup
+import engagement_pairs as pairs
+from engagement_ref import bounded_boundary, targets
 import engagement_tally_build as tally
 import engagement_tally_sql as sql
 from dau_sustain_native_audit import native_finish
@@ -54,6 +60,34 @@ def checked_route(proof, reader, label, readable, ids):
     return result
 
 
+def exact_page_insert(reader, service, groups, key, ids):
+    """Bound only candidate identities and emitted counters, not policy/history."""
+    requested = targets(ids)
+    fine = {'comments': 'parent_id', 'reactions': 'target_id'}.get(service)
+    predicate = 'ref_value IN (' + requested + ')'
+    if fine:
+        predicate += ' OR JSONExtractString(body,' + q(fine) + ') IN (' + requested + ')'
+    original = sql.boundary(service, groups, reader, table='documents')
+    historical_keys = pairs.seek(ids)  # Both root and fine edges; over-selection is safe.
+    bounded = bounded_boundary(original, historical_keys, predicate, table='engagement_documents')
+    return sql.insert(bounded, service, key, 0, 1) + ' HAVING doc_id IN (' + requested + ')'
+
+
+def build_page_scope(writer, record, reader, service, groups, source_generation, copy_hash, ids):
+    key = sql.scope(reader, service, groups, source_generation, copy_hash)
+    prior = record['scopes'].get(key)
+    if prior:
+        if prior.get('verified_ids') not in (None, ids):
+            raise ValueError('cannot reuse a page tally for another target set')
+        return key
+    query = exact_page_insert(reader, service, groups, key, ids)
+    _, partial = writer.query('dau_page_tally_' + key[:16], query)
+    _, final = writer.query('dau_page_tally_finalize_' + key[:16], final_sql(key, sql.PARTS, sql.TABLE))
+    record['scopes'][key] = dict(verified_ids=ids, partial=native_finish(writer, partial),
+        consolidation=native_finish(writer, final))
+    return key
+
+
 def prepare(root, session, oracle_index):
     """Extend the already-certified tally table on the quiescent working copy."""
     source = root / 'dau-reader-oracles'
@@ -66,6 +100,11 @@ def prepare(root, session, oracle_index):
     if (not banked['verified'] or banked['copy_parts_sha256'] != copy_hash
             or banked['canonical_generation'] != source_generation):
         raise ValueError('reader preparation requires certified current indexed furniture')
+    composed = read(root / 'composition-proof.json')
+    composition.gate('refs', composed['gates']['refs'])
+    if (composed['copy_parts_sha256'] != copy_hash
+            or composed['immutable_parts'][pairs.TABLE] != composition_setup.parts(session, pairs.TABLE)[0]):
+        raise ValueError('bounded tally candidates require the certified immutable full-history pairs index')
     directory = root / 'dau-scopes'
     directory.mkdir(mode=0o700, exist_ok=True)
     index_file = source / 'oracle-index.json'
@@ -96,7 +135,7 @@ def prepare(root, session, oracle_index):
         route = routes[reader] = dict(index=profile['index'], groups=profile['groups'],
             readable_by_kind=profile['actual_readable_by_kind'], routes={})
         for label, service, groups in expected_scopes(profile):
-            key = tally.build_scope(writer, directory, record, reader, service, groups, source_generation, copy_hash)
+            key = build_page_scope(writer, record, reader, service, groups, source_generation, copy_hash, ids)
             found, native_id = session.rows('dau_independent_' + key[:12], sql.oracle(service, groups, reader, ids))
             expected = {(row['doc_id'], row['counter_name']): int(row['value']) for row in found}
             observed, stored_id = tally.stored(session, key, ids)

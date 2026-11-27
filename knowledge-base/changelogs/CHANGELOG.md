@@ -1,3 +1,6 @@
+6.32.52 || 27.11.2026
+research: build DAU reader tallies only for the already-certified first-page targets, selecting full historical keys through the verified pairs index. Keep canonical history, live policy and independent per-reader tally verification; refuse unchecked targets and leave the measured path unchanged.
+
 6.32.51 || 27.11.2026
 research: bind the sustained DAU measured phase to the completed same-host preparation handoff, so a merged repair can execute as a successor without changing the original admission or losing its source and receipt lineage.
 

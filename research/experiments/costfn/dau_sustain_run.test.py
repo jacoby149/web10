@@ -825,6 +825,17 @@ class DiverseNativeAudit(unittest.TestCase):
             {('main', 'posts', ('following',)), ('main', 'comments', ('following',)), ('main', 'reactions', ('following',)),
              ('comments', 'comments', ('discover',)), ('reactions', 'reactions', ('discover',))})
 
+    def test_exact_page_tally_uses_complete_history_and_only_emits_certified_targets(self):
+        groups, ids = ['following'], ['target-a', 'target-b']
+        sql = scope_proof.exact_page_insert('reader', 'comments', groups, 'key', ids)
+        self.assertIn('pairs_refs', sql)
+        self.assertIn('engagement_documents', sql)
+        self.assertIn('doc_groups', sql)
+        self.assertIn(transfer.q('parent_id'), sql)
+        self.assertIn('HAVING doc_id IN', sql)
+        self.assertNotIn("role = 'root'", sql)
+        self.assertEqual(sqlglot.parse_one(sql, read='clickhouse').key, 'insert')
+
     def test_route_refuses_uncertified_principal_scope_and_page_target(self):
         binding = dict(canonical_generation='generation', copy_hash='copy')
         readable = {'comments': ['discover']}
