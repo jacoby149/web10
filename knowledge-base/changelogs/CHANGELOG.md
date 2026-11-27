@@ -1,3 +1,6 @@
+6.32.45 || 27.11.2026
+research: connect the admitted DAU cell to calibration, open-loop timing, native reconciliation, and private resource receipts after same-host setup proof. Repair the two AST-extracted engagement test harnesses that did not load the uniform-copy helper. No cloud lease, native result, or draft update.
+
 6.32.44 || 27.11.2026
 research: add an opt-in diverse-reader indexed DAU cell, a frozen existing writer population, exact-target publication through the native journal, and certified group classification. Correct the workload's create route to `/v3/create`. Timed execution, native proof and draft update remain open.
 
