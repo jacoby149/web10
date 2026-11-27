@@ -1,3 +1,6 @@
+6.32.63 || 27.11.2026
+research: reuse each DAU tally write's already-durable native receipt and collect paired read-verification receipts with one flush. Validate every exact native identity and do not repeat checks for identical frozen scope keys and targets.
+
 6.32.62 || 27.11.2026
 research: make one independent raw-history key scan for the complete DAU oracle target set, then check each certified reader's full tally counts under their own canonical history and policy. Keep this verification separate from the indexed pairs candidates used by the treatment.
 

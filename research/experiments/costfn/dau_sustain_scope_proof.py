@@ -17,7 +17,7 @@ import engagement_pairs as pairs
 from engagement_ref import bounded_boundary, targets
 import engagement_tally_build as tally
 import engagement_tally_sql as sql
-from dau_sustain_native_audit import native_finish
+from dau_sustain_native_audit import native_finish, native_finishes
 
 
 ROUTES = {'main': ('posts', 'comments', 'reactions'), 'reactions': ('reactions',), 'comments': ('comments',)}
@@ -85,11 +85,22 @@ def build_page_scope(writer, record, reader, service, groups, source_generation,
             raise ValueError('cannot reuse a page tally for another target set')
         return key
     query = exact_page_insert(reader, service, groups, key, ids)
-    _, partial = writer.query('dau_page_tally_' + key[:16], query)
-    _, final = writer.query('dau_page_tally_finalize_' + key[:16], final_sql(key, sql.PARTS, sql.TABLE))
-    record['scopes'][key] = dict(verified_ids=ids, partial=native_finish(writer, partial),
-        consolidation=native_finish(writer, final))
+    partial_label = 'dau_page_tally_' + key[:16]
+    final_label = 'dau_page_tally_finalize_' + key[:16]
+    _, partial = writer.query(partial_label, query)
+    _, final = writer.query(final_label, final_sql(key, sql.PARTS, sql.TABLE))
+    record['scopes'][key] = dict(verified_ids=ids, partial=stored_write_finish(writer, partial_label, partial),
+        consolidation=stored_write_finish(writer, final_label, final))
     return key
+
+
+def stored_write_finish(writer, label, identity):
+    value = read(writer.book.folder / (label + '.json'))
+    native = value['native']
+    if (value['outcome'], value['query_id'], native['query_id'], native['type'], int(native['exception_code'])) != (
+            'PASS', identity, identity, 'QueryFinish', 0):
+        raise ValueError('page tally write does not match its exact durable native receipt')
+    return native
 
 
 def independent_key_source():
@@ -186,20 +197,28 @@ def prepare(root, session, oracle_index):
         all_ids.update(ids)
     independent = prepare_independent_keys(writer, sorted(all_ids))
     record = dict(scopes=dict(banked['scopes']))
-    routes = {}
+    routes, verified = {}, {}
     for reader, (profile, ids) in packets.items():
         route = routes[reader] = dict(index=profile['index'], groups=profile['groups'],
             readable_by_kind=profile['actual_readable_by_kind'], routes={})
         for label, service, groups in expected_scopes(profile):
             key = build_page_scope(writer, record, reader, service, groups, source_generation, copy_hash, ids)
+            if key in verified:
+                item = verified[key]
+                if item['verified_ids'] != ids or sorted(item['groups']) != sorted(groups):
+                    raise ValueError('native reader verification cannot cross a scope or page domain')
+                route['routes'].setdefault(label, {})[service] = item
+                continue
             found, native_id = session.rows('dau_exact_independent_' + key[:12],
                 bounded_independent_oracle(service, groups, reader, ids))
             expected = {(row['doc_id'], row['counter_name']): int(row['value']) for row in found}
             observed, stored_id = tally.stored(session, key, ids)
             if len(found) != len(expected) or observed != expected:
                 raise ParityDivergence('indexed scope differs from independent canonical tally')
-            item = dict(key=key, groups=groups, verified_ids=ids, native=native_finish(session, native_id),
-                stored_native=native_finish(session, stored_id))
+            receipts = native_finishes(session, [native_id, stored_id])
+            item = dict(key=key, groups=groups, verified_ids=ids, native=receipts[native_id],
+                stored_native=receipts[stored_id])
+            verified[key] = item
             route['routes'].setdefault(label, {})[service] = item
     writer.query('dau_tally_settle', 'OPTIMIZE TABLE ' + sql.TABLE + ' FINAL')
     parts_hash, query_id = tally_parts(session)
