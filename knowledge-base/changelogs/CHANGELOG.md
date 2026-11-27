@@ -1,5 +1,13 @@
 6.32.35 || 27.11.2026
 fix(social): let both characters bleed off the bottom of the Android launcher icon rather than floating on the blue tile. Keep their faces inside the safe circle and leave iOS and in-app artwork unchanged.
+6.32.34 || 27.11.2026
+research: bank the sustained-DAU authority preflight on the verified million-account Parquet store. The exact K20-plus-self request has one qualifying principal, not 150; calibration and all load windows are NOT RUN. Off-host hashes and owned cleanup verified, snapshot retained. No hardware or throughput verdict.
+
+6.32.33 || 27.11.2026
+research: build and certify DAU derived metadata from the verified Parquet store rather than adopting files that only exist on the prepared snapshot host. Preserve saved preparation, including the billboard-applied oracle when fixture setup already passed. No workload or gate change.
+
+6.32.32 || 27.11.2026
+research: generate the sustained-DAU ClickHouse server memory limit from the bound admission instead of mounting the retired host's fixed 80 GiB setting. The container and server limits now use the same admission, and the live equality check remains. Admit the declared class-provided local storage without requiring an NVMe label; calibration still has to demonstrate headroom. No workload or measurement-gate change.
 
 6.32.31 || 26.11.2026
 fix(social): match the phone's Dark header to desktop charcoal and provide Android launchers a full-bleed blue maskable app icon. Keep the Light header, phone dock, and iOS touch icon unchanged.
