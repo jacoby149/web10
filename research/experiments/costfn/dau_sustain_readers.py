@@ -96,7 +96,7 @@ def freeze(root, session):
     census = read(receipt)
     rows = census['rows']
     selected = selection(rows)
-    result = dict(criterion=CRITERION, dataset_id=manifest['dataset_id'], input_manifest_sha256=input_sha,
+    result = dict(criterion=CRITERION, dataset_id=manifest['dataset_id'], origin=manifest['origin'], input_manifest_sha256=input_sha,
         census_sha256=digest(receipt), readers_count=len(selected), readers=selected,
         qualifying_count=len(rows), outcome='SELECTED' if selected else REFUSED)
     if (census['criterion'], census['input_manifest_sha256'], census['sql'], census['qualifying_count'],

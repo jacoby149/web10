@@ -63,10 +63,18 @@ def serving_state(parent, cell, profile_name):
 
 
 def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False, projected=False,
-         hybrid=False):
+         hybrid=False, dau=False):
     parent = Path(parent)
     approval = json.loads((parent / 'admission.json').read_bytes())
     completion = approval.get('engagement_completion_admitted') is True
+    if dau:
+        from dau_sustain_cell_policy import validate
+        if (name, profile_name, mode, serving_mode, aggregate, projected, hybrid) != (
+                'dau-sustain', 'ordinary', 'uniform', 'F_DOCUMENT_STREAM_V1', True, False, False):
+            raise ValueError('DAU overlay requires the admitted indexed uniform cell')
+        bundle_path = parent / 'dau-cell-bundle.json'
+        bundle = json.loads(bundle_path.read_bytes())
+        validate(approval, bundle['scope_proof'], bundle['writers'])
     if projected:
         from hybrid_k20_projected import enabled
         pattern = r'hybrid-K20-r[12]-attempt-[1-9][0-9]*' if hybrid else r'projected-K20(?:-attempt-[1-9][0-9]*)?'
@@ -103,6 +111,10 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
         entry = 'hybrid_k20_attachment_api' if hybrid else 'engagement_composition_api'
         env['ENGAGEMENT_COMPOSITION_PROOF'] = '/composition-proof.json'
         volumes.append(str(parent / 'composition-proof.json') + ':/composition-proof.json:ro')
+    if dau:
+        entry = 'dau_sustain_cell'
+        env['DAU_CELL_BUNDLE'] = '/dau-cell-bundle.json'
+        volumes.append(str(bundle_path) + ':/dau-cell-bundle.json:ro')
     save(overlay, {'services': {'api': {'volumes': volumes, 'environment': env,
         'command': ['uv', 'run', 'uvicorn', entry + ':application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}})
     here = Path(__file__).parent

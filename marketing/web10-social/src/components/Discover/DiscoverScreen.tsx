@@ -1197,7 +1197,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
                 <p className="mt-2 text-sm text-muted-foreground">Raise a fader in Advanced to read from a server again. Your follows are unchanged.</p>
               </div>
             ) : isInitialLoad ? (
-              <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid-skeleton">
+              <div className={cn('mx-auto w-full max-w-2xl', mode !== 'video' && 'posts-column-frame')} data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <DiscoverSkeleton key={i} />
                 ))}
@@ -1247,7 +1247,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
                  the rail hides (lg:block), the board stays full-width. */
               <div className="mx-auto flex w-full max-w-5xl gap-8">
                 <div className="min-w-0 flex-1">
-                  <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid">
+                   <div className="posts-column-frame mx-auto w-full max-w-2xl" data-testid="discover-grid">
                     <PostEntryPrompt />
                     <FeedMusicQueue.Provider value={musicQueue}>{visiblePosts.flatMap((post) => {
                       if (isForeignPost(post)) return [<ForeignFeedCard key={boardKey(post)} post={post} />];
@@ -1331,7 +1331,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
                 )}
               </div>
             ) : (
-              <><div className="mx-auto w-full max-w-2xl"><PostEntryPrompt /></div><DiscoverEmptyState /></>
+              <div className="posts-column-frame mx-auto w-full max-w-2xl"><PostEntryPrompt /><DiscoverEmptyState /></div>
             )}
           </div>
 

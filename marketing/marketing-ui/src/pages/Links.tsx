@@ -1,100 +1,77 @@
-import { ExternalLink, BookOpen, Store, MessageCircle, Shield, TrendingUp } from 'lucide-react'
-import { Card } from '../components/ui/card'
-import { API_ORIGIN, SOCIAL_ORIGIN, AUTH_ORIGIN } from '../lib/origins'
+import { ReliableImage } from '@web10/discover/image'
+import { ArrowRight, ArrowUpRight, BookOpen, Code2, Compass, Shield, Store } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import BrandLogo from '../components/BrandLogo'
+import { SOCIAL_CATALOG_ICON } from '../lib/catalogBrand'
+import { API_ORIGIN, AUTH_ORIGIN, SOCIAL_ORIGIN } from '../lib/origins'
 
-interface LinkItem {
+const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+
+type QuickLink = {
   name: string
   description: string
-  href: string
-  icon: typeof ExternalLink
-}
+  icon: typeof ArrowRight
+} & ({ path: string; href?: never } | { href: string; path?: never })
 
-function getLinks(): LinkItem[] {
-  const api = API_ORIGIN.replace(/\/$/, '')
-  const social = SOCIAL_ORIGIN.replace(/\/$/, '')
-  const auth = AUTH_ORIGIN.replace(/\/$/, '')
+const appLinks: QuickLink[] = [
+  { path: '/app-store', name: 'App Store', description: 'Find apps that work with your web10 account.', icon: Store },
+  { href: AUTH_ORIGIN, name: 'web10 Hub', description: 'Manage your account and app permissions.', icon: Shield },
+  { path: '/', name: 'What is web10?', description: 'See how web10 lets you own your data.', icon: Compass },
+]
 
-  return [
-    {
-      name: 'Social App',
-      description: 'The web10 social media platform',
-      href: social,
-      icon: MessageCircle,
-    },
-    {
-      name: 'Authenticator',
-      description: 'Login, signup, service contracts',
-      href: auth,
-      icon: Shield,
-    },
-    {
-      name: 'App Store',
-      description: 'Browse and discover web10 apps',
-      href: '/app-store',
-      icon: Store,
-    },
-    {
-      name: 'Home',
-      description: 'Why web10 — own your audience and your data',
-      href: '/',
-      icon: TrendingUp,
-    },
-    {
-      name: 'API Docs',
-      description: 'Swagger documentation for the v3 API',
-      href: `${api}/docs`,
-      icon: BookOpen,
-    },
-    {
-      name: 'Developer Docs',
-      description: 'Protocol spec, SDK guide, conventions',
-      href: '/docs',
-      icon: BookOpen,
-    },
-  ]
+const developerLinks: QuickLink[] = [
+  { path: '/docs', name: 'Developer docs', description: 'Build an app with the web10 SDK.', icon: BookOpen },
+  { href: `${API_ORIGIN.replace(/\/$/, '')}/docs`, name: 'API reference', description: 'Explore the web10 API endpoints.', icon: Code2 },
+]
+
+function QuickLinkList({ links }: { links: QuickLink[] }) {
+  return (
+    <ul className="divide-y divide-border rounded-xl border border-border bg-surface [&>li:first-child>a]:rounded-t-xl [&>li:last-child>a]:rounded-b-xl">
+      {links.map(({ name, description, path, href, icon: Icon }) => {
+        const Arrow = href ? ArrowUpRight : ArrowRight
+        const row = `flex min-h-14 items-center gap-3 px-3 py-3 transition-colors hover:bg-elevated ${focus}`
+        const contents = <>
+          <Icon aria-hidden="true" className="size-5 shrink-0 text-brand-300" strokeWidth={1.75} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-semibold text-foreground">{name}</span>
+            <span className="block text-sm text-muted-foreground">{description}</span>
+          </span>
+          <Arrow aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
+        </>
+        return <li key={name}>{path !== undefined ? <Link to={path} className={row}>{contents}</Link> : <a href={href} className={row}>{contents}</a>}</li>
+      })}
+    </ul>
+  )
 }
 
 export default function LinksPage() {
-  const links = getLinks()
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="text-center">
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-            web10
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Everything in one place
-          </p>
-        </div>
+    <main className="interior-theme min-h-dvh bg-background px-5 py-10 text-foreground sm:px-6 sm:py-14" data-testid="quick-links">
+      <div className="mx-auto max-w-xl">
+        <header className="mb-8 border-b border-border pb-6">
+          <Link to="/" aria-label="web10 home" className={`inline-flex min-h-11 items-center rounded-sm ${focus}`}>
+            <BrandLogo className="h-8" />
+          </Link>
+          <h1 className="mt-4 font-display text-4xl font-bold tracking-tight sm:text-5xl">Explore web10</h1>
+        </header>
 
-        <div className="mt-12 space-y-4">
-          {links.map((link) => (
-            <Card key={link.name} className="overflow-hidden transition-shadow hover:shadow-md">
-              <a
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 p-4 sm:p-6"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-muted">
-                  <link.icon className="h-6 w-6 text-brand-300" strokeWidth={1.5} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-foreground">{link.name}</p>
-                  <p className="truncate text-sm text-muted-foreground">{link.description}</p>
-                </div>
-                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-              </a>
-            </Card>
-          ))}
-        </div>
+        <section aria-label="Apps and information" className="space-y-3">
+          <a href={SOCIAL_ORIGIN} className={`flex min-h-20 items-center gap-4 rounded-xl border border-brand/40 bg-brand-muted p-4 transition-colors hover:border-brand ${focus}`}>
+            <ReliableImage src={SOCIAL_CATALOG_ICON} alt="" width={48} height={48} className="size-12 shrink-0 rounded-md" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-lg font-bold text-foreground">Open web10 social</span>
+              <span className="block text-sm text-muted-foreground">Discover posts, watch videos, and share your own.</span>
+            </span>
+            <ArrowUpRight aria-hidden="true" className="size-5 shrink-0 text-brand-300" strokeWidth={1.75} />
+          </a>
+          <QuickLinkList links={appLinks} />
+        </section>
 
-        <p className="mt-16 text-center text-xs text-muted-foreground">
-          Built on the web10 protocol — user-level IAM, groups as the primitive, 100% delivery.
-        </p>
+        <section aria-labelledby="quick-links-developers" className="mt-7">
+          <h2 id="quick-links-developers" className="mb-2 text-sm font-semibold text-foreground">For developers</h2>
+          <QuickLinkList links={developerLinks} />
+        </section>
       </div>
-    </div>
+    </main>
   )
 }

@@ -1,5 +1,19 @@
 # web10 v3 Plan
 
+- [✓ 6.32.57 local] **Quick-links image ownership** — use the shared image component without changing the Social tile size, artwork, or destination.
+
+- [✓ 6.32.55 local] **Final Social icon and upright headers** — put blue keys and white lowercase `social` side by side in the square icon. Social and Join headers use one upright `web10 social` line, with theme-aware keys and the blue `10`.
+
+- [✓ 6.32.55 local] **Social More ecosystem links** — add What is web10 followed by Rate us on the App Store in desktop and phone More, visible signed in or out without changing access to personal destinations.
+
+- [✓ 6.32.55 local] **Muted video on fresh load** — the same in-memory choice starts muted across Posts, Video and Shorts and after reload; explicit unmute is shared until reload. Leave Music and existing playback controls alone.
+
+- [✓ 6.32.55 local] **Marketing quick-links page** — give `/links` its own compact, themed layout, highlight Social, update Hub copy, group technical destinations, and keep normal same-tab/Back behavior.
+
+- [✓ 6.32.54 local] **One keys-and-script Social identity** — horizontal in Social and Join chrome, stacked on the catalog and install icons, keys only in the browser favicon. The conversation pair remains Join illustration; no app rename or device refresh claim.
+
+- [✓ 6.32.54 local] **Social chrome follow-up** — outline the Light Posts column, default the single-video comment thread to open with a URL-owned collapse state, and put the personal switch immediately below identity search with an explicit current identity and unchanged confirmation.
+
 - [✓ 6.32.40 local] **Larger Social header wordmark with keys** — pair the theme-aware keys mark with larger type and keep the blue `10`. Fit the full lockup and controls on narrow phones without changing the installed app artwork.
 
 - [✓ 6.32.38 local] **Wordmark-only Social headers** — keep the blue `10` on desktop and phone; remove the tiny illustration from the headers without changing other brand surfaces.
@@ -60,7 +74,8 @@
 - [✓ 6.28.23 bounded native comparison; no advancement] **RD4-HYBRID-K20-NATIVE** — indexed, projected canonical and hybrid each pass exact parity on the same slice. Hybrid wins logical reads (620.85→182.34 MB) but loses complete HTTP in both orders. Scoped frozen-generation faults pass; dynamic publish/concurrent cleanup remain unproven. No six-case run or production change. [Results](../../research/experiments/costfn/evidence/k20-attachment-20261125/RESULTS.md).
 - [✓ 6.32.4 native experiment complete; steady state measured] **RD4-HYBRID-K20-FULL-STORE** — the next experiment: fill the missing two-by-two cell. Build the skinny attachment-history satellite on the full frozen store from canonical history (RD4 write discipline, independent census and frozen parts before any read), run two frozen uniform K20 samples through the hybrid path at exact ordered oracle parity, and cite the indexed baseline from banked PR #1618. Replaces the ratio-arithmetic row (36.2 MB/read → ~0.54 GB/s at the contract peak) with a measured disk-demand figure; the measured ratio is reported, not assumed from the slice. No live-maintenance (six-case gate stays closed), supply or production claim. Contract: `research/experiments/costfn/FULL-STORE-HYBRID.md`. [Results](../../research/experiments/costfn/evidence/full-store-hybrid-20261126/RESULTS.md).
 - [✓ 6.32.39 source preflight only] **RD4-DAU-DIVERSE-READER-SPEC** — replace identical-reader authority, freeze the read-only census and selection on verified Parquet input, and bind c-32 guest exposure and unchanged ClickHouse limits. No native census or sizing finding.
-- [ ] **RD4-DAU-DIVERSE-READER-RUN** — finish open-loop mixed-load and offline per-reader oracle controls before using the fresh $25 admission. Bank a contracted stop or sustained evidence on c-32; update draft v8 only if sustained evidence banks. [Task block](../../research/experiments/costfn/task-block-load-test-diverse-readers.md).
+- [✓ 6.32.41 offline components only] **RD4-DAU-DIVERSE-READER-CONTROLS** — add non-serial dispatch, exact scheduled-reader comparison, reconciled publication checks, and separate host/API/engine/cache accounting. Timed entry remains closed.
+- [ ] **RD4-DAU-DIVERSE-READER-RUN** — finish the indexed mixed-load serving cell, independent per-reader oracle generation, and end-to-end runner before using the fresh $25 admission. Bank a contracted stop or sustained evidence on c-32; update draft v8 only if sustained evidence banks. [Task block](../../research/experiments/costfn/task-block-build-and-run-overnight.md).
 - [✓ 6.28.8 native experiment complete; maximal rejected] **RD4-ROW-MODEL-POSTS-NATIVE** — all 4,000,675 identities built, independent verification and six exact assembly comparisons finish. Pre-committed D117 cost rule rejects maximal payload decomposition in all six; retain the refinement. State/native custody and owned cleanup verified. [Results](../../research/experiments/costfn/evidence/row-model-4096-20261123/RESULTS.md).
 - [✓ 6.28.7 source only; native continuation open] **RD4-ROW-BATCH-4096-HISTORY-LANES** — preserve 4,096-key ingest after the composed history parse stop; read each canonical source lane separately and publish only after combining complete histories. No change to measured assembly or native limits. [Run record](../../research/experiments/costfn/ROW-MODEL-RUN.md).
 - [✓ 6.28.6 source only] **RD4-ROW-BATCH-4096** — raise the typed loader batch to 4,096 full keys; preserve complete histories and verification before publication. Native loader proof and resume remain open.

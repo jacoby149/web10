@@ -1,30 +1,19 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
+import { render, screen, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { expect, it } from 'vitest'
 import LinksPage from './Links'
 import { API_ORIGIN, AUTH_ORIGIN, SOCIAL_ORIGIN } from '../lib/origins'
 
-describe('Links', () => {
-  it('keeps the node docs and product links without the retired marketing API', () => {
-    render(<LinksPage />)
-
-    expect(screen.queryByRole('link', { name: /Marketing API Docs/i })).not.toBeInTheDocument()
-    const links = screen.getAllByRole('link')
-    expect(links.map(link => link.getAttribute('href'))).toEqual([
-      SOCIAL_ORIGIN.replace(/\/$/, ''),
-      AUTH_ORIGIN.replace(/\/$/, ''),
-      '/app-store',
-      '/',
-      `${API_ORIGIN.replace(/\/$/, '')}/docs`,
-      '/docs',
-    ])
-    expect(links.some(link => link.getAttribute('href')?.includes('marketing-api.web10.app'))).toBe(false)
-    expect(screen.getByRole('link', { name: /^API Docs / })).toHaveAttribute(
-      'href', `${API_ORIGIN.replace(/\/$/, '')}/docs`,
-    )
-    for (const link of links) {
-      expect(link).toHaveAttribute('target', '_blank')
-      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
-    }
-  })
+it('puts Social first, keeps all six destinations, and groups the developer links', () => {
+  render(<MemoryRouter initialEntries={['/links']}><LinksPage /></MemoryRouter>)
+  expect(screen.getByRole('heading', { level: 1, name: 'Explore web10' })).toBeInTheDocument()
+  const apps = within(screen.getByRole('region', { name: 'Apps and information' })).getAllByRole('link')
+  const developers = within(screen.getByRole('region', { name: 'For developers' })).getAllByRole('link')
+  expect(apps.map(link => link.getAttribute('href'))).toEqual([SOCIAL_ORIGIN, '/app-store', AUTH_ORIGIN, '/'])
+  expect(developers.map(link => link.getAttribute('href'))).toEqual(['/docs', `${API_ORIGIN.replace(/\/$/, '')}/docs`])
+  expect(apps[0]).toHaveAccessibleName(/^Open web10 social/)
+  expect(apps[2]).toHaveAccessibleName(/^web10 Hub.*app permissions/)
+  expect(screen.queryByRole('link', { name: /Marketing API Docs/i })).not.toBeInTheDocument()
+  for (const link of [...apps, ...developers]) expect(link).not.toHaveAttribute('target')
 })

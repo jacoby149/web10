@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
 // One loaded-app video choice. No storage, account, URL or Music coupling.
-let muted = false;
+const defaultMuted = true;
+let muted = defaultMuted;
 const listeners = new Set<() => void>();
 export const getVideoMuted = () => muted;
 export function setVideoMuted(value: boolean | ((current: boolean) => boolean)) {
@@ -16,5 +17,5 @@ function subscribe(listener: () => void) {
   return () => { listeners.delete(listener); };
 }
 export function useVideoSound() {
-  return [useSyncExternalStore(subscribe, getVideoMuted, () => false), setVideoMuted] as const;
+  return [useSyncExternalStore(subscribe, getVideoMuted, () => defaultMuted), setVideoMuted] as const;
 }

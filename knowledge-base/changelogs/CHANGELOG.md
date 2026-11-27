@@ -1,3 +1,59 @@
+6.32.57 || 27.11.2026
+fix(marketing): render the Quick links Social icon through the shared image component so it passes media ownership checks without changing the layout.
+test(social): drive the Shorts swipe test through the observer registered on the next slide, not an unrelated player or feed observer.
+
+6.32.56 || 27.11.2026
+research: allow the admitted 150-reader canonical DAU setup worker to finish beyond the old two-hour outer client timeout. Keep the per-reader packets, original oracle source binding, native statement limits, and owned lease unchanged.
+
+6.32.55 || 27.11.2026
+social + marketing: use blue keys beside upright white lowercase `social` for the square catalog and install icon. Use one upright `web10 social` line in Social and Join headers, retaining the theme-aware keys and blue `10`. Keep the keys-only favicon and refresh the PWA shell cache.
+social: add What is web10 and Rate us on the App Store to desktop and phone More, with the rating link pointing directly to Social's listing.
+video: the shared player starts muted on every fresh load and reload. Explicit unmute still carries across in-app tabs; Music remains independently controlled.
+marketing: rebuild `/links` as a standalone quick-launch page with Social first, current Hub and permissions copy, a separate developer group and normal same-tab links. Label the marketing navbar entry Quick links and use a list icon.
+
+6.32.54 || 27.11.2026
+social + marketing: use one keys-and-script web10 Social identity: horizontal in the Social and Join headers, stacked in the App Store and install icons, and keys alone in the favicon. Keep the conversation pair as Join illustration and refresh the PWA shell cache.
+social: outline the Light-mode Posts column, open comments by default on Watch with a URL-owned collapse state, and make switching back to personal identity explicit below chooser search without skipping confirmation.
+
+6.32.53 || 27.11.2026
+research: enforce the DAU run's 60-second completion-collapse stop during measured windows, counting actual successful in-window completions rather than offers or HTTP errors. Bank the stop trace without inferring a physical bottleneck from the completion counter alone.
+
+6.32.52 || 27.11.2026
+research: build DAU reader tallies only for the already-certified first-page targets, selecting full historical keys through the verified pairs index. Keep canonical history, live policy and independent per-reader tally verification; refuse unchecked targets and leave the measured path unchanged.
+
+6.32.51 || 27.11.2026
+research: bind the sustained DAU measured phase to the completed same-host preparation handoff, so a merged repair can execute as a successor without changing the original admission or losing its source and receipt lineage.
+
+6.32.50 || 27.11.2026
+research: pin the DAU publication audit boundary to the exact completed bootstrap journal entry before issuing traffic. Do not count cache setup as a publication or conceal any later partial or unexpected write.
+
+6.32.49 || 27.11.2026
+research: batch the DAU bootstrap's exact canonical membership census in groups of 32, retaining every recipient and the frozen reader requirements. Leave historical F builds and all timed workload semantics unchanged.
+
+6.32.48 || 27.11.2026
+research: reuse the exact already-created empty fanout table when repairing DAU setup. Verify the original successful DDL receipt, current SHOW CREATE and zero rows, preserving the native duplicate-table refusal rather than dropping or repeating DDL.
+
+6.32.47 || 27.11.2026
+research: repair the indexed DAU bootstrap to verify current recipients against each frozen reader's own Following memberships. Reuse completed same-generation metadata and keep the original membership refusal, rather than rebuilding the restored store or requiring one reader to belong to all groups.
+
+6.32.46 || 27.11.2026
+research: stage the original paired fixture from the retained image on the single admitted c-32, verify its bytes and native authority rows, and load only disjoint fixture keys after the frozen census. Bind the exact guest and armed timer before execution; source controls are not a native restore or run result.
+
+6.32.45 || 27.11.2026
+research: connect the admitted DAU cell to calibration, open-loop timing, native reconciliation, and private resource receipts after same-host setup proof. Repair the two AST-extracted engagement test harnesses that did not load the uniform-copy helper. No cloud lease, native result, or draft update.
+
+6.32.44 || 27.11.2026
+research: add an opt-in diverse-reader indexed DAU cell, a frozen existing writer population, exact-target publication through the native journal, and certified group classification. Correct the workload's create route to `/v3/create`. Timed execution, native proof and draft update remain open.
+
+6.32.43 || 27.11.2026
+research: add per-reader indexed tally certificate preparation, strict route lookup, and native journal/attachment and raw delivery audit helpers for sustained DAU. Keep timed entry closed pending mixed-load integration; no certified native run, capacity finding, or draft update.
+
+6.32.42 || 27.11.2026
+research: batch quiescent canonical DAU oracle setup by frozen reader, add explicit grouped follow-up order and a phased HTTP dispatch adapter, and bind the overnight 24-hour failsafe separately from the original admission. Mixed-load certification and native delivery reconciliation are still required; no run or measured result.
+
+6.32.41 || 27.11.2026
+research: add offline controls for concurrent DAU arrivals, reader-bound ordered comparison and publication reconciliation, and non-overlapping host-memory accounting. The indexed mixed-load serving cell and end-to-end runner remain open; no provisioning or sustained result.
+
 6.32.40 || 27.11.2026
 style(social): enlarge the `web10 social` wordmark on phones and desktop and pair it with the original keys mark in both themes. Keep the mobile controls on one line and leave Join and installed app artwork unchanged.
 

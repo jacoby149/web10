@@ -80,7 +80,7 @@ def presence(root, epoch, session, name, profile, generation, targets):
     save(root / ('presence-' + name + '.json'), result)
 
 
-def infrastructure(root, name, *, initial=False, settle=True):
+def infrastructure(root, name, *, initial=False, settle=True, additional_groups=(), reader_groups=None):
     root = Path(root)
     cells.stop(root)
     session = modern.Session(root)
@@ -117,17 +117,30 @@ def infrastructure(root, name, *, initial=False, settle=True):
     save(epoch / 'epoch.json', dict(canonical_generation=generation, parts=parts,
         retained_prior_counter_scopes=not initial, initial=initial))
     if initial:
-        build_fanout(root, profile, paired)
+        build_fanout(root, profile, paired, additional_groups=additional_groups, reader_groups=reader_groups)
     return generation
 
 
-def build_fanout(root, ordinary, paired):
-    build_root = cells.root(root, 'fanout-bootstrap')
+def build_fanout(root, ordinary, paired, *, additional_groups=(), reader_groups=None, repair=False, retained_empty_ddl=None):
+    from uuid import uuid4
+
+    name = 'fanout-bootstrap-repair-' + uuid4().hex if repair else 'fanout-bootstrap'
+    build_root = cells.root(root, name)
     (build_root / 'profile').mkdir()
     combined = deepcopy(ordinary)
-    combined['groups'] = sorted(set(ordinary['groups']) | set(paired['groups']))
+    combined['groups'] = sorted(set(ordinary['groups']) | set(paired['groups']) | set(additional_groups))
+    if reader_groups is not None:
+        memberships = {group: set() for group in combined['groups']}
+        for reader, scope in [*reader_groups.items(), (ordinary['reader'], ordinary['groups']),
+                (paired['reader'], paired['groups'])]:
+            for group in scope:
+                memberships[group].add(reader)
+        combined['dau_group_readers'] = {group: sorted(actors) for group, actors in memberships.items()}
     save(build_root / 'profile/inventory.json', combined)
-    arm_f_native.build(build_root)
+    if retained_empty_ddl is None:
+        arm_f_native.build(build_root)
+    else:
+        arm_f_native.build(build_root, retained_empty_ddl=retained_empty_ddl)
     shutil.copytree(build_root / 'fanout-state', root / 'fanout-template')
     save(root / 'fanout-template-source.json', dict(build_sha256=hashlib.sha256(
         (build_root / 'F-build/result.json').read_bytes()).hexdigest(), groups=combined['groups']))

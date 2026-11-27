@@ -62,9 +62,14 @@ def validate(lease):
     hardware = (lease.get('size') == 's-8vcpu-32gb-amd' and lease.get('hourly_usd') == .25) or (
         lease.get('size') == 's-8vcpu-32gb-640gb-intel' and lease.get('hourly_usd') == .28571
         and lease.get('hardware_directive') == TALLY_INTEL and lease.get('tally_wiring_admitted') is True)
+    region = 'nyc3'
+    if lease.get('dau_overnight') is True:
+        hardware = (lease.get('size') == 'c-32' and lease.get('hourly_usd') == 1
+            and lease.get('max_usd') == 25 and task(lease) and lease.get('snapshot_id') == '255003176')
+        region = 'nyc1'
     if (not re.fullmatch(r'web10-fanout-f-[a-f0-9]{12}', lease.get('name', ''))
             or lease.get('tag') != lease['name'] or lease.get('configuration') != 'F'
-            or lease.get('region') != 'nyc3' or not hardware
+            or lease.get('region') != region or not hardware
             or not window_ok
             or not lease.get('account_uuid')):
         raise ValueError('exact owned Config F host and backstop required')
@@ -191,7 +196,7 @@ def watchdog_program(script, lease, *, executable=None):
 
 
 def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None, hardware_override=None,
-               layout_clock=False, task_id=None):
+               layout_clock=False, task_id=None, dau_overnight=False):
     state = Path(state)
     if scope not in (None, 'F_DEPLOY_REHEARSAL', 'F_GATES_ONLY'):
         raise ValueError('unknown F admission scope')
@@ -199,16 +204,20 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
         raise FileExistsError('existing F run; no adoption/extension')
     if hardware_override not in (None, TALLY_INTEL):
         raise ValueError('explicit exact hardware substitution approval required')
+    if dau_overnight and (not task_id or scope or hardware_override or layout_clock):
+        raise ValueError('DAU requires its own named admitted task')
     rows = api('account', 'get')
     account_row = rows[0] if isinstance(rows, list) else rows
-    sku = 's-8vcpu-32gb-640gb-intel' if hardware_override else 's-8vcpu-32gb-amd'
+    sku = 'c-32' if dau_overnight else 's-8vcpu-32gb-640gb-intel' if hardware_override else 's-8vcpu-32gb-amd'
     shape = next(row for row in api('compute', 'size', 'list') if row['slug'] == sku)
     regions = shape.get('regions')
     if regions is None:
         regions = [r['slug'] for r in api('compute','region','list') if r.get('available') and sku in r.get('sizes',[])]
-    if (shape['memory'] != 32768 or shape['vcpus'] != 8 or shape['disk'] < 400
-            or shape['price_hourly'] != (.28571 if hardware_override else .25)
-            or (hardware_override and shape['disk'] != 640) or not shape['available'] or 'nyc3' not in regions):
+    region = 'nyc1' if dau_overnight else 'nyc3'
+    memory, vcpus, price = (65536, 32, 1) if dau_overnight else (32768, 8, .28571 if hardware_override else .25)
+    if (shape['memory'] != memory or shape['vcpus'] != vcpus or shape['disk'] < 400
+            or shape['price_hourly'] != price
+            or (hardware_override and shape['disk'] != 640) or not shape['available'] or region not in regions):
         raise ValueError('approved exact SKU unavailable; no replacement')
     if api('compute', 'droplet', 'list'):
         raise ValueError('another host exists; isolation preflight required')
@@ -216,10 +225,14 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
     root = Path.home() / '.local/state/web10-research' / name
     root.mkdir(mode=0o700)
     created = int(time.time())
-    lease = dict(name=name, tag=name, configuration='F', size=shape['slug'], region='nyc3',
+    lease = dict(name=name, tag=name, configuration='F', size=shape['slug'], region=region,
                  account_uuid=account_row['uuid'], max_usd=2, hourly_usd=shape['price_hourly'], created_epoch=created,
                   deadline=created + 14400, approved_by='Jacob', cancelled=False,
-                   cleanup_model='agent-supervised-self-kill', guardian_required=False)
+                    cleanup_model='agent-supervised-self-kill', guardian_required=False)
+    if dau_overnight:
+        from engagement_modern import DIRECTIVE, ENGINE
+        lease.update(dau_overnight=True, max_usd=25, snapshot_id='255003176',
+            engagement_engine=ENGINE, engagement_directive=DIRECTIVE)
     if hardware_override:
         lease.update(hardware_directive=hardware_override,tally_wiring_admitted=True)
     if layout_clock:
@@ -251,6 +264,8 @@ def create(path, *, snapshot=None):
         validate(lease)
         account(lease)
         image = 'ubuntu-24-04-x64'
+        if lease.get('dau_overnight') is True and str(snapshot) != lease['snapshot_id']:
+            raise ValueError('DAU must boot from the exact retained source image to export its fixture')
         if snapshot is not None:
             from engagement_modern import DIRECTIVE, ENGINE
             if (str(snapshot) != '255003176' or lease.get('engagement_engine') != ENGINE
@@ -259,7 +274,7 @@ def create(path, *, snapshot=None):
             saved = api('compute', 'snapshot', 'get', str(snapshot))
             saved = saved[0] if isinstance(saved, list) else saved
             if (str(saved.get('id')) != str(snapshot) or saved.get('resource_type') != 'droplet'
-                    or str(saved.get('resource_id')) != '620121703' or 'nyc3' not in saved.get('regions', [])
+                    or str(saved.get('resource_id')) != '620121703' or lease['region'] not in saved.get('regions', [])
                     or saved.get('min_disk_size', 1000) > 400):
                 raise ValueError('retained snapshot identity/region/shape changed')
             image = str(snapshot)
@@ -302,7 +317,9 @@ def create(path, *, snapshot=None):
                         # restarted mid-cell by unattended OS maintenance.
                         ['systemctl', 'stop', 'apt-daily.timer', 'apt-daily-upgrade.timer'],
                         ['systemctl', 'mask', '--runtime', 'apt-daily.service', 'apt-daily-upgrade.service'],
-                        ['systemd-run', '--unit=fanout-hard-stop', '--on-calendar=' + halt, '/sbin/poweroff']]}
+                         ['systemd-run', '--unit=fanout-hard-stop', '--on-calendar=' + halt, '/sbin/poweroff']]}
+        if lease.get('dau_overnight') is True:
+            cloud['packages'].append('fio')
         cloud_path = root / 'cloud-init.yaml'
         cloud_path.write_text('#cloud-config\n' + json.dumps(cloud))
         os.chmod(cloud_path, 0o600)
@@ -365,12 +382,15 @@ if __name__ == '__main__':
     parser.add_argument('action', choices=['init', 'create', 'tick', 'stop'])
     parser.add_argument('--lease', type=Path)
     parser.add_argument('--task-id')
+    parser.add_argument('--dau-overnight', action='store_true')
+    parser.add_argument('--snapshot')
+    parser.add_argument('--state', type=Path, default=Path('.context/fanout-run.json'))
     args = parser.parse_args()
     if args.action == 'init':
         if not args.task_id:
             parser.error('new runs require --task-id')
-        initialize(task_id=args.task_id)
+        initialize(task_id=args.task_id, state=args.state, dau_overnight=args.dau_overnight)
     elif args.action == 'create':
-        create(args.lease)
+        create(args.lease, snapshot=args.snapshot)
     else:
         tick(args.lease, args.action == 'stop')

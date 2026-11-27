@@ -13,8 +13,10 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 import time
+import uuid
 
 from arm_f_native import save
+from arm_f_banked import ARCHIVE_SHA256 as BANKED_P_SHA256
 from arm_f_reads import rowset
 from costfn_task import Task, read, digest, exact, ParityDivergence
 import arm_f_http
@@ -22,12 +24,18 @@ import arm_f_run as arm_run
 import arm_t
 import arm_satellite_sql as sql
 import dau_sustain_readers as readers
+import dau_sustain_fixture_transfer as fixture_transfer
+from dau_sustain_cell_policy import validate as validate_cell, writer_population
+import dau_sustain_reference as references
+import dau_sustain_scope_proof as scope_proof
+import dau_sustain_live as live
 import dau_sustain_workload as wl
 import engagement_billboards as ads
 import engagement_cells as cells
 import engagement_certificates as certificates
 import engagement_composition as contract
 import engagement_modern as modern
+import engagement_restore as retained
 import engagement_setup as setup
 import engagement_window as window
 import hybrid_k20_full_store as full_store
@@ -66,7 +74,19 @@ class Actions(full_store.Actions):
     def base_infrastructure(self):
         # A verified Parquet import has canonical tables, not the prepared
         # snapshot's host-local metadata, counters or fanout state.
-        generation = setup.infrastructure(self.root, 'dau-parquet', initial=True, settle=False)
+        selection = self.root / 'dau-diverse-reader-selection.json'
+        groups = set()
+        reader_groups = None
+        if selection.exists():
+            reader_groups = {row['reader']: row['groups'] for row in read(selection)['readers']}
+            groups = {group for scope in reader_groups.values() for group in scope}
+        epoch = self.root / 'cells/infra-dau-parquet/epoch.json'
+        stop = self.root / 'cells/fanout-bootstrap/F-build/result.json'
+        if reader_groups is not None and epoch.is_file() and stop.is_file() and not (self.root / 'fanout-template').exists():
+            generation = self.resume_fanout_setup(epoch, stop, groups, reader_groups)
+        else:
+            generation = setup.infrastructure(self.root, 'dau-parquet', initial=True, settle=False,
+                additional_groups=groups, reader_groups=reader_groups)
         session = modern.Session(self.root)
         state = certificates.fingerprint(session)
         if state['canonical_generation'] != generation:
@@ -77,6 +97,36 @@ class Actions(full_store.Actions):
             canonical_content_sha256=state['canonical_content_sha256']))
         return certificates.verify(self.root)
 
+    def resume_fanout_setup(self, epoch, stop, groups, reader_groups):
+        """Retain verified derived metadata and repair only the failed bootstrap."""
+        failed, saved = read(stop), read(epoch)
+        session = modern.Session(self.root)
+        if (failed.get('outcome'), failed.get('failure_message')) != (
+                'STOP', 'canonical reader membership/recipient set differs') or failed.get('droplet_id') != session.host_id:
+            raise ValueError('saved bootstrap stop is not the diverse membership failure')
+        generation = certificates.fingerprint(session)['canonical_generation']
+        if generation != saved['canonical_generation']:
+            raise ValueError('canonical generation changed since the completed metadata preparation')
+        from engagement_cells import digest as file_digest
+        metadata = self.root / 'metadata/result.json'
+        parity = read(self.root / 'metadata-parity/result.json')
+        if (parity.get('outcome') != 'BOUNDED_SPOT_PASS' or parity.get('metadata_sha256') != file_digest(metadata)
+                or read(metadata).get('canonical_generation') != generation):
+            raise ValueError('completed metadata no longer matches its saved parity receipt')
+        rows, _ = session.rows('dau_failed_bootstrap_empty', 'SELECT count() AS n FROM fanout')
+        if int(rows[0]['n']):
+            raise ValueError('failed membership bootstrap has written pointers; refuse adoption')
+        import arm_f
+        if (failed.get('DDL_sha256') != __import__('hashlib').sha256(arm_f.DDL.encode()).hexdigest()
+                or not failed.get('actual_ddl') or not any(row['label'] == 'F_ddl' and
+                    row['native'].get('type') == 'QueryFinish' and int(row['native']['exception_code']) == 0
+                    for row in failed.get('queries', []))):
+            raise ValueError('exact prior native fanout DDL receipt required')
+        setup.build_fanout(self.root, read(self.root / 'profile-ordinary.json'),
+            read(self.root / 'profile-fixture.json'), additional_groups=groups, reader_groups=reader_groups, repair=True,
+            retained_empty_ddl=failed['actual_ddl'])
+        return generation
+
 
 def admission_gate(approval):
     if approval.get('dau_sustain_directive') != DIRECTIVE:
@@ -84,10 +134,13 @@ def admission_gate(approval):
     if approval.get('purpose') != 'DAU_SUSTAINED_CONTRACT_RATE':
         raise ValueError('sustained-DAU admission purpose required')
     host = approval.get('dau_host')
+    backstop = 24 if approval.get('dau_overnight') is True else 12
     if not (host and host.get('region') and host.get('size') and host.get('price_hourly')
             and host.get('storage_gib') and host.get('storage_class')
-            and host.get('backstop_h') == 12 and host.get('compute_ceiling_usd') == 25.0):
+            and host.get('backstop_h') == backstop and host.get('compute_ceiling_usd') == 25.0):
         raise ValueError('budget-sized host class declared at admission required')
+    if backstop == 24 and 'dau_reader_criterion' not in approval:
+        raise ValueError('overnight backstop requires the amended reader admission')
     derived = (host.get('cores') == 16 and host.get('threads') == 32 and host.get('ram_gb') == 32)
     note = host.get('class_note')
     if 'dau_reader_criterion' not in approval and not derived and not (type(note) is str and note.strip()):
@@ -197,6 +250,11 @@ def apply_envelope_overlay(root, approval):
         '../../../clickhouse-init:/docker-entrypoint-initdb.d:ro',
         {**input_bind},
         f'{memory_path}:/etc/clickhouse-server/config.d/costfn-memory.xml:ro']
+    fixture_dir = Path(root) / 'retained-paired-fixture'
+    if approval.get('dau_overnight') is True and (fixture_dir / 'manifest.json').is_file():
+        fixture_transfer.validate_directory(fixture_dir, digest(Path(root) / 'input/manifest.json'))
+        clickhouse['volumes'].append({'type': 'bind', 'source': str(fixture_dir.resolve()),
+            'target': '/var/lib/clickhouse/user_files/retained-paired-fixture', 'read_only': True})
     overlay['services']['api']['mem_limit'] = str(envelope['api_bytes'])
     overlay['services']['minio']['mem_limit'] = str(envelope['minio_bytes'])
     overlay_path.write_bytes(json.dumps(overlay, indent=1).encode())
@@ -791,7 +849,7 @@ def reader_preflight(root, *, note=None):
     admission_gate(approval)
     diverse_host_admission(approval)
     sha = current.source_guard(approval)
-    if (root / 'costfn-task.json').exists():
+    if any((root / name).exists() for name in ('costfn-task.json', 'costfn-task-diverse.json')):
         raise ValueError('reader census must precede canonical fixture and load writes')
     task = Task(root, approval, sha)
     task.path = root / 'costfn-task-reader-preflight.json'
@@ -799,6 +857,9 @@ def reader_preflight(root, *, note=None):
         modern.install_sessions()
         try:
             guest = verify_diverse_guest()
+            if approval.get('dau_overnight') is True:
+                task.step('retained-fixture-extract', lambda: extract_retained_fixture(root),
+                    validate=lambda stored: verify_fixture_extract(root, stored))
             restored = task.step('restore', lambda: restore_parquet(root, approval))
             task.step('verify-input', lambda: verify_preflight_input(root),
                 validate=lambda stored: verify_preflight_binding(root, stored))
@@ -823,6 +884,50 @@ def reader_preflight(root, *, note=None):
                 cells.stop(root)
 
 
+def verify_fixture_extract(root, stored):
+    manifest = fixture_transfer.validate_directory(root / 'retained-paired-fixture', digest(root / 'input/manifest.json'))
+    if manifest != stored:
+        raise ValueError('retained source fixture differs from its extraction receipt')
+
+
+def extract_retained_fixture(root):
+    """Use the snapshot copy on this same c-32, then stop its old engine."""
+    source = root / 'retained-source'
+    bundle = root / 'retained-paired-fixture'
+    data = (retained.SNAPSHOT_ROOT / 'input').resolve()
+    restore.verified_input(data, data / 'validation.json', arm_t.DATASET, arm_t.VALIDATION)
+    target_input = root / 'input'
+    if target_input.exists() or target_input.is_symlink():
+        if target_input.resolve() != data:
+            raise ValueError('prepared input does not point to the exact verified snapshot Parquet')
+    else:
+        target_input.symlink_to(data, target_is_directory=True)
+    archive = root / 'banked-P.tar.gz'
+    if not archive.exists():
+        candidates = (retained.SNAPSHOT_ROOT / 'banked-P.tar.gz', retained.SNAPSHOT_ROOT.parent.parent / 'banked-P.tar.gz')
+        original = next((path for path in candidates if path.is_file() and digest(path) == BANKED_P_SHA256), None)
+        if original is None:
+            raise ValueError('retained snapshot lacks the exact cited P evidence bundle')
+        shutil.copyfile(original, archive)
+    if digest(archive) != BANKED_P_SHA256:
+        raise ValueError('banked P evidence differs from the cited archive')
+    if (bundle / 'manifest.json').exists():
+        retained.stop_snapshot_processes()
+        return fixture_transfer.validate_directory(bundle, digest(data / 'manifest.json'))
+    source.mkdir(mode=0o700, exist_ok=True)
+    shutil.copyfile(root / 'admission.json', source / 'admission.json')
+    modern.operation(source)
+    try:
+        origin = retained.snapshot(source)
+        save(source / 'source-receipt.json', origin)
+        session = modern.Session(source)
+        for table in fixture_transfer.SCHEMAS:
+            session.query('dau_fixture_export_freeze_' + table, 'SYSTEM STOP MERGES ' + table)
+        return fixture_transfer.export(bundle, session, retained.SNAPSHOT_ROOT, data)
+    finally:
+        retained.stop_snapshot_processes()
+
+
 def verify_preflight_input(root):
     source = root / 'input'
     restore.verified_input(source, source / 'validation.json', arm_t.DATASET, arm_t.VALIDATION)
@@ -839,9 +944,144 @@ def verify_preflight_binding(root, stored):
         raise ValueError('saved Parquet input binding changed')
 
 
+def prepare_mixed_cell(root, session, settled_ledger):
+    """Bind the isolated runtime to setup proof; do not schedule traffic here."""
+    approval = read(root / 'admission.json')
+    selection = read(root / 'dau-diverse-reader-selection.json')
+    preflight = read(root / 'dau-diverse-reader-preflight.json')
+    if (preflight['status'] != 'SELECTED' or selection['readers_count'] != wl.READERS
+            or preflight['selection_sha256'] != digest(root / 'dau-diverse-reader-selection.json')):
+        raise ValueError('exact frozen reader preflight is required before cell preparation')
+    composition = read(root / 'composition-proof.json')
+    if composition['droplet_id'] != session.host_id or set(composition['gates']) != set(contract.GATES):
+        raise ValueError('indexed composition must be certified on this host before DAU preparation')
+    for name, value in composition['gates'].items():
+        contract.gate(name, value)
+    if approval.get('dau_overnight') is not True:
+        raise ValueError('mixed-cell preparation requires the admitted overnight driver')
+    session.env['DAU_ORACLE_BATCH_UNTIMED'] = '1'
+    try:
+        index = references.prepare(root, session, settled_ledger)
+    finally:
+        session.env.pop('DAU_ORACLE_BATCH_UNTIMED', None)
+    proof = scope_proof.prepare(root, session, index)
+    writers = writer_population(root, session, selection)
+    validate_cell(approval, proof, writers)
+    destination = root / 'dau-cell-bundle.json'
+    run_id = read(destination)['run_id'] if destination.exists() else str(uuid.uuid4())
+    # Bound only the admitted W/A/B window plus the native read bound at drain.
+    writer_slot_cap = sum(item['duration_s'] for item in wl.PHASES if item['duration_s']) + 1800
+    value = dict(host_id=session.host_id, task_id=approval['costfn_task_id'], run_id=run_id,
+        writer_slot_cap=writer_slot_cap, scope_proof=proof, writers=writers)
+    if destination.exists() and read(destination) != value:
+        raise ValueError('saved DAU cell bundle differs from current validated preparation')
+    if not destination.exists():
+        save(destination, value)
+    return dict(bundle_sha256=digest(destination), readers=len(proof['routes']), writers=len(writers['actors']))
+
+
 def run(root, *, note=None):
-    raise ValueError('sustained windows blocked: shared-oracle scheduler cannot execute the diverse-reader contract; '
-        'only --reader-preflight-only is implemented for the amendment')
+    root = Path(root).resolve()
+    if not (root / 'admission.json').is_file() or not (root / 'composition-proof.json').is_file():
+        raise ValueError('sustained windows blocked: an owned admission and the certified setup chain are required')
+    approval = read(root / 'admission.json')
+    admission_gate(approval)
+    diverse_host_admission(approval)
+    sha = current.source_guard(approval)
+    verify_diverse_guest()
+    preflight_path = root / 'dau-diverse-reader-preflight.json'
+    if not preflight_path.exists():
+        raise ValueError('sustained windows blocked: run the frozen reader preflight before setup')
+    preflight = read(preflight_path)
+    if preflight['status'] == readers.REFUSED:
+        return preflight
+    task = measurement_task(root, approval, sha)
+    with task.attempt(note):
+        modern.install_sessions()
+        session = modern.Session(root)
+        try:
+            verify_envelope(root)
+            task.step('indexed-mixed-cell', lambda: prepare_mixed_cell(root, session, read(root / 'billboards/setup.json')),
+                validate=lambda stored: verify_cell_bundle(root, stored))
+            disk = live.engine_disk(session)
+            result = task.step('diverse-http', lambda: asyncio.run(live.run(root,
+                sample_debt=lambda current, phase, pending: live.resource_debt(current, phase, pending, disk),
+                verify_storage=lambda path, output: live.storage_probe(path, output, disk),
+                verify_delivery_stability=live.append_only_audit)))
+            return result
+        finally:
+            cells.stop(root)
+
+
+def verify_cell_bundle(root, stored):
+    if stored['bundle_sha256'] != digest(root / 'dau-cell-bundle.json'):
+        raise ValueError('original prepared mixed-cell bundle changed')
+
+
+def measurement_task(root, approval, sha):
+    """Certify the preparation→measurement transition on the existing lease."""
+    task = Task(root, approval, sha)
+    task.path = root / 'costfn-task-indexed-prep.json'
+    prepared = read(task.path)
+    if (prepared['status'] != 'COMPLETE' or prepared['identity'] != task.identity
+            or not {'retained-fixture-import', 'steady-state', 'furniture', *('gate:' + name for name in contract.GATES)}
+                <= set(prepared['steps'])):
+        raise ValueError('completed exact same-task preparation required before timing')
+    handoff = root / 'dau-preparation-handoff.json'
+    value = dict(**task.identity, prepared_sha256=digest(task.path),
+        composition_sha256=digest(root / 'composition-proof.json'),
+        oracle_inputs_sha256=digest(root / 'dau-diverse-reader-selection.json'))
+    if handoff.exists():
+        if read(handoff) != value:
+            raise ValueError('prepared-to-live basis changed after handoff')
+    else:
+        save(handoff, value)
+    task.next_phase('diverse', handoff)
+    return task
+
+
+def prepare_only(root, *, note=None):
+    """Materialize the required same-host proofs without authorizing traffic."""
+    root = Path(root).resolve()
+    approval = read(root / 'admission.json')
+    admission_gate(approval)
+    diverse_host_admission(approval)
+    sha = current.source_guard(approval)
+    preflight = read(root / 'dau-diverse-reader-preflight.json')
+    if preflight['status'] == readers.REFUSED:
+        return preflight
+    if (preflight['status'] != 'SELECTED' or preflight['selected_count'] != wl.READERS
+            or preflight['selection_sha256'] != digest(root / 'dau-diverse-reader-selection.json')):
+        raise ValueError('frozen reader preflight does not match the owned setup')
+    task = Task(root, approval, sha)
+    task.path = root / 'costfn-task-indexed-prep.json'
+    with task.attempt(note):
+        modern.install_sessions()
+        actions = Actions(root, task)
+        preload_expected(root, task.state['steps'], actions)
+        try:
+            verify_envelope(root)
+            fixture = task.step('retained-fixture-import', lambda: fixture_transfer.import_tables(root, modern.Session(root)))
+            restored = read(root / 'modern-restore.json')
+            if restored.get('fixture') not in (None, fixture['fixture']):
+                raise ValueError('restored paired fixture authority drifted')
+            restored['fixture'] = fixture['fixture']
+            restored['retained_transfer'] = fixture
+            save(root / 'modern-restore.json', restored)
+            task.step('steady-state', lambda: full_store.steady_state(root))
+            for name in ('read-setup', 'migrate', 'billboard-fixtures'):
+                task.step(name, lambda name=name: actions.stage(name, {}))
+            task.step('furniture', lambda: actions.stage('furniture', {}),
+                validate=lambda stored: full_store.validate_furniture(stored, root))
+            progress = {}
+            for name in contract.GATES:
+                value = task.step('gate:' + name, lambda name=name: full_store.gate_stage(actions, name, progress),
+                    validate=lambda stored, name=name: contract.gate(name, stored))
+                progress['verify-' + name] = dict(outcome='PASS', evidence=value)
+            return dict(status='INDEXED_COMPOSITION_PREPARED', composition_sha256=digest(root / 'composition-proof.json'),
+                measured_windows='NOT_RUN')
+        finally:
+            cells.stop(root)
 
 
 def _historical_run(root, *, note=None):
@@ -917,6 +1157,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path)
     parser.add_argument('--repair-note')
-    parser.add_argument('--reader-preflight-only', action='store_true')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--reader-preflight-only', action='store_true')
+    modes.add_argument('--prepare-only', action='store_true')
     args = parser.parse_args()
-    (reader_preflight if args.reader_preflight_only else run)(args.root, note=args.repair_note)
+    action = reader_preflight if args.reader_preflight_only else prepare_only if args.prepare_only else run
+    action(args.root, note=args.repair_note)

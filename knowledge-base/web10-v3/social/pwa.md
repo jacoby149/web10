@@ -35,7 +35,7 @@ The offline cache stores the **app shell** — the built JS/CSS/HTML, the manife
 On `install`, the worker precaches the known shell:
 
 - `/` and `/index.html` (the SPA entry — the offline fallback target),
-- `/manifest.json`, the blue Social app icons (`logo192.png`, `logo512.png`, `logo-maskable-crisp-512.png`, `favicon.ico`, `apple-touch-icon.png`), the conversation artwork (`social-conversation-pair-blue.png` for Social and Join), and the separate platform keys and share-card images,
+- `/manifest.json`, the charcoal Social install icons with blue keys beside white lowercase `social` (`logo192.png`, `logo512.png`, `logo-maskable-crisp-512.png`, `apple-touch-icon.png`), the keys-only `favicon.ico`, Join's conversation illustration (`social-conversation-pair-blue.png`), and the separate platform keys and share-card images,
 - the vendored libs (`/hls.min.js`, `/wapi.js`),
 - **the hashed build assets** — Vite emits `/assets/index-<hash>.js` / `.css` whose names are unknown at authoring time, so the worker fetches `/index.html` at install, regexes out the `/assets/...` references, and precaches those too. This is what makes a *fresh* install work offline, not just a revisit.
 

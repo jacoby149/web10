@@ -46,14 +46,29 @@ def build(directory):
     # Import production implementations only in the explicitly launched isolated
     # API-container oracle process, not during no-engine tests or CLI discovery.
     from app.v3.endpoints import query as endpoint
-    from app.v3.models import PrepareSpec
-    from app.v3.services import clickhouse as ch, safe_query
+    from app.v3.services import clickhouse as ch
     from arm_f_prepare import install
-    install(endpoint)
+    execute, prepare = ch.execute_query, endpoint._canonical_prepare_docs
+    query, inventory, deadline = ch.client.query, ch.get_active_node_ads, endpoint.MAX_EXECUTION_TIME_S
+    try:
+        install(endpoint)
+        return _build(directory, endpoint, ch)
+    finally:
+        ch.execute_query, endpoint._canonical_prepare_docs = execute, prepare
+        ch.client.query, ch.get_active_node_ads, endpoint.MAX_EXECUTION_TIME_S = query, inventory, deadline
+
+
+def _build(directory, endpoint, ch):
+    from app.v3.models import PrepareSpec
+    from app.v3.services import safe_query
+
     directory = Path(directory)
     spec = json.loads((directory / 'input.json').read_bytes())
     reader, scopes = spec['reader'], spec['actual_readable_by_kind']
     capture = core_feed.wire()
+    if spec.get('static_billboards'):
+        from dau_sustain_reference import ordered_capture
+        capture = ordered_capture(capture)
     native, original = [], ch.client.query
     def query(sql=None, *args, **kwargs):
         if sql is None:
@@ -117,19 +132,27 @@ def build(directory):
         return compiled.sql(dialect='clickhouse')
     columns, values = ch.execute_query(bounded(tree), settings={'max_execution_time': 900})
     rows = [endpoint._serialize_row(dict(zip(columns, row))) for row in values]
-    candidates = [row[0] for row in ch.client.query(ads.candidate_sql()).result_rows]
-    heads = ch.client.query(ads.eligible_heads_sql(candidates)).result_rows
-    payloads = ch.client.query(ads.payload_sql([(row[1], row[0]) for row in heads]))
-    eligible = [dict(zip(payloads.column_names, row)) for row in payloads.result_rows]
-    for ad in eligible:
-        ad['body'] = ch._parse_json(ad['body'])
-    eligible = [row for row in eligible if row['body'].get('status') == 'active']
-    if not eligible:
-        raise ValueError('independent eligible ad inventory missing')
+    if spec.get('static_billboards'):
+        # Setup-only settled placement records are applied by the DAU batch
+        # oracle. Do not let prepare fetch live pins or rotate the ad inventory.
+        eligible = []
+    else:
+        candidates = [row[0] for row in ch.client.query(ads.candidate_sql()).result_rows]
+        heads = ch.client.query(ads.eligible_heads_sql(candidates)).result_rows
+        payloads = ch.client.query(ads.payload_sql([(row[1], row[0]) for row in heads]))
+        eligible = [dict(zip(payloads.column_names, row)) for row in payloads.result_rows]
+        for ad in eligible:
+            ad['body'] = ch._parse_json(ad['body'])
+        eligible = [row for row in eligible if row['body'].get('status') == 'active']
+        if not eligible:
+            raise ValueError('independent eligible ad inventory missing')
     ad_order = spec.get('legacy_node_ad_order')
     eligible = legacy_ads(eligible, ad_order)
     ch.get_active_node_ads = lambda: list(eligible[:20])
-    prepared = endpoint._prepare_rows(rows, reader, PrepareSpec(**capture['requests'][0]['payload']['prepare']), scopes['main'], True)
+    prepare = dict(capture['requests'][0]['payload']['prepare'])
+    if spec.get('static_billboards'):
+        prepare['ads'] = False
+    prepared = endpoint._prepare_rows(rows, reader, PrepareSpec(**prepare), scopes['main'], True)
     engagements = []
     for item, kind in zip(capture['requests'][1:3], ('reactions', 'comments')):
         payload = core_feed.payload(item['payload'], '__oracle_not_a_credential__', spec['groups'], ids)

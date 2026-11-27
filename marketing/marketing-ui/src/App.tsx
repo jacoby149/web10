@@ -1,4 +1,4 @@
-import { Navigate, Outlet, Routes, Route } from 'react-router-dom'
+import { Navigate, Outlet, Routes, Route, useMatch } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import { StarsProvider } from './components/GitHubStarsContext'
 import DeployStatus from './components/DeployStatus'
@@ -20,9 +20,10 @@ function InteriorLayout() {
 
 // Marketing explains the product. Social owns discovery (D111).
 function App() {
+  const quickLinks = useMatch('/links')
   return (
     <StarsProvider>
-      <Navbar />
+      {!quickLinks && <Navbar />}
       <Routes>
         {/* The classic own-your-data landing is primary. The archived
             creator pitch remains available at /audience. */}
