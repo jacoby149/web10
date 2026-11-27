@@ -1,3 +1,6 @@
+6.32.35 || 27.11.2026
+research: draft v8 retains the sixth draft's title and structure, brings the programme evidence and full-store hybrid result into the paper, and records the DAU authority preflight as a refusal, not capacity evidence. Rebuilt the named working PDF; no submission or production claim.
+
 6.32.34 || 27.11.2026
 research: bank the sustained-DAU authority preflight on the verified million-account Parquet store. The exact K20-plus-self request has one qualifying principal, not 150; calibration and all load windows are NOT RUN. Off-host hashes and owned cleanup verified, snapshot retained. No hardware or throughput verdict.
 
