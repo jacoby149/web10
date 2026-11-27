@@ -82,9 +82,9 @@ try {
       }
       const mobile = width < 768;
       const darkDesktop = mode === 'dark' && !mobile;
-      const headerFill = mode === 'dark' ? 'rgb(27, 32, 38)' : 'rgb(181, 212, 220)';
-      const headerInk = mode === 'dark' ? 'rgb(250, 250, 250)' : 'rgb(9, 12, 34)';
-      const dividerWidth = darkDesktop ? '1px' : '0px';
+      const headerFill = mode === 'dark' ? 'rgb(27, 32, 38)' : 'rgb(255, 255, 255)';
+      const headerInk = mode === 'dark' ? 'rgb(250, 250, 250)' : 'rgb(24, 24, 27)';
+      const dividerWidth = mode === 'light' || darkDesktop ? '1px' : '0px';
       const dock = page.locator('nav[aria-label="Primary mobile"]');
       const expectedDock = ['nav-feed-mobile', 'nav-video-mobile', 'nav-shorts-mobile', 'nav-music-mobile', 'nav-more-mobile'];
       const dockItems = () => dock.locator('button').evaluateAll(buttons => buttons.map(button => button.dataset.testid));
@@ -97,7 +97,7 @@ try {
       assert.deepEqual(await header.evaluate(el => {
         const css = getComputedStyle(el);
         return [css.backgroundColor, css.backdropFilter, css.borderTopWidth, css.borderBottomWidth];
-      }), [headerFill, 'none', '0px', dividerWidth], 'Dark uses a charcoal header, with a bottom divider only on desktop');
+      }), [headerFill, 'none', '0px', dividerWidth], 'Light uses a white header with a divider; Dark retains its desktop-only divider');
       const search = header.getByRole(mobile ? 'button' : 'textbox', { name: 'Search', exact: true });
       assert.equal(await search.evaluate(el => getComputedStyle(el).color), headerInk, 'search uses ink for the header palette');
       assert.ok(brandRight < (await search.boundingBox()).x, 'the lockup clears search');

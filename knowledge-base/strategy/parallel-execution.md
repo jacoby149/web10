@@ -89,6 +89,8 @@ checks are separate gates.
 
 ### Lane: authenticator-navigation-glass
 
+- [✓ 6.32.63 local] **Neutral Hub and sign-in headers** — white fill in Light, Social’s charcoal in Dark, with theme-matched keys and a thin divider. Retain dock and credential behavior.
+
 - [✓ 6.32.30 local] **Group permissions in-page search** — reuse Hub's list search on desktop and phone; verify matching, clearing, and the no-results state without changing group authority.
 
 - [✓ 6.32.28 local] **Hub desktop sidebar and More menu** — desktop navigation moves to the sidebar, with Social charcoal in Dark; the desktop sidebar and phone dock both restore ecosystem links under More…. In-page search and role gates stay unchanged.
@@ -254,6 +256,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: homepage-classic-revival
 
+- [✓ 6.32.63 local] **Neutral marketing navbar** — white in Light on Home and shared interior routes, charcoal with white keys on Dark Home only. Keep the Home hero, Dark interiors and mobile refraction unchanged.
+
 **Owns:** the marketing-ui classic page/route, classic design tokens (design.md §13 + marketing-ui `@theme`), the restored fractal hero asset, that page's telemetry events, the `home_classic` landing A/B flag and its variant controls, and serialized plan/changelog records. Contract: `homepage-classic-revival.md`. No API/SDK/auth surface (D60), no social/authenticator changes, no `/freedom`/`/everything` changes, no deployment (separate operator gate). D94's import cut and D103's PostHog-only tracking stand.
 
 - [ ] **MK-CLASSIC-00 — record the baseline (Phase 0)** — operator-captured PostHog numbers for `/`, `/freedom`, `/everything`, `/join` (views, CTA clicks, signups, 4–8 week window) plus www-origin ingestion confirmation, written into the contract's Baseline table. Docs-only, no code. Gate: numbers recorded; they size the Phase 4 window via the sample-size table (a formal A/B needs ~1,100–4,000 visitors/arm depending on baseline/lift; otherwise observational fallback is declared).
@@ -293,6 +297,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 - [ ] **MK-CLASSIC-05 — decision + ship (Phase 5)** — single end-of-window read; winner renders at `/` (flag retired, code simplified to the winner); loser stays at `/revolution` if it has ongoing value or is retired; outcome + decision recorded in `decisions.md` (new D number), lane ticked. Optional follow-up only if classic wins: a second experiment splitting pitch vs ask (classic hero, current Explore-only CTA) to attribute story vs signup-ask.
 
 ### Lane: social-appearance
+
+- [✓ 6.32.63 local] **Neutral Light Social top bar** — the phone header and both desktop header segments use the white surface and a thin neutral divider. Chromium verifies both palettes and the blue wordmark accent; leave Dark chrome, the dock, and other apps unchanged.
 
 - [✓ 6.32.60 local] **Keys-only Social app icon** — compare the mark at the 56px tile size, keep the centered keys in the Android maskable safe circle, and leave the favicon unchanged. Device refresh remains unverified.
 

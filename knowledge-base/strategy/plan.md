@@ -1,5 +1,9 @@
 # web10 v3 Plan
 
+- [✓ 6.32.63 local] **Neutral Hub and marketing top bars** — use white in Light for Hub, sign-in, and the shared marketing navbar. In Dark, use Social’s charcoal for Hub, sign-in, and Home; preserve the Dark marketing interior headers and mobile navigation treatments.
+
+- [✓ 6.32.63 local] **Neutral Light Social top bar** — use a white bar with neutral control fills and a thin divider at desktop and phone widths. Keep the blue wordmark accent and Dark chrome unchanged.
+
 - [✓ 6.32.61 local] **Responsive deployment badge** — keep tap handling, date formatting, and paint work lightweight while preserving the panel’s existing details and dismissal.
 
 - [✓ 6.32.60 local] **Keys-only Social app icon** — center pale blue keys without lettering on the pure-black field, leaving in-app branding unchanged.
