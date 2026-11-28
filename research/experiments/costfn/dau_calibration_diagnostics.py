@@ -71,7 +71,7 @@ def api_observer(root, client, *, port=None):
     """Sample the existing AnyIO queue and client pool from the serving process."""
     import anyio.to_thread
 
-    state = dict(last=0, inventory=False, backend=None)
+    state = dict(last=0, inventory=False, manager=None)
     output = root / 'utilization-queues.jsonl'
 
     def observe():
@@ -84,11 +84,11 @@ def api_observer(root, client, *, port=None):
             borrowed_tokens=limiter.borrowed_tokens, tasks_waiting=limiter.tasks_waiting, worker_port=port)
         if not state['inventory']:
             connection = client()
-            backend = connection._backend
-            state['backend'] = backend
-            kwargs = backend.connection_pool_kw
+            manager = connection.http
+            state['manager'] = manager
+            kwargs = manager.connection_pool_kw
             fields['client_pool'] = {key: kwargs[key] for key in ('maxsize', 'block') if key in kwargs}
-            fields['client_pool']['num_pools'] = backend.pools._maxsize
+            fields['client_pool']['num_pools'] = manager.pools._maxsize
             # No setup probe overrides: these are the actual API client's
             # defaults. Measurement-wrapper overrides are inventoried separately.
             sql = 'SELECT name,value,changed FROM system.settings WHERE name IN (' + ','.join(map(q, QUERY)) + ') ORDER BY name'
@@ -105,7 +105,7 @@ def api_observer(root, client, *, port=None):
                     raise ValueError('effective DAU worker thread/connection configuration differs from the bundle')
             state['inventory'] = True
         if port is not None:
-            pools = state['backend'].pools
+            pools = state['manager'].pools
             with pools.lock:
                 current = [pools[key] for key in pools.keys()]
             observations = []

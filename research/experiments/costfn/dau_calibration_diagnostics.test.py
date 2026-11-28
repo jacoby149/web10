@@ -1,8 +1,11 @@
 """No-engine controls for utilization observations and banked oracle transfer."""
 
-from pathlib import Path
+import asyncio
+import json
 import os
+from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -61,6 +64,35 @@ class Diagnostics(unittest.TestCase):
             (root / '17').mkdir()
             (root / '17/stat').write_text('17 (process ) with spaces) S ' + ' '.join(map(str, range(1, 24))))
             self.assertEqual(diag.process_ticks(17, root), {'user': 11, 'system': 12, 'start_ticks': 19})
+
+    def test_queue_observer_reads_the_pinned_driver_pool_manager(self):
+        import anyio.to_thread
+        from clickhouse_connect.driver.httpclient import HttpClient
+        from clickhouse_connect.driver.httputil import get_pool_manager
+
+        client = HttpClient.__new__(HttpClient)
+        manager = get_pool_manager(maxsize=16, block=False)
+        manager.connection_from_host('localhost', 8123)
+        client._backend = SimpleNamespace(http=manager)
+        client.query = lambda sql: SimpleNamespace(named_results=lambda: iter([dict(name='max_threads', value='1')]))
+
+        async def sample(root):
+            limiter = anyio.to_thread.current_default_thread_limiter()
+            previous = limiter.total_tokens
+            try:
+                limiter.total_tokens = bundle.READ_TOKENS
+                diag.api_observer(root, lambda: client, port=81)()
+            finally:
+                limiter.total_tokens = previous
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            asyncio.run(sample(root))
+            receipt = json.loads((root / 'utilization-queues.jsonl').read_bytes())
+        self.assertEqual(receipt['worker_port'], 81)
+        self.assertEqual(receipt['client_pool']['maxsize'], 16)
+        self.assertIs(receipt['client_pool']['block'], False)
+        self.assertEqual(receipt['engine_pool_counters'], [dict(idle_connections=0, connections_created=0, requests_sent=0)])
 
     def test_only_native_census_receipt_identity_may_differ_on_rebind(self):
         first = dict(dataset_id='dataset', readers=[{'reader': 'one', 'groups': ['own']}], census_sha256='old')
