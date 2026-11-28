@@ -1,3 +1,6 @@
+6.32.77 || 28.11.2026
+research: read the DAU serving pool counters from the pinned ClickHouse client's HTTP pool manager, not its backend wrapper. Keep the recorded configuration, frozen inputs, and acceptance gates unchanged.
+
 6.32.76 || 27.11.2026
 research: declare the DAU utilization replay's c-32 configuration bundle: four read processes and one publication owner, bounded thread/connection settings, a native merge allocation, and explicit descriptor limits. Keep the frozen workload and live permissions unchanged; effective calibration and resource results remain pending.
 
