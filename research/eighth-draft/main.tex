@@ -47,9 +47,9 @@ time from 7.64\,s to 363\,ms, but cost more at one group. Two full-store
 hybrid reads of a synthetic million-account store matched the exact ordered
 oracle and read 93.0\,MB of logical data each, 24.5\% below a previously
 measured indexed read; complete HTTP wall time increased. A separate
-sustained-load preflight found one qualifying reader for a 150-reader
-identical-authority workload. No calibration or concurrent capacity result
-follows.
+150-reader calibration replay on the c-32 failed its drain gate: slow
+response preparation held all four reader pools at their handler limit.
+No sustained concurrent capacity result follows.
 \end{abstract}
 \maketitle
 
@@ -908,10 +908,11 @@ the uniform synthetic fixture is not that whole browser page.
 \textbf{Regimes and capacity.} The tally comparison changes computation time
 and storage placement together. Assembly cells, transient fixed-slice reads,
 and post-merge full-store reads have distinct denominators. The frozen fault
-lab is not live concurrent publish, cleanup, or recovery. Neither device I/O
-headroom nor CPU demand was measured under the declared offered load. The
-reader-authority refusal is evidence about the fixture, not about how much
-load a 16-core or 32-thread node can sustain. Audience diversity, media,
+lab is not live concurrent publish, cleanup, or recovery. The diverse-reader
+replay observed CPU and device I/O during calibration, not under sustained
+read/write traffic. The calibration stop is specific to its recorded
+configuration; it does not bound what a different configuration can sustain.
+Broader audience diversity, media,
 engagement-heavy pages, long-duration behavior, and stepped user-load trials
 remain outside these results. AI tools assisted with experimental source,
 harness tests, and receipt analysis; the linked observations and independent
@@ -947,8 +948,8 @@ The historical trial found 7.64\,s versus 363\,ms handler time at 1,000
 groups, with a cost at one group. The later experiments distinguish precomputed
 counts from selective physical access, reject decomposing entire bodies, and
 show that lowering read volume need not lower complete response time. Two
-post-merge hybrid reads passed exact parity; the sustained run stopped before
-calibration on reader authority. Production cross-node integration, revocation
+post-merge hybrid reads passed exact parity; the diverse-reader replay did not
+clear calibration, so sustained windows were not run. Production cross-node integration, revocation
 bounds, and broader parser/media correctness remain open.
 
 The contribution is the combination: user-managed access and

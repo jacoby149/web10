@@ -40,3 +40,8 @@ The operator's next instruction admits the
 replay. This intentionally trades per-setting attribution for a named,
 reproducible configuration; keep the original failure separate. No
 serving-policy or read-query rewrite follows from the bundle.
+
+**Closed:** the [verified replay receipt](evidence/dau-serving-bundle-20261128/RESULTS.md)
+banks the calibration drain failure, utilization, and preparation-stage
+profile. No measured windows ran. Private receipts and owned cleanup verify;
+draft v8 reports the observed stop, not capacity.

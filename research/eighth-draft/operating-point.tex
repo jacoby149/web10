@@ -1,4 +1,4 @@
-\subsubsection{Million-account sizing arithmetic and the load preflight}
+\subsubsection{Million-account sizing and the calibration stop}
 \label{sec:budget}
 
 The realism scenario proposes 0.25 page reads per account per day, or
@@ -24,21 +24,22 @@ do not bound overlapping queries, writers, caches, or merges. The product's
 CPU times or bounds on multithreaded CPU. Neither the CPU budget nor a
 concurrent latency distribution was verified.
 
-The separate sustained-load contract specified 150 distinct prepared reader
-tokens with the same K20 request and authority, 15 reads/s at peak, 2.9
-reads/s at average, and one publication/s in the load windows. Its target
-host was 16 cores, 32 threads, and 32\,GB of RAM. The closest available
-32\,GB dedicated-vCPU SKU exposed 16 vCPUs with one thread per visible
-core; it did not supply an observed 32-thread operating point. The
-Parquet restore from the verified frozen input reconciled 88,200,300
-documents, 92,200,600 links, and 1.6 billion events. Restore and hot-table
-preparation are not workload evidence.
+The original preflight found only one reader authorized for all 21 groups
+in the banked request (\pr{1706}). A later diverse-reader replay used
+150 already-authorized Following scopes selected from 20,000, with the
+same frozen store and exact reader oracles. It ran on one c-32 with 32
+logical CPUs and 62.79\,GiB usable RAM, not the proposed 32\,GB node.
+The named bundle used four reader workers with five handler slots each,
+one separate publication worker, one ClickHouse thread per query,
+a 40-query ceiling, an eight-slot merge pool, and the existing 28/22\,GiB
+engine limits (\pr{1758}, \pr{1759}).
 
-The membership census found only one principal with all 21 groups in the
-banked request (20 followed groups and the original reader's own group),
-and no public or authenticated group rows that could authorize other
-readers. The preflight therefore refused the contracted pool before
-calibration. No grants or reader identities were substituted. Warm-up,
-peak, average, drain, and their latency and debt measurements did not run.
-This is a fixture authority finding, not a bound on sustainable throughput
-or a verdict on the host's resource envelope (\pr{1706}).
+Of 348 feeds offered at 2.9/s, 20 finished in the 120\,s offer window;
+none of 900 finished in the 60\,s burst at 15/s. At the 60.27\,s drain
+gate, 41 of 1,248 had completed. All later settled, but the gate failed.
+All reader pools reached five borrowed slots; the highest sampled
+engine concurrency was 20 of 40. One isolated 21.0\,s feed spent
+18.0\,s in main-response preparation, including four broad authorized
+lookups. Warm-up, measured read/write windows and the contracted final
+drain did not run. This locates a bottleneck for the named configuration;
+it is not a sustained operating point or a hardware capacity bound.
