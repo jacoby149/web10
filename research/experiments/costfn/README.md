@@ -62,6 +62,13 @@ windows, measured writer stream, final drain, storage headroom proof, or draft
 v8 update. Private custody and owned cleanup were verified, and snapshot
 `255003176` was retained.
 
+The [configured c-32 replay](evidence/dau-serving-bundle-20261128/RESULTS.md)
+kept those frozen inputs and reader oracles. Twenty feeds finished inside
+the average calibration offer, zero in the burst, and 41 of 1,248 by the
+drain gate. Broad response preparation held all four reader pools at their
+handler limit; native work settled later. No measured writer/read windows
+or capacity claim. Verified custody and cleanup; draft v8 records the limit.
+
 ## D117 row-model proving cell — complete; maximal model rejected
 
 Merged #1620 completed the full post-family load, independent parity, and six

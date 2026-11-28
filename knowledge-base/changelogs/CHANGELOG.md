@@ -1,3 +1,6 @@
+6.32.78 || 28.11.2026
+research: bank the named c-32 DAU calibration resource stop. All four reader pools filled as broad native preparation held their slots; 41 of 1,248 feeds completed by the drain gate. Keep sustained windows NOT RUN, verify private custody and cleanup, retain the snapshot, and update draft v8 without a capacity claim.
+
 6.32.77 || 28.11.2026
 research: read the DAU serving pool counters from the pinned ClickHouse client's HTTP pool manager, not its backend wrapper. Keep the recorded configuration, frozen inputs, and acceptance gates unchanged.
 
